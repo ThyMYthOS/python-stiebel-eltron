@@ -31,7 +31,23 @@ The package is available in the [Python Package Index](https://pypi.python.org/)
 ```
 
 ## Example usage of the module
-The sample below shows how to use this Python module.
+The sample below shows how to use this Python module (api for wpm heat pumps).
+
+```python
+    from pystiebeleltron.wpm import WpmStiebelEltronAPI, WpmSystemParametersRegisters
+
+    api = WpmStiebelEltronAPI('IP_ADDRESS_ISG')
+    await api.connect()
+
+    await api.async_update()
+
+    print("water comfort target temperature: {}".format(api.get_register_value(WpmSystemParametersRegisters.COMFORT_TEMPERATURE)))
+
+    await api.close()
+```
+
+## Example usage of the module
+The sample below shows how to use this Python module (old api for lwz heat pumps).
 
 ```python
     from pystiebeleltron import pystiebeleltron as pyse

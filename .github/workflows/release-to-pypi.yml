@@ -1,0 +1,56 @@
+name: Release to PyPI
+
+# Trigger the workflow on new tag creation
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0.0, v0.1.1, etc.
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # Check out the repository code
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    # Set up Python environment
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+        
+    # Install build dependencies
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install build twine
+        
+    # Build wheel and source distributions
+    - name: Build distributions
+      run: |
+        python -m build
+        
+    # Verify the distributions were created
+    - name: Verify build artifacts
+      run: |
+        ls -la dist/
+        echo "Built packages:"
+        ls dist/
+        
+    # Check the distributions before upload
+    - name: Check distributions
+      run: |
+        python -m twine check dist/*
+        
+    # Upload to PyPI using twine
+    - name: Upload to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        python -m twine upload dist/*

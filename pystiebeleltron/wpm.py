@@ -874,7 +874,7 @@ WPM_ENERGY_DATA_REGISTERS = {
 
 
 class WpmStiebelEltronAPI(StiebelEltronAPI):
-    def __init__(self, host: str, port: int = 502, slave: int = 1) -> None:
+    def __init__(self, host: str, port: int = 502, device_id: int = 1) -> None:
         super().__init__(
             [
                 ModbusRegisterBlock(base_address=500, count=110, name="System Values", registers=WPM_SYSTEM_VALUES_REGISTERS, register_type=RegisterType.INPUT_REGISTER),
@@ -886,7 +886,7 @@ class WpmStiebelEltronAPI(StiebelEltronAPI):
             ],
             host,
             port,
-            slave,
+            device_id,
         )
 
     async def async_update(self):

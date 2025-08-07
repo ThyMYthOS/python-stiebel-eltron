@@ -51,8 +51,8 @@ class MockModbusServer(object):
         # or simply do not pass them to have them initialized to 0x00 on the full
         # address range::
         #
-        #     store = Modbusdevice_idContext(di = ModbusSequentialDataBlock.create())
-        #     store = Modbusdevice_idContext()
+        #     store = ModbusDeviceContext(di = ModbusSequentialDataBlock.create())
+        #     store = ModbusDeviceContext()
         #
         # Finally, you are allowed to use the same DataBlock reference for every
         # table or you you may use a seperate DataBlock for each table.
@@ -60,7 +60,7 @@ class MockModbusServer(object):
         # the same data or not::
         #
         #     block = ModbusSequentialDataBlock(0x00, [0]*0xff)
-        #     store = Modbusdevice_idContext(di=block, co=block, hr=block, ir=block)
+        #     store = ModbusDeviceContext(di=block, co=block, hr=block, ir=block)
         #
         # The server then makes use of a server context that allows the server to
         # respond with different device_id contexts for different unit ids. By default
@@ -70,9 +70,9 @@ class MockModbusServer(object):
         # and then supplying a dictionary of unit id to context mapping::
         #
         #     device_ids  = {
-        #         0x01: Modbusdevice_idContext(...),
-        #         0x02: Modbusdevice_idContext(...),
-        #         0x03: Modbusdevice_idContext(...),
+        #         0x01: ModbusDeviceContext(...),
+        #         0x02: ModbusDeviceContext(...),
+        #         0x03: ModbusDeviceContext(...),
         #     }
         #     context = ModbusServerContext(device_ids=device_ids, single=False)
         #
@@ -81,9 +81,9 @@ class MockModbusServer(object):
         # False which is based on section 4.4 of the specification, so address(0-7)
         # will map to (1-8)::
         #
-        #     store = Modbusdevice_idContext(..., zero_mode=True)
+        #     store = ModbusDeviceContext(..., zero_mode=True)
         # ----------------------------------------------------------------------- #
-        store = Modbusdevice_idContext(
+        store = ModbusDeviceContext(
             hr=ModbusSequentialDataBlock(0, [0]*3000),
             ir=ModbusSequentialDataBlock(0, [0]*3000))
         self.context = ModbusServerContext(device_ids=store, single=True)

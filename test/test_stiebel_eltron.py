@@ -6,7 +6,7 @@ from pymodbus.pdu.register_message import (
 )
 
 
-async def read_registers(client, address: int, *, count: int = 1, slave: int = 0, no_response_expected: bool = False) -> ReadInputRegistersResponse:
+async def read_registers(client, address: int, *, count: int = 1, device_id: int = 0, no_response_expected: bool = False) -> ReadInputRegistersResponse:
     """Read a slice from the input register."""
     return ReadInputRegistersResponse(address=address, count=count, registers=list(range(count)))
 

@@ -14,7 +14,7 @@ from pystiebeleltron import pystiebeleltron as pyse
 # Modbus server connection details
 host_ip = "127.0.0.1" #"192.168.1.20"
 host_port = 5020 #502
-slave = 1
+device_id = 1
 
 
 class TestStiebelEltronApi:
@@ -49,7 +49,7 @@ class TestStiebelEltronApi:
     def pyse_api(self, request, pymb_s):
         # parameter pymb_s leads to call of fixture
         mb_c = ModbusClient(host=host_ip, port=host_port, timeout=2)
-        api = pyse.StiebelEltronAPI(mb_c, slave, update_on_read=True)
+        api = pyse.StiebelEltronAPI(mb_c, device_id, update_on_read=True)
 
         # Cleanup after last test (will run as well, if setup fails).
         def fin():

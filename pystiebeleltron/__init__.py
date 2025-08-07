@@ -139,7 +139,7 @@ async def get_controller_model(host, port) -> ControllerModel:
         inverter_data = await client.read_input_registers(
             address=5001,
             count=1,
-            slave=1,
+            device_id=1,
         )
         if not inverter_data.isError():
             value = client.convert_from_registers(inverter_data.registers, client.DATATYPE.UINT16)
@@ -159,10 +159,10 @@ class StiebelEltronAPI:
         register_blocks: list[ModbusRegisterBlock],
         host: str,
         port: int = 502,
-        slave: int = 1,
+        device_id: int = 1,
     ) -> None:
         """Initialize Stiebel Eltron communication."""
-        self._slave = slave
+        self._device_id = device_id
         self._lock = asyncio.Lock()
         self._host = host
         self._client: AsyncModbusTcpClient = AsyncModbusTcpClient(host=host, port=port)
@@ -220,21 +220,21 @@ class StiebelEltronAPI:
         descriptor = self.get_register_descriptor(register)
         if descriptor is not None:
             async with self._lock:
-                await self._client.write_register(descriptor.address - 1, value=self.convert_value_to_modbus(value, descriptor), slave=1)
+                await self._client.write_register(descriptor.address - 1, value=self.convert_value_to_modbus(value, descriptor), device_id=1)
         else:
             raise ValueError("invalid register")
 
-    async def read_input_registers(self, slave, address, count):
+    async def read_input_registers(self, device_id, address, count):
         """Read input registers."""
-        _LOGGER.debug(f"Reading {count} input registers from {address} with slave {slave}")
+        _LOGGER.debug(f"Reading {count} input registers from {address} with device_id {device_id}")
         async with self._lock:
-            return await self._client.read_input_registers(address, count=count, slave=slave)
+            return await self._client.read_input_registers(address, count=count, device_id=device_id)
 
-    async def read_holding_registers(self, slave, address, count):
+    async def read_holding_registers(self, device_id, address, count):
         """Read holding registers."""
-        _LOGGER.debug(f"Reading {count} holding registers from {address} with slave {slave}")
+        _LOGGER.debug(f"Reading {count} holding registers from {address} with device_id {device_id}")
         async with self._lock:
-            return await self._client.read_holding_registers(address, count=count, slave=slave)
+            return await self._client.read_holding_registers(address, count=count, device_id=device_id)
 
     def convert_value_from_modbus(self, register, register_description: ModbusRegister) -> float | int | None:
         """Convert a modbus value to a python value."""
@@ -288,13 +288,13 @@ class StiebelEltronAPI:
             heat_pump_data = None
             if registerblock.register_type == RegisterType.INPUT_REGISTER:
                 heat_pump_data = await self.read_input_registers(
-                    slave=self._slave,
+                    device_id=self._device_id,
                     address=registerblock.base_address,
                     count=registerblock.count,
                 )
             elif registerblock.register_type == RegisterType.HOLDING_REGISTER:
                 heat_pump_data = await self.read_holding_registers(
-                    slave=self._slave,
+                    device_id=self._device_id,
                     address=registerblock.base_address,
                     count=registerblock.count,
                 )

@@ -178,13 +178,13 @@ B3_BUS_STATUS = {
 class StiebelEltronAPI():
     """Stiebel Eltron API."""
 
-    def __init__(self, conn: ModbusClientMixin, slave=1, update_on_read=False):
+    def __init__(self, conn: ModbusClientMixin, device_id=1, update_on_read=False):
         """Initialize Stiebel Eltron communication."""
         self._conn = conn
         self._block_1_input_regs = B1_REGMAP_INPUT
         self._block_2_holding_regs = B2_REGMAP_HOLDING
         self._block_3_input_regs = B3_REGMAP_INPUT
-        self._slave = slave
+        self._device_id = device_id
         self._update_on_read = update_on_read
 
     def update(self):
@@ -192,15 +192,15 @@ class StiebelEltronAPI():
         ret = True
         try:
             block_1_result_input = self._conn.read_input_registers(
-                slave=self._slave,
+                device_id=self._device_id,
                 address=B1_START_ADDR,
                 count=len(self._block_1_input_regs)).registers
             block_2_result_holding = self._conn.read_holding_registers(
-                slave=self._slave,
+                device_id=self._device_id,
                 address=B2_START_ADDR,
                 count=len(self._block_2_holding_regs)).registers
             block_3_result_input = self._conn.read_input_registers(
-                slave=self._slave,
+                device_id=self._device_id,
                 address=B3_START_ADDR,
                 count=len(self._block_3_input_regs)).registers
         except AttributeError:
@@ -258,7 +258,7 @@ class StiebelEltronAPI():
 #    def set_raw_holding_register(self, name, value):
 #        """Write to register by name."""
 #        self._conn.write_register(
-#            slave=self._slave,
+#            device_id=self._device_id,
 #            address=(self._holding_regs[name]['addr']),
 #            value=value)
 
@@ -279,7 +279,7 @@ class StiebelEltronAPI():
     def set_target_temp(self, temp: float):
         """Set the target room temperature (day)(HC1)."""
         self._conn.write_register(
-            slave=self._slave,
+            device_id=self._device_id,
             address=(
                 self._block_2_holding_regs['ROOM_TEMP_HEAT_DAY_HC1']['addr']),
             value=round(temp * 10.0))
@@ -303,7 +303,7 @@ class StiebelEltronAPI():
     def set_operation(self, mode: str):
         """Set the operation mode."""
         self._conn.write_register(
-            slave=self._slave,
+            device_id=self._device_id,
             address=(self._block_2_holding_regs['OPERATING_MODE']['addr']),
             value=B2_OPERATING_MODE_WRITE.get(mode))
 

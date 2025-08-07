@@ -349,7 +349,7 @@ class OperatingMode(Enum):
 
 
 class LwzStiebelEltronAPI(StiebelEltronAPI):
-    def __init__(self, host: str, port: int = 502, slave: int = 1) -> None:
+    def __init__(self, host: str, port: int = 502, device_id: int = 1) -> None:
         super().__init__(
             [
                 ModbusRegisterBlock(base_address=0, count=34, name="System Values", registers=LWZ_SYSTEM_VALUES_REGISTERS, register_type=RegisterType.INPUT_REGISTER),
@@ -361,7 +361,7 @@ class LwzStiebelEltronAPI(StiebelEltronAPI):
             ],
             host,
             port,
-            slave,
+            device_id,
         )
 
     async def async_update(self):

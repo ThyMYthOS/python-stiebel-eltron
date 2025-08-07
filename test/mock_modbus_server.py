@@ -14,7 +14,7 @@ from pymodbus.server import StartTcpServer, ServerStop
 
 from pymodbus.device import ModbusDeviceIdentification
 from pymodbus.datastore import ModbusSequentialDataBlock
-from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext
+from pymodbus.datastore import ModbusDeviceContext, ModbusServerContext
 
 
 class MockModbusServer(object):
@@ -51,8 +51,8 @@ class MockModbusServer(object):
         # or simply do not pass them to have them initialized to 0x00 on the full
         # address range::
         #
-        #     store = ModbusSlaveContext(di = ModbusSequentialDataBlock.create())
-        #     store = ModbusSlaveContext()
+        #     store = Modbusdevice_idContext(di = ModbusSequentialDataBlock.create())
+        #     store = Modbusdevice_idContext()
         #
         # Finally, you are allowed to use the same DataBlock reference for every
         # table or you you may use a seperate DataBlock for each table.
@@ -60,33 +60,33 @@ class MockModbusServer(object):
         # the same data or not::
         #
         #     block = ModbusSequentialDataBlock(0x00, [0]*0xff)
-        #     store = ModbusSlaveContext(di=block, co=block, hr=block, ir=block)
+        #     store = Modbusdevice_idContext(di=block, co=block, hr=block, ir=block)
         #
         # The server then makes use of a server context that allows the server to
-        # respond with different slave contexts for different unit ids. By default
+        # respond with different device_id contexts for different unit ids. By default
         # it will return the same context for every unit id supplied (broadcast
         # mode).
         # However, this can be overloaded by setting the single flag to False
         # and then supplying a dictionary of unit id to context mapping::
         #
-        #     slaves  = {
-        #         0x01: ModbusSlaveContext(...),
-        #         0x02: ModbusSlaveContext(...),
-        #         0x03: ModbusSlaveContext(...),
+        #     device_ids  = {
+        #         0x01: Modbusdevice_idContext(...),
+        #         0x02: Modbusdevice_idContext(...),
+        #         0x03: Modbusdevice_idContext(...),
         #     }
-        #     context = ModbusServerContext(slaves=slaves, single=False)
+        #     context = ModbusServerContext(device_ids=device_ids, single=False)
         #
-        # The slave context can also be initialized in zero_mode which means that a
+        # The device_id context can also be initialized in zero_mode which means that a
         # request to address(0-7) will map to the address (0-7). The default is
         # False which is based on section 4.4 of the specification, so address(0-7)
         # will map to (1-8)::
         #
-        #     store = ModbusSlaveContext(..., zero_mode=True)
+        #     store = Modbusdevice_idContext(..., zero_mode=True)
         # ----------------------------------------------------------------------- #
-        store = ModbusSlaveContext(
+        store = Modbusdevice_idContext(
             hr=ModbusSequentialDataBlock(0, [0]*3000),
             ir=ModbusSequentialDataBlock(0, [0]*3000))
-        self.context = ModbusServerContext(slaves=store, single=True)
+        self.context = ModbusServerContext(device_ids=store, single=True)
 
         # ----------------------------------------------------------------------- #
         # initialize the server information
@@ -122,12 +122,12 @@ class MockModbusServer(object):
         :param values: List of values
         """
         assert register == 3 or register == 4
-        slave_id = 0x00
-        old_values = self.context[slave_id].getValues(register,
+        device_id = 0x00
+        old_values = self.context[device_id].getValues(register,
                                                       address, count=1)
         self.log.debug("Change value at address {} from {} to {}".format(
             address, old_values, values))
-        self.context[slave_id].setValues(register, address, values)
+        self.context[device_id].setValues(register, address, values)
 
     def update_holding_register(self, address, value):
         """ Update value of a holding register.

@@ -5,7 +5,7 @@ from pymodbus.client import ModbusTcpClient as ModbusClient
 
 host_ip = "192.168.1.20"
 host_port = 502
-slave = 1
+device_id = 1
 
 def test_function(mod, fun):
     """Executes the given function on the Stiebel Heatpump and prints the result."""
@@ -45,7 +45,7 @@ def main():
                           timeout=2)
     client.connect()
 
-    unit = pyse.StiebelEltronAPI(client, slave)
+    unit = pyse.StiebelEltronAPI(client, device_id)
     unit.update()
 
     execute_tests(unit)

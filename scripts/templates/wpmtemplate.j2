@@ -21,14 +21,14 @@ class {{heatpump_type}}{{python_class_name(registerblock["name"])}}Registers(Isg
 
 class {{heatpump_type}}StiebelEltronAPI(StiebelEltronAPI):
 
-    def __init__(self, host: str, port: int = 502, slave: int = 1) -> None:
+    def __init__(self, host: str, port: int = 502, device_id: int = 1) -> None:
         super().__init__([
             {% for registerblock in registers %}
                 ModbusRegisterBlock(base_address={{registerblock["base_address"]}}, count={{registerblock["count"]}}, name="{{registerblock["name"]}}", registers={{heatpump_type.upper()}}_{{python_name(registerblock["name"]).upper()}}_REGISTERS, register_type={{registerblock["register_type"]}}),{% endfor %}
                 ModbusRegisterBlock(base_address=4000, count=3, name="Energy Management Settings", registers=ENERGY_MANAGEMENT_SETTINGS_REGISTERS, register_type=RegisterType.HOLDING_REGISTER),
                 ModbusRegisterBlock(base_address=5000, count=2, name="Energy System Information", registers=ENERGY_SYSTEM_INFORMATION_REGISTERS, register_type=RegisterType.INPUT_REGISTER),
             ],
-            host, port, slave)
+            host, port, device_id)
 
     async def async_update(self):
         """Request current values from heat pump."""

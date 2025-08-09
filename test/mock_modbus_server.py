@@ -86,7 +86,7 @@ class MockModbusServer(object):
         store = ModbusDeviceContext(
             hr=ModbusSequentialDataBlock(0, [0]*3000),
             ir=ModbusSequentialDataBlock(0, [0]*3000))
-        self.context = ModbusServerContext(device_ids=store, single=True)
+        self.context = ModbusServerContext(devices=store, single=True)
 
         # ----------------------------------------------------------------------- #
         # initialize the server information

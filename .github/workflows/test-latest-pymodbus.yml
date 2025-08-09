@@ -1,0 +1,36 @@
+name: Test compatibility with latest pymodbus
+
+# This action runs once a week (Sunday at 03:00 UTC).
+# It can also be triggered manually via the GitHub Actions UI.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 0'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install uv
+      uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies and latest pymodbus
+      run: uv sync -P pymodbus --all-extras --dev
+    - name: Run tests
+      run: |
+        uv run -P pymodbus pytest \
+          -qq \
+          --durations=10 \
+          -o console_output_style=count \
+          -p no:sugar \
+          test

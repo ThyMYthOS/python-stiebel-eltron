@@ -12,7 +12,7 @@ of nodes which can be helpful for testing monitoring software.
 # --------------------------------------------------------------------------- #
 from pymodbus.server import StartTcpServer, ServerStop
 
-from pymodbus.device import ModbusDeviceIdentification
+from pymodbus.pdu.device import ModbusDeviceIdentification
 from pymodbus.datastore import ModbusSequentialDataBlock
 from pymodbus.datastore import ModbusDeviceContext, ModbusServerContext
 

@@ -9,37 +9,56 @@
 </p>
 
 # python-stiebel-eltron
-Python API for interacting with the STIEBEL ELTRON ISG web gateway via modbus for controlling integral ventilation units and heat pumps.
+Python API for interacting with STIEBEL ELTRON heat pumps and ventilation units via Modbus TCP or CAN bus.
 
 This module is based on the STIEBEL ELTRON [modbus user manual](https://www.stiebel-eltron.ch/content/dam/ste/ch/de/downloads/kundenservice/smart-home/Modbus/Modbus%20Bedienungsanleitung.pdf), but is not official, developed, supported or endorsed by Stiebel Eltron GmbH & Co. KG. For questions and other inquiries, use the issue tracker in this repo please.
+
+## Communication Protocols
+
+This library supports two communication methods:
+
+1. **Modbus TCP** - Via ISG web gateway (requires ISG hardware)
+2. **CAN Bus** - Direct CAN bus communication (requires CAN interface) - **NEW!**
 
 ## Requirements
 You need to have [Python](https://www.python.org) installed.
 
+### For Modbus TCP (via ISG):
 * STIEBEL ELTRON Internet-Service Gateway [ISG WEB](https://www.stiebel-eltron.com/en/home/products-solutions/renewables/controller_energymanagement/internet_servicegateway/isg_web.html) with enabled [modbus module](https://www.stiebel-eltron.ch/de/home/service/smart-home/modbus.html)
   * You can call the STIEBEL ELTRON support, if your ISG does not have the modbus module enabled. They upgraded mine for free.
-* STIEBEL ELTRON heatpumpt (compatible). Successfully used devices:
+* STIEBEL ELTRON heat pump (compatible). Successfully used devices:
   * LWZ504e
   * LWZ304
   * Tecalor THZ 7.1 IBC Topline with ISG Connect (reported as `LWZ_R290`, WPM register map). Ventilation registers (`WpmVentilationValues`, `WpmVentilationParameters`) read only so far; writing the ventilation stages is untested
 * Network connection to the ISG WEB
 
+### For CAN Bus:
+* CAN bus interface (USB-CAN adapter, SPI module like MCP2515, etc.)
+* Physical connection to heat pump's CAN bus
+* `python-can` library
+* See [CAN_API_README.md](CAN_API_README.md) for detailed setup instructions
+
 ## Installation
 The package is available in the [Python Package Index](https://pypi.python.org/).
 
 Base install:
-
 ```bash
-    $ pip install pystiebeleltron
+pip install pystiebeleltron
 ```
 
 Install with the optional `tmodbus` backend used in the example below:
-
 ```bash
-    $ pip install "pystiebeleltron[tmodbus]"
+pip install "pystiebeleltron[tmodbus]"
+```
+
+CAN bus support (includes python-can):
+```bash
+pip install pystiebeleltron[canbus]
 ```
 
 ## Example usage of the module
+
+### Using Modbus TCP (via ISG)
 The [`examples/`](examples/) directory contains runnable examples for WPM and LWZ heat pumps. They use the optional `tmodbus` backend, so install `pystiebeleltron[tmodbus]` first.
 
 The API takes a [`ModbusUnit`](https://github.com/home-assistant-libs/modbus-connection). You own the connection: build it, hand a unit to the API, and close it when done. Building it performs no I/O — the first read establishes the link, and a link that drops later is re-established on the next request, over the same unit handle. Each register block is a component exposed on the API, and values are read as typed attributes (`None` when the register is unavailable).
@@ -57,11 +76,54 @@ For a read-only WPM library check outside Home Assistant, use `examples/wpm-read
 
 WPM API polls retry an illegal-address input or holding read at most once from a lower start answered directly in the same register space and poll, when the expanded read fits within 125 registers. Healthy reads and writes are unchanged; LWZ does not opt in. A rejected block costs one failed original request and at most one additional read on every poll. A successful retry does not establish that the target registers exist; unavailable words still decode as `None`.
 
+### Using CAN Bus (NEW!)
+The sample below shows how to use the CAN bus API for direct communication with WPM heat pumps.
+
+```python
+import asyncio
+from pystiebeleltron.wpm_can import WPMCanAPI, WPMProperties
+
+async def main():
+    api = WPMCanAPI(
+        channel='can0',  # Your CAN interface
+        bustype='socketcan',
+        bitrate=20000
+    )
+
+    try:
+        await api.async_connect()
+        api.start_listening()
+
+        # Request outside temperature
+        await api.async_request_property(WPMProperties.AUSSENTEMP)
+        await asyncio.sleep(0.5)
+
+        temp = api.get_property_value(WPMProperties.AUSSENTEMP)
+        print(f"Outside temperature: {temp:.1f}°C")
+
+        # Set comfort temperature
+        await api.async_write_property(WPMProperties.KOMFORTTEMPERATUR, 21.5)
+
+    finally:
+        api.stop_listening()
+        await api.async_close()
+
+asyncio.run(main())
+```
+
+For more CAN bus examples and documentation, see [CAN_API_README.md](CAN_API_README.md) and [wpm-can-example.py](wpm-can-example.py).
+
 ## Errors a caller sees
 
 - `get_controller_model` raises `StiebelEltronModbusError` when the identification register cannot be read or comes back empty, and `UnknownControllerModelError` (with `.model_id`) for an id this library does not know.
 - `async_update` and `async_read_raw` raise the `modbus_connection` errors unchanged: `ModbusError` and its subclasses such as `ModbusConnectionError`, `ModbusTimeoutError` or an `IllegalDataAddressError` naming the refused block. The one exception is an optional block a controller refuses with illegal data address before it ever answered it; that block is dropped and the poll goes on, as described above.
 - `write` raises `ValueError` from the field's validator for a value outside its documented range, `AttributeError` for an unknown or read-only field, and the `modbus_connection` errors for a failed transfer.
+
+## Additional Documentation
+
+- **[CAN_API_README.md](CAN_API_README.md)** - Comprehensive guide for CAN bus API
+- **[wpm-can-example.py](wpm-can-example.py)** - Detailed examples for CAN bus usage
+- **[wpm-example.py](wpm-example.py)** - Examples for Modbus TCP WPM API
 
 ## License
 

@@ -244,24 +244,21 @@ class WPMCanAPI:
 
     def __init__(
         self,
-        interface: str,
-        bustype: str = "socketcan",
-        bitrate: int = 20000,
+        channel: str,
+        interface: str = "socketcan",
         client_id: CANMember = CANMember.PYCLIENT,
         target_id: CANMember = CANMember.KESSEL,
     ):
         """Initialize the CAN bus API.
 
         Args:
-            interface: CAN interface name (e.g., 'can0', 'vcan0')
-            bustype: CAN bus type (e.g., 'socketcan', 'pcan', 'usb2can')
-            bitrate: CAN bus bitrate in bits/s (default: 20000 for Stiebel Eltron)
+            channel: CAN channel name (e.g., 'can0', 'vcan0')
+            interface: CAN bus type (e.g., 'socketcan', 'pcan', 'usb2can')
             client_id: CAN ID to use for this client
             target_id: Target device CAN ID (usually KESSEL for heat pump)
         """
         self.interface = interface
-        self.bustype = bustype
-        self.bitrate = bitrate
+        self.channel = channel
         self.client_id = client_id
         self.target_id = target_id
         self.bus: Optional[can.BusABC] = None
@@ -275,8 +272,7 @@ class WPMCanAPI:
         try:
             self.bus = can.Bus(
                 interface=self.interface,
-                bustype=self.bustype,
-                bitrate=self.bitrate
+                channel=self.channel,
             )
             _LOGGER.info(f"Connected to CAN bus on {self.interface}")
         except Exception as e:
@@ -389,6 +385,7 @@ class WPMCanAPI:
 
         self._running = True
         self._reader_task = asyncio.create_task(self._read_loop())
+        await asyncio.sleep(1.0)  # Give some time to start
         _LOGGER.info("Started listening for CAN messages")
 
     async def stop_listening(self) -> None:

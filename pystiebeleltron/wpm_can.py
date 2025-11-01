@@ -26,7 +26,7 @@ T = TypeVar('T')
 
 class CANMember(IntEnum):
     """CAN bus member identifiers."""
-    PYCLIENT = 0x680
+    PYCLIENT = 0x6A2
     MANAGER = 0x600
     KESSEL = 0x180  # Heat pump controller
     HK1 = 0x301  # Heating circuit 1
@@ -307,17 +307,17 @@ class WPMCanAPI:
         can_id = ((write_id >> 5) & 0x7c0) | (write_id & 0x3f)
         return can_id, message_type
 
-    def _parse_can_message(self, msg: can.Message) -> Optional[tuple[int, int, int]]:
+    def _parse_can_message(self, msg: can.Message) -> Optional[tuple[int, int, int, int]]:
         """Parse a CAN message and extract property ID and value.
 
         Returns:
-            Tuple of (can_id, property_id, raw_value) or None if invalid
+            Tuple of (sender_id, can_id, property_id, raw_value) or None if invalid
         """
         if len(msg.data) < 7:
             return None
 
         # Decode the message ID to get CAN ID and type
-        can_id, msg_type = self._decode_message_id(msg.arbitration_id)
+        can_id, msg_type = self._decode_message_id(msg.data[0] << 8 | msg.data[1])
 
         # We only process responses
         if msg_type != MessageType.RESPONSE:
@@ -333,7 +333,7 @@ class WPMCanAPI:
             property_id = msg.data[2]
             raw_value = (msg.data[3] << 8) | msg.data[4]
 
-        return can_id, property_id, raw_value
+        return msg.arbitration_id, can_id, property_id, raw_value
 
     def _handle_can_message(self, msg: can.Message) -> None:
         """Handle incoming CAN messages."""
@@ -341,10 +341,10 @@ class WPMCanAPI:
         if not parsed:
             return
 
-        can_id, property_id, raw_value = parsed
+        sender_id, can_id, property_id, raw_value = parsed
 
         _LOGGER.debug(
-            f"Received CAN message: ID=0x{can_id:03x}, "
+            f"Received CAN message: Sender ID=0x{sender_id:03x}, Msg ID=0x{can_id:03x}, "
             f"Property=0x{property_id:04x}, Value={raw_value:04x}"
         )
 
@@ -528,28 +528,16 @@ class WPMCanAPI:
             except ValueError:
                 pass
 
-    async def update(self, properties: Optional[list[Property[Any]]] = None) -> None:
+    async def update(self, properties: list[Property[Any]], member: CANMember) -> None:
         """Request updates for multiple properties.
 
         Args:
-            properties: List of properties to request (None = use default set)
+            properties: List of properties to request
+            member: The CAN member to target
         """
-        if properties is None:
-            # Default set of common properties
-            properties = [
-                WPMProperties.AUSSENTEMP,
-                WPMProperties.VORLAUFISTTEMP,
-                WPMProperties.RUECKLAUFISTTEMP,
-                WPMProperties.SPEICHERISTTEMP,
-                WPMProperties.SPEICHERSOLLTEMP,
-                WPMProperties.RAUMISTTEMP,
-                WPMProperties.BETRIEBS_STATUS,
-                WPMProperties.HEIZUNGSDRUCK,
-                WPMProperties.VOLUMENSTROM,
-            ]
 
         for prop in properties:
-            await self.request_property(prop)
+            await self.request_property(prop, member=member)
             # Small delay between requests to avoid flooding the bus
             await asyncio.sleep(0.05)
 

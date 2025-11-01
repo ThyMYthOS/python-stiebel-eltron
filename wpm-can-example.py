@@ -22,6 +22,7 @@ import asyncio
 import logging
 
 from pystiebeleltron.wpm_can import (
+    CANMember,
     WPMCanAPI,
     WPMProperties,
 )
@@ -61,14 +62,21 @@ async def example_basic_usage(interface: str, channel: str) -> None:
             _LOGGER.info("Outside temperature: No data received")
 
         # Request multiple properties
-        _LOGGER.info("\nRequesting multiple properties...")
-        await api.update()
+        _LOGGER.info("Requesting multiple properties...")
+        await api.update([
+            WPMProperties.VORLAUFISTTEMP,
+            WPMProperties.RUECKLAUFISTTEMP,
+            WPMProperties.SPEICHERISTTEMP,
+            WPMProperties.RAUMISTTEMP,
+            WPMProperties.HEIZUNGSDRUCK,
+            WPMProperties.VOLUMENSTROM,
+        ], member=CANMember.KESSEL)
 
         # Wait for responses
         await asyncio.sleep(2)
 
         # Display results
-        _LOGGER.info("\n--- Current Values ---")
+        _LOGGER.info("--- Current Values ---")
 
         properties_to_display = [
             (WPMProperties.AUSSENTEMP, "Outside Temperature", "°C"),
@@ -95,7 +103,7 @@ async def example_basic_usage(interface: str, channel: str) -> None:
 
 async def example_write_values(interface: str, channel: str) -> None:
     """Example of writing values to the heat pump."""
-    _LOGGER.info("\n=== Example 2: Writing Values ===")
+    _LOGGER.info("=== Example 2: Writing Values ===")
 
     api = WPMCanAPI(channel=channel, interface=interface)
 
@@ -139,7 +147,7 @@ async def example_write_values(interface: str, channel: str) -> None:
 
 async def example_monitoring(interface: str, channel: str) -> None:
     """Example of monitoring property changes in real-time."""
-    _LOGGER.info("\n=== Example 3: Real-time Monitoring ===")
+    _LOGGER.info("=== Example 3: Real-time Monitoring ===")
 
     api = WPMCanAPI(channel=channel, interface=interface)
 
@@ -168,14 +176,14 @@ async def example_monitoring(interface: str, channel: str) -> None:
         # Periodically request updates
         for _i in range(10):
             await api.update([
-                WPMProperties.AUSSENTEMP,
+                WPMProperties.RUECKLAUFISTTEMP,
                 WPMProperties.VORLAUFISTTEMP,
                 WPMProperties.RAUMISTTEMP,
-            ])
+            ], member=CANMember.HK1)
             await asyncio.sleep(3)
 
     except KeyboardInterrupt:
-        _LOGGER.info("\nStopped by user")
+        _LOGGER.info("Stopped by user")
     finally:
         await api.stop_listening()
         await api.close()
@@ -183,7 +191,7 @@ async def example_monitoring(interface: str, channel: str) -> None:
 
 async def example_energy_monitoring(interface: str, channel: str) -> None:
     """Example of monitoring energy consumption."""
-    _LOGGER.info("\n=== Example 4: Energy Monitoring ===")
+    _LOGGER.info("=== Example 4: Energy Monitoring ===")
 
     api = WPMCanAPI(channel=channel, interface=interface)
 
@@ -212,7 +220,7 @@ async def example_energy_monitoring(interface: str, channel: str) -> None:
         await asyncio.sleep(2)
 
         # Display results
-        _LOGGER.info("\n--- Energy Consumption (Today) ---")
+        _LOGGER.info("--- Energy Consumption (Today) ---")
 
         dhw_consumed_wh = api.get_property_value(WPMProperties.EL_ENERGIEAUFNAHME_WW_TAG_WH)
         dhw_consumed_kwh = api.get_property_value(WPMProperties.EL_ENERGIEAUFNAHME_WW_TAG_KWH)
@@ -224,20 +232,24 @@ async def example_energy_monitoring(interface: str, channel: str) -> None:
         heating_produced_wh = api.get_property_value(WPMProperties.WAERMEERTRAG_HEIZ_TAG_WH)
         heating_produced_kwh = api.get_property_value(WPMProperties.WAERMEERTRAG_HEIZ_TAG_KWH)
 
-        _LOGGER.info("\nDomestic Hot Water (DHW):")
-        if dhw_consumed_wh is not None:
-            _LOGGER.info(f"  Energy consumed: {dhw_consumed_wh} Wh ({dhw_consumed_kwh:.2f} kWh)")
-        if dhw_produced_wh is not None:
-            _LOGGER.info(f"  Heat produced:   {dhw_produced_wh} Wh ({dhw_produced_kwh:.2f} kWh)")
+        _LOGGER.info("Domestic Hot Water (DHW):")
+        if dhw_consumed_wh is not None and dhw_consumed_kwh is not None:
+            dhw_consumed_wh += dhw_consumed_kwh * 1000
+            _LOGGER.info(f"  Energy consumed: {dhw_consumed_wh} Wh")
+        if dhw_produced_wh is not None and dhw_produced_kwh is not None:
+            dhw_produced_wh += dhw_produced_kwh * 1000
+            _LOGGER.info(f"  Heat produced:   {dhw_produced_wh} Wh")
         if dhw_consumed_wh and dhw_produced_wh:
             cop = dhw_produced_wh / dhw_consumed_wh if dhw_consumed_wh > 0 else 0
             _LOGGER.info(f"  COP:             {cop:.2f}")
 
-        _LOGGER.info("\nHeating:")
-        if heating_consumed_wh is not None:
-            _LOGGER.info(f"  Energy consumed: {heating_consumed_wh} Wh ({heating_consumed_kwh:.2f} kWh)")
-        if heating_produced_wh is not None:
-            _LOGGER.info(f"  Heat produced:   {heating_produced_wh} Wh ({heating_produced_kwh:.2f} kWh)")
+        _LOGGER.info("Heating:")
+        if heating_consumed_wh is not None and heating_consumed_kwh is not None:
+            heating_consumed_wh += heating_consumed_kwh * 1000
+            _LOGGER.info(f"  Energy consumed: {heating_consumed_wh} Wh")
+        if heating_produced_wh is not None and heating_produced_kwh is not None:
+            heating_produced_wh += heating_produced_kwh * 1000
+            _LOGGER.info(f"  Heat produced:   {heating_produced_wh} Wh")
         if heating_consumed_wh and heating_produced_wh:
             cop = heating_produced_wh / heating_consumed_wh if heating_consumed_wh > 0 else 0
             _LOGGER.info(f"  COP:             {cop:.2f}")
@@ -249,7 +261,7 @@ async def example_energy_monitoring(interface: str, channel: str) -> None:
 
 async def example_context_manager(interface: str, channel: str) -> None:
     """Example using context manager."""
-    _LOGGER.info("\n=== Example 5: Using Async Context Manager ===")
+    _LOGGER.info("=== Example 5: Using Async Context Manager ===")
 
     # Using async context manager for automatic cleanup
     async with WPMCanAPI(channel=channel, interface=interface) as api:

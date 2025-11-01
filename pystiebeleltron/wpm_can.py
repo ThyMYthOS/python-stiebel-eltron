@@ -12,13 +12,16 @@ from __future__ import annotations
 import asyncio
 import logging
 import struct
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum, IntEnum
-from typing import Any, Callable, Optional
+from enum import IntEnum
+from typing import Any, Callable, Generic, Optional, TypeVar
 
 import can
 
 _LOGGER = logging.getLogger(__name__)
+
+T = TypeVar('T')
 
 
 class CANMember(IntEnum):
@@ -40,86 +43,199 @@ class MessageType(IntEnum):
     RESPONSE = 0x200
 
 
-class PropertyType(Enum):
-    """Property data types."""
-    DEFAULT = "default"  # No conversion (uint16)
-    DEC_VAL = "dec_val"  # Decimal value (*0.1)
-    CENT_VAL = "cent_val"  # Centimal value (*0.01)
-    DOUBLE_VAL = "double_val"  # Double word value
-    LITTLE_ENDIAN = "little_endian"  # Little endian uint16
-    LITTLE_BOOL = "little_bool"  # Little endian bool
-    BOOL = "bool"  # Boolean
-    BYTE = "byte"  # Single byte
-    BETRIEBSART = "betriebsart"  # Operating mode
+class PropertyType(ABC, Generic[T]):
+    """Base class for property type converters."""
+
+    @abstractmethod
+    def deserialize(self, raw_value: int) -> T:
+        """Convert raw uint16 value to typed value."""
+        pass
+
+    @abstractmethod
+    def serialize(self, value: T) -> int:
+        """Convert typed value to raw uint16."""
+        pass
+
+
+class DefaultType(PropertyType[int]):
+    """No conversion - raw uint16 value."""
+
+    def deserialize(self, raw_value: int) -> int:
+        return raw_value
+
+    def serialize(self, value: int) -> int:
+        return int(value) & 0xFFFF
+
+
+class DecimalType(PropertyType[float]):
+    """Decimal value with 0.1 precision (value × 0.1)."""
+
+    def deserialize(self, raw_value: int) -> float:
+        # Handle signed values
+        signed_value = raw_value - 0x10000 if raw_value > 0x7FFF else raw_value
+        return signed_value * 0.1
+
+    def serialize(self, value: float) -> int:
+        raw = int(round(value * 10))
+        # Handle negative values (two's complement)
+        if raw < 0:
+            raw = raw + 0x10000
+        return raw & 0xFFFF
+
+
+class CentimalType(PropertyType[float]):
+    """Centimal value with 0.01 precision (value × 0.01)."""
+
+    def deserialize(self, raw_value: int) -> float:
+        # Handle signed values
+        signed_value = raw_value - 0x10000 if raw_value > 0x7FFF else raw_value
+        return signed_value * 0.01
+
+    def serialize(self, value: float) -> int:
+        raw = int(round(value * 100))
+        # Handle negative values (two's complement)
+        if raw < 0:
+            raw = raw + 0x10000
+        return raw & 0xFFFF
+
+
+class BoolType(PropertyType[bool]):
+    """Boolean value (0 or 1)."""
+
+    def deserialize(self, raw_value: int) -> bool:
+        return bool(raw_value)
+
+    def serialize(self, value: bool) -> int:
+        return 1 if value else 0
+
+
+class ByteType(PropertyType[int]):
+    """Single byte value (0-255)."""
+
+    def deserialize(self, raw_value: int) -> int:
+        return raw_value & 0xFF
+
+    def serialize(self, value: int) -> int:
+        return int(value) & 0xFF
+
+
+class LittleEndianType(PropertyType[int]):
+    """Little endian uint16 (byte-swapped)."""
+
+    def deserialize(self, raw_value: int) -> int:
+        # Swap bytes for little endian
+        return ((raw_value & 0xFF) << 8) | ((raw_value >> 8) & 0xFF)
+
+    def serialize(self, value: int) -> int:
+        # Swap bytes for little endian
+        val_int = int(value)
+        return (((val_int & 0xFF) << 8) | ((val_int >> 8) & 0xFF)) & 0xFFFF
+
+
+class LittleBoolType(PropertyType[bool]):
+    """Little endian boolean."""
+
+    def deserialize(self, raw_value: int) -> bool:
+        # Swap bytes then convert to bool
+        swapped = ((raw_value & 0xFF) << 8) | ((raw_value >> 8) & 0xFF)
+        return bool(swapped)
+
+    def serialize(self, value: bool) -> int:
+        raw = 1 if value else 0
+        return ((raw & 0xFF) << 8) | ((raw >> 8) & 0xFF)
+
+
+class BetriebsartType(PropertyType[int]):
+    """Operating mode value."""
+
+    def deserialize(self, raw_value: int) -> int:
+        return raw_value
+
+    def serialize(self, value: int) -> int:
+        return int(value) & 0xFFFF
 
 
 @dataclass
-class Property:
-    """Represents a CAN bus property."""
+class Property(Generic[T]):
+    """Represents a CAN bus property with type-safe serialization.
+
+    Args:
+        name: Property name
+        id: Property ID (CAN identifier)
+        type_converter: PropertyType instance for serialization/deserialization
+    """
     name: str
     id: int
-    type: PropertyType = PropertyType.DEFAULT
+    type_converter: PropertyType[T]
+
+    def deserialize(self, raw_value: int) -> T:
+        """Deserialize raw value to typed value."""
+        return self.type_converter.deserialize(raw_value)
+
+    def serialize(self, value: T) -> int:
+        """Serialize typed value to raw value."""
+        return self.type_converter.serialize(value)
 
 
 class WPMProperties:
     """Common properties for WPM heat pumps."""
 
     # System temperatures
-    AUSSENTEMP = Property("AUSSENTEMP", 0x000c, PropertyType.DEC_VAL)
-    SPEICHERISTTEMP = Property("SPEICHERISTTEMP", 0x000e, PropertyType.DEC_VAL)
-    SPEICHERSOLLTEMP = Property("SPEICHERSOLLTEMP", 0x0003, PropertyType.DEC_VAL)
-    VORLAUFSOLLTEMP = Property("VORLAUFSOLLTEMP", 0x0004, PropertyType.DEC_VAL)
-    VORLAUFISTTEMP = Property("VORLAUFISTTEMP", 0xfdf3, PropertyType.DEC_VAL)
-    RUECKLAUFISTTEMP = Property("RUECKLAUFISTTEMP", 0x0016, PropertyType.DEC_VAL)
-    RAUMISTTEMP = Property("RAUMISTTEMP", 0x0011, PropertyType.DEC_VAL)
-    RAUMSOLLTEMP = Property("RAUMSOLLTEMP", 0x4ece, PropertyType.DEC_VAL)
-    KOMFORTTEMPERATUR = Property("KOMFORTTEMPERATUR", 0x4eb8, PropertyType.DEC_VAL)
-    ECOTEMPERATUR = Property("ECOTEMPERATUR", 0x4eb9, PropertyType.DEC_VAL)
+    AUSSENTEMP: Property[float] = Property("AUSSENTEMP", 0x000c, DecimalType())
+    SPEICHERISTTEMP: Property[float] = Property("SPEICHERISTTEMP", 0x000e, DecimalType())
+    SPEICHERSOLLTEMP: Property[float] = Property("SPEICHERSOLLTEMP", 0x0003, DecimalType())
+    VORLAUFSOLLTEMP: Property[float] = Property("VORLAUFSOLLTEMP", 0x0004, DecimalType())
+    VORLAUFISTTEMP: Property[float] = Property("VORLAUFISTTEMP", 0xfdf3, DecimalType())
+    RUECKLAUFISTTEMP: Property[float] = Property("RUECKLAUFISTTEMP", 0x0016, DecimalType())
+    RAUMISTTEMP: Property[float] = Property("RAUMISTTEMP", 0x0011, DecimalType())
+    RAUMSOLLTEMP: Property[float] = Property("RAUMSOLLTEMP", 0x4ece, DecimalType())
+    KOMFORTTEMPERATUR: Property[float] = Property("KOMFORTTEMPERATUR", 0x4eb8, DecimalType())
+    ECOTEMPERATUR: Property[float] = Property("ECOTEMPERATUR", 0x4eb9, DecimalType())
 
     # Heat pump status
-    BETRIEBS_STATUS = Property("BETRIEBS_STATUS", 0x0176)
-    PROGRAMMSCHALTER = Property("PROGRAMMSCHALTER", 0x0112, PropertyType.BETRIEBSART)
-    FEHLERMELDUNG = Property("FEHLERMELDUNG", 0x0001)
+    BETRIEBS_STATUS: Property[int] = Property("BETRIEBS_STATUS", 0x0176, DefaultType())
+    PROGRAMMSCHALTER: Property[int] = Property("PROGRAMMSCHALTER", 0x0112, BetriebsartType())
+    FEHLERMELDUNG: Property[int] = Property("FEHLERMELDUNG", 0x0001, DefaultType())
 
     # Heating circuit
-    STEIGUNG_HEIZKURVE = Property("STEIGUNG_HEIZKURVE", 0x4f2b, PropertyType.DEC_VAL)
-    STEIGUNG_HK1 = Property("STEIGUNG_HK1", 0x010e, PropertyType.CENT_VAL)
-    FUSSPUNKT_HK1 = Property("FUSSPUNKT_HK1", 0x059e, PropertyType.DEC_VAL)
+    STEIGUNG_HEIZKURVE: Property[float] = Property("STEIGUNG_HEIZKURVE", 0x4f2b, DecimalType())
+    STEIGUNG_HK1: Property[float] = Property("STEIGUNG_HK1", 0x010e, CentimalType())
+    FUSSPUNKT_HK1: Property[float] = Property("FUSSPUNKT_HK1", 0x059e, DecimalType())
 
     # Pressures and volumes
-    HEIZUNGSDRUCK = Property("HEIZUNGSDRUCK", 0x4f46, PropertyType.CENT_VAL)
-    VOLUMENSTROM = Property("VOLUMENSTROM", 0x01da, PropertyType.DEC_VAL)
-    DRUCK_HOCHDRUCK = Property("DRUCK_HOCHDRUCK", 0x07a6, PropertyType.DEC_VAL)
-    DRUCK_NIEDERDRUCK = Property("DRUCK_NIEDERDRUCK", 0x07a7, PropertyType.DEC_VAL)
-    QUELLENDRUCK = Property("QUELLENDRUCK", 0x4fa8, PropertyType.DEC_VAL)
+    HEIZUNGSDRUCK: Property[float] = Property("HEIZUNGSDRUCK", 0x4f46, CentimalType())
+    VOLUMENSTROM: Property[float] = Property("VOLUMENSTROM", 0x01da, DecimalType())
+    DRUCK_HOCHDRUCK: Property[float] = Property("DRUCK_HOCHDRUCK", 0x07a6, DecimalType())
+    DRUCK_NIEDERDRUCK: Property[float] = Property("DRUCK_NIEDERDRUCK", 0x07a7, DecimalType())
+    QUELLENDRUCK: Property[float] = Property("QUELLENDRUCK", 0x4fa8, DecimalType())
 
     # Compressor
-    VERDICHTERDREHZAHL = Property("VERDICHTERDREHZAHL", 0x069e)
-    VERDICHTER_STARTS = Property("VERDICHTER_STARTS", 0x4ef1)
-    HEISSGASTEMP = Property("HEISSGASTEMP", 0x0265, PropertyType.DEC_VAL)
-    VERDAMPFERTEMP = Property("VERDAMPFERTEMP", 0x0014, PropertyType.DEC_VAL)
+    VERDICHTERDREHZAHL: Property[int] = Property("VERDICHTERDREHZAHL", 0x069e, DefaultType())
+    VERDICHTER_STARTS: Property[int] = Property("VERDICHTER_STARTS", 0x4ef1, DefaultType())
+    HEISSGASTEMP: Property[float] = Property("HEISSGASTEMP", 0x0265, DecimalType())
+    VERDAMPFERTEMP: Property[float] = Property("VERDAMPFERTEMP", 0x0014, DecimalType())
 
-    # Energy consumption
-    EL_ENERGIEAUFNAHME_WW_TAG_WH = Property("EL_ENERGIEAUFNAHME_WW_TAG_WH", 0x091a)
-    EL_ENERGIEAUFNAHME_WW_TAG_KWH = Property("EL_ENERGIEAUFNAHME_WW_TAG_KWH", 0x091b, PropertyType.DOUBLE_VAL)
-    EL_ENERGIEAUFNAHME_HEIZ_TAG_WH = Property("EL_ENERGIEAUFNAHME_HEIZ_TAG_WH", 0x091e)
-    EL_ENERGIEAUFNAHME_HEIZ_TAG_KWH = Property("EL_ENERGIEAUFNAHME_HEIZ_TAG_KWH", 0x091f, PropertyType.DOUBLE_VAL)
-    WAERMEERTRAG_WW_TAG_WH = Property("WAERMEERTRAG_WW_TAG_WH", 0x092a)
-    WAERMEERTRAG_WW_TAG_KWH = Property("WAERMEERTRAG_WW_TAG_KWH", 0x092b, PropertyType.DOUBLE_VAL)
-    WAERMEERTRAG_HEIZ_TAG_WH = Property("WAERMEERTRAG_HEIZ_TAG_WH", 0x092e)
-    WAERMEERTRAG_HEIZ_TAG_KWH = Property("WAERMEERTRAG_HEIZ_TAG_KWH", 0x092f, PropertyType.DOUBLE_VAL)
+    # Energy consumption (using default for now, double word would need special handling)
+    EL_ENERGIEAUFNAHME_WW_TAG_WH: Property[int] = Property("EL_ENERGIEAUFNAHME_WW_TAG_WH", 0x091a, DefaultType())
+    EL_ENERGIEAUFNAHME_WW_TAG_KWH: Property[int] = Property("EL_ENERGIEAUFNAHME_WW_TAG_KWH", 0x091b, DefaultType())
+    EL_ENERGIEAUFNAHME_HEIZ_TAG_WH: Property[int] = Property("EL_ENERGIEAUFNAHME_HEIZ_TAG_WH", 0x091e, DefaultType())
+    EL_ENERGIEAUFNAHME_HEIZ_TAG_KWH: Property[int] = Property("EL_ENERGIEAUFNAHME_HEIZ_TAG_KWH", 0x091f, DefaultType())
+    WAERMEERTRAG_WW_TAG_WH: Property[int] = Property("WAERMEERTRAG_WW_TAG_WH", 0x092a, DefaultType())
+    WAERMEERTRAG_WW_TAG_KWH: Property[int] = Property("WAERMEERTRAG_WW_TAG_KWH", 0x092b, DefaultType())
+    WAERMEERTRAG_HEIZ_TAG_WH: Property[int] = Property("WAERMEERTRAG_HEIZ_TAG_WH", 0x092e, DefaultType())
+    WAERMEERTRAG_HEIZ_TAG_KWH: Property[int] = Property("WAERMEERTRAG_HEIZ_TAG_KWH", 0x092f, DefaultType())
 
     # Cooling
-    KUEHLMODE = Property("KUEHLMODE", 0x0287, PropertyType.BOOL)
-    KUEHL_RAUMSOLL_TAG = Property("KUEHL_RAUMSOLL_TAG", 0x0569, PropertyType.DEC_VAL)
+    KUEHLMODE: Property[bool] = Property("KUEHLMODE", 0x0287, BoolType())
+    KUEHL_RAUMSOLL_TAG: Property[float] = Property("KUEHL_RAUMSOLL_TAG", 0x0569, DecimalType())
 
     # Time
-    JAHR = Property("JAHR", 0x0124, PropertyType.LITTLE_ENDIAN)
-    MONAT = Property("MONAT", 0x0123, PropertyType.LITTLE_ENDIAN)
-    TAG = Property("TAG", 0x0122, PropertyType.LITTLE_ENDIAN)
-    STUNDE = Property("STUNDE", 0x0125, PropertyType.LITTLE_ENDIAN)
-    MINUTE = Property("MINUTE", 0x0126, PropertyType.LITTLE_ENDIAN)
-    WOCHENTAG = Property("WOCHENTAG", 0x0121, PropertyType.LITTLE_ENDIAN)
+    JAHR: Property[int] = Property("JAHR", 0x0124, LittleEndianType())
+    MONAT: Property[int] = Property("MONAT", 0x0123, LittleEndianType())
+    TAG: Property[int] = Property("TAG", 0x0122, LittleEndianType())
+    STUNDE: Property[int] = Property("STUNDE", 0x0125, LittleEndianType())
+    MINUTE: Property[int] = Property("MINUTE", 0x0126, LittleEndianType())
+    WOCHENTAG: Property[int] = Property("WOCHENTAG", 0x0121, LittleEndianType())
 
 
 class WPMCanAPI:
@@ -210,50 +326,6 @@ class WPMCanAPI:
         can_id = ((write_id >> 5) & 0x7c0) | (write_id & 0x3f)
         return can_id, message_type
 
-    def _convert_value_from_raw(self, raw_value: int, prop_type: PropertyType) -> Any:
-        """Convert raw uint16 value to the appropriate type."""
-        # Handle signed values
-        signed_value = raw_value - 0x10000 if raw_value > 0x7FFF else raw_value
-
-        if prop_type == PropertyType.DEC_VAL:
-            return signed_value * 0.1
-        elif prop_type == PropertyType.CENT_VAL:
-            return signed_value * 0.01
-        elif prop_type == PropertyType.BOOL:
-            return bool(raw_value)
-        elif prop_type == PropertyType.BYTE:
-            return raw_value & 0xFF
-        elif prop_type == PropertyType.LITTLE_ENDIAN:
-            # Swap bytes for little endian
-            return ((raw_value & 0xFF) << 8) | ((raw_value >> 8) & 0xFF)
-        elif prop_type == PropertyType.LITTLE_BOOL:
-            # Swap bytes then convert to bool
-            swapped = ((raw_value & 0xFF) << 8) | ((raw_value >> 8) & 0xFF)
-            return bool(swapped)
-        else:
-            return raw_value
-
-    def _convert_value_to_raw(self, value: Any, prop_type: PropertyType) -> int:
-        """Convert typed value to raw uint16."""
-        if prop_type == PropertyType.DEC_VAL:
-            raw = int(round(value * 10))
-        elif prop_type == PropertyType.CENT_VAL:
-            raw = int(round(value * 100))
-        elif prop_type == PropertyType.BOOL or prop_type == PropertyType.LITTLE_BOOL:
-            raw = 1 if value else 0
-        elif prop_type == PropertyType.LITTLE_ENDIAN:
-            # Swap bytes for little endian
-            val_int = int(value)
-            raw = ((val_int & 0xFF) << 8) | ((val_int >> 8) & 0xFF)
-        else:
-            raw = int(value)
-
-        # Handle negative values (two's complement)
-        if raw < 0:
-            raw = raw + 0x10000
-
-        return raw & 0xFFFF
-
     def _parse_can_message(self, msg: can.Message) -> Optional[tuple[int, int, int]]:
         """Parse a CAN message and extract property ID and value.
 
@@ -323,7 +395,7 @@ class WPMCanAPI:
             self._notifier = None
         _LOGGER.info("Stopped listening for CAN messages")
 
-    def request_property(self, property: Property, member: Optional[CANMember] = None) -> None:
+    def request_property(self, property: Property[Any], member: Optional[CANMember] = None) -> None:
         """Request a property value from the heat pump.
 
         Args:
@@ -357,12 +429,12 @@ class WPMCanAPI:
             _LOGGER.error(f"Failed to send request: {e}")
             raise
 
-    async def async_request_property(self, property: Property, member: Optional[CANMember] = None) -> None:
+    async def async_request_property(self, property: Property[Any], member: Optional[CANMember] = None) -> None:
         """Asynchronously request a property value from the heat pump."""
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, self.request_property, property, member)
 
-    def write_property(self, property: Property, value: Any, member: Optional[CANMember] = None) -> None:
+    def write_property(self, property: Property[Any], value: Any, member: Optional[CANMember] = None) -> None:
         """Write a property value to the heat pump.
 
         Args:
@@ -376,8 +448,8 @@ class WPMCanAPI:
         if member is None:
             member = self.target_id
 
-        # Convert value to raw format
-        raw_value = self._convert_value_to_raw(value, property.type)
+        # Convert value to raw format using the property's type converter
+        raw_value = property.type_converter.serialize(value)
 
         # Build the write message
         write_id = self._encode_message_id(member, MessageType.WRITE)
@@ -404,12 +476,12 @@ class WPMCanAPI:
             _LOGGER.error(f"Failed to send write: {e}")
             raise
 
-    async def async_write_property(self, property: Property, value: Any, member: Optional[CANMember] = None) -> None:
+    async def async_write_property(self, property: Property[Any], value: Any, member: Optional[CANMember] = None) -> None:
         """Asynchronously write a property value to the heat pump."""
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, self.write_property, property, value, member)
 
-    def get_property_value(self, property: Property) -> Optional[Any]:
+    def get_property_value(self, property: Property[Any]) -> Optional[Any]:
         """Get the last received value for a property.
 
         Args:
@@ -421,7 +493,7 @@ class WPMCanAPI:
         raw_value = self._data.get(property.id)
         if raw_value is None:
             return None
-        return self._convert_value_from_raw(raw_value, property.type)
+        return property.type_converter.deserialize(raw_value)
 
     def get_raw_value(self, property_id: int) -> Optional[int]:
         """Get the raw value for a property ID.
@@ -458,7 +530,7 @@ class WPMCanAPI:
             except ValueError:
                 pass
 
-    async def async_update(self, properties: Optional[list[Property]] = None) -> None:
+    async def async_update(self, properties: Optional[list[Property[Any]]] = None) -> None:
         """Request updates for multiple properties.
 
         Args:

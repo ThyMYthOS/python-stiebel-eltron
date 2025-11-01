@@ -9,6 +9,26 @@ from modbus_connection.model import RegisterField, WriteValidator
 
 __version__ = "0.8.0"
 
+# Expose CAN bus API if python-can is available
+try:
+    from .wpm_can import (
+        CANMember,
+        Property,
+        PropertyType,
+        WPMCanAPI,
+        WPMProperties,
+    )
+    __all__ = [
+        "WPMCanAPI",
+        "WPMProperties",
+        "CANMember",
+        "Property",
+        "PropertyType",
+    ]
+except ImportError:
+    # python-can not installed, CAN bus API not available
+    __all__ = []
+
 _LOGGER = logging.getLogger(__package__)
 
 # Raw register value the ISG returns for an unavailable / unimplemented object.

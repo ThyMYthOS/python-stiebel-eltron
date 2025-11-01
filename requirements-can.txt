@@ -1,0 +1,2 @@
+# Requirements for CAN bus support
+python-can>=4.0.0

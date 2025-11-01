@@ -41,6 +41,7 @@ class MessageType(IntEnum):
     WRITE = 0x000
     READ = 0x100
     RESPONSE = 0x200
+    UNKNOWN = 0x300
 
 
 class PropertyType(ABC, Generic[T]):
@@ -239,7 +240,7 @@ class WPMProperties:
 
 
 class WPMCanAPI:
-    """CAN bus API for Stiebel Eltron WPM heat pumps."""
+    """Async CAN bus API for Stiebel Eltron WPM heat pumps."""
 
     def __init__(
         self,
@@ -266,11 +267,11 @@ class WPMCanAPI:
         self.bus: Optional[can.BusABC] = None
         self._data: dict[int, Any] = {}
         self._callbacks: dict[int, list[Callable[[int, int], None]]] = {}
-        self._notifier: Optional[can.Notifier] = None
+        self._reader_task: Optional[asyncio.Task[None]] = None
         self._running = False
 
-    def connect(self) -> None:
-        """Connect to the CAN bus."""
+    async def connect(self) -> None:
+        """Connect to the CAN bus asynchronously."""
         try:
             self.bus = can.Bus(
                 interface=self.interface,
@@ -282,23 +283,13 @@ class WPMCanAPI:
             _LOGGER.error(f"Failed to connect to CAN bus: {e}")
             raise
 
-    async def async_connect(self) -> None:
-        """Asynchronously connect to the CAN bus."""
-        self.connect()
-
-    def close(self) -> None:
-        """Close the CAN bus connection."""
-        if self._notifier:
-            self._notifier.stop()
-            self._notifier = None
+    async def close(self) -> None:
+        """Close the CAN bus connection asynchronously."""
+        await self.stop_listening()
         if self.bus:
             self.bus.shutdown()
             self.bus = None
             _LOGGER.info("Disconnected from CAN bus")
-
-    async def async_close(self) -> None:
-        """Asynchronously close the CAN bus connection."""
-        self.close()
 
     def _encode_message_id(self, can_id: int, message_type: MessageType) -> int:
         """Encode CAN ID and message type into the write/read/response ID.
@@ -315,13 +306,7 @@ class WPMCanAPI:
         """Decode external ID into CAN ID and message type."""
         message_type = MessageType.WRITE
         write_id = external_id & ~0x300
-
-        if external_id & 0x200:
-            message_type = MessageType.RESPONSE
-        elif external_id & 0x100:
-            message_type = MessageType.READ
-        else:
-            message_type = MessageType.WRITE
+        message_type = MessageType(external_id & 0x300)
 
         can_id = ((write_id >> 5) & 0x7c0) | (write_id & 0x3f)
         return can_id, message_type
@@ -378,24 +363,50 @@ class WPMCanAPI:
                 except Exception as e:
                     _LOGGER.error(f"Error in callback for property 0x{property_id:04x}: {e}")
 
-    def start_listening(self) -> None:
-        """Start listening for CAN messages."""
+    async def _read_loop(self) -> None:
+        """Async loop to read CAN messages."""
+        if not self.bus:
+            return
+
+        reader = can.AsyncBufferedReader()
+        notifier = can.Notifier(self.bus, [reader], loop=asyncio.get_running_loop())
+
+        try:
+            while self._running:
+                msg = await reader.get_message()
+                if msg:
+                    self._handle_can_message(msg)
+        finally:
+            notifier.stop()
+
+    async def start_listening(self) -> None:
+        """Start listening for CAN messages asynchronously."""
         if not self.bus:
             raise RuntimeError("Not connected to CAN bus")
 
+        if self._running:
+            return
+
         self._running = True
-        self._notifier = can.Notifier(self.bus, [self._handle_can_message])
+        self._reader_task = asyncio.create_task(self._read_loop())
         _LOGGER.info("Started listening for CAN messages")
 
-    def stop_listening(self) -> None:
-        """Stop listening for CAN messages."""
+    async def stop_listening(self) -> None:
+        """Stop listening for CAN messages asynchronously."""
+        if not self._running:
+            return
+
         self._running = False
-        if self._notifier:
-            self._notifier.stop()
-            self._notifier = None
+        if self._reader_task:
+            self._reader_task.cancel()
+            try:
+                await self._reader_task
+            except asyncio.CancelledError:
+                pass
+            self._reader_task = None
         _LOGGER.info("Stopped listening for CAN messages")
 
-    def request_property(self, property: Property[Any], member: Optional[CANMember] = None) -> None:
+    async def request_property(self, property: Property[Any], member: Optional[CANMember] = None) -> None:
         """Request a property value from the heat pump.
 
         Args:
@@ -429,12 +440,7 @@ class WPMCanAPI:
             _LOGGER.error(f"Failed to send request: {e}")
             raise
 
-    async def async_request_property(self, property: Property[Any], member: Optional[CANMember] = None) -> None:
-        """Asynchronously request a property value from the heat pump."""
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, self.request_property, property, member)
-
-    def write_property(self, property: Property[Any], value: Any, member: Optional[CANMember] = None) -> None:
+    async def write_property(self, property: Property[Any], value: Any, member: Optional[CANMember] = None) -> None:
         """Write a property value to the heat pump.
 
         Args:
@@ -475,11 +481,6 @@ class WPMCanAPI:
         except Exception as e:
             _LOGGER.error(f"Failed to send write: {e}")
             raise
-
-    async def async_write_property(self, property: Property[Any], value: Any, member: Optional[CANMember] = None) -> None:
-        """Asynchronously write a property value to the heat pump."""
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, self.write_property, property, value, member)
 
     def get_property_value(self, property: Property[Any]) -> Optional[Any]:
         """Get the last received value for a property.
@@ -530,7 +531,7 @@ class WPMCanAPI:
             except ValueError:
                 pass
 
-    async def async_update(self, properties: Optional[list[Property[Any]]] = None) -> None:
+    async def update(self, properties: Optional[list[Property[Any]]] = None) -> None:
         """Request updates for multiple properties.
 
         Args:
@@ -551,15 +552,16 @@ class WPMCanAPI:
             ]
 
         for prop in properties:
-            await self.async_request_property(prop)
+            await self.request_property(prop)
             # Small delay between requests to avoid flooding the bus
             await asyncio.sleep(0.05)
 
-    def __enter__(self) -> "WPMCanAPI":
-        """Context manager entry."""
-        self.connect()
+    async def __aenter__(self) -> "WPMCanAPI":
+        """Async context manager entry."""
+        await self.connect()
+        await self.start_listening()
         return self
 
-    def __exit__(self, exc_type: Optional[type], exc_val: Optional[BaseException], exc_tb: Optional[Any]) -> None:
-        """Context manager exit."""
-        self.close()
+    async def __aexit__(self, exc_type: Optional[type], exc_val: Optional[BaseException], exc_tb: Optional[Any]) -> None:
+        """Async context manager exit."""
+        await self.close()

@@ -17,6 +17,7 @@ For testing on Linux without hardware:
     sudo ip link set up vcan0
 """
 
+import argparse
 import asyncio
 import logging
 
@@ -34,29 +35,27 @@ logging.basicConfig(
 _LOGGER = logging.getLogger(__name__)
 
 
-async def example_basic_usage() -> None:
+async def example_basic_usage(interface: str, bustype: str) -> None:
     """Example of basic usage - request and read values."""
     _LOGGER.info("=== Example 1: Basic Usage ===")
 
     # Create API instance
-    # For real hardware, use 'can0' or your actual CAN interface
-    # For testing with virtual CAN, use 'vcan0'
     api = WPMCanAPI(
-        interface='vcan0',  # Change to 'can0' for real hardware
-        bustype='socketcan',
+        interface=interface,
+        bustype=bustype,
         bitrate=20000,  # Stiebel Eltron uses 20 kbit/s
     )
 
     try:
         # Connect to CAN bus
-        await api.async_connect()
+        await api.connect()
 
         # Start listening for responses
-        api.start_listening()
+        await api.start_listening()
 
         # Request some properties
         _LOGGER.info("Requesting outside temperature...")
-        await api.async_request_property(WPMProperties.AUSSENTEMP)
+        await api.request_property(WPMProperties.AUSSENTEMP)
 
         # Wait for response
         await asyncio.sleep(0.5)
@@ -70,7 +69,7 @@ async def example_basic_usage() -> None:
 
         # Request multiple properties
         _LOGGER.info("\nRequesting multiple properties...")
-        await api.async_update()
+        await api.update()
 
         # Wait for responses
         await asyncio.sleep(2)
@@ -97,23 +96,23 @@ async def example_basic_usage() -> None:
 
     finally:
         # Cleanup
-        api.stop_listening()
-        await api.async_close()
+        await api.stop_listening()
+        await api.close()
 
 
-async def example_write_values() -> None:
+async def example_write_values(interface: str, bustype: str) -> None:
     """Example of writing values to the heat pump."""
     _LOGGER.info("\n=== Example 2: Writing Values ===")
 
-    api = WPMCanAPI(interface='vcan0', bustype='socketcan')
+    api = WPMCanAPI(interface=interface, bustype=bustype)
 
     try:
-        await api.async_connect()
-        api.start_listening()
+        await api.connect()
+        await api.start_listening()
 
         # Read current comfort temperature
         _LOGGER.info("Reading current comfort temperature...")
-        await api.async_request_property(WPMProperties.KOMFORTTEMPERATUR)
+        await api.request_property(WPMProperties.KOMFORTTEMPERATUR)
         await asyncio.sleep(0.5)
 
         current_temp = api.get_property_value(WPMProperties.KOMFORTTEMPERATUR)
@@ -123,11 +122,11 @@ async def example_write_values() -> None:
             # Write new value
             new_temp = 21.5
             _LOGGER.info(f"Setting comfort temperature to {new_temp:.1f}°C...")
-            await api.async_write_property(WPMProperties.KOMFORTTEMPERATUR, new_temp)
+            await api.write_property(WPMProperties.KOMFORTTEMPERATUR, new_temp)
 
             # Wait and verify
             await asyncio.sleep(2)
-            await api.async_request_property(WPMProperties.KOMFORTTEMPERATUR)
+            await api.request_property(WPMProperties.KOMFORTTEMPERATUR)
             await asyncio.sleep(0.5)
 
             verified_temp = api.get_property_value(WPMProperties.KOMFORTTEMPERATUR)
@@ -136,46 +135,46 @@ async def example_write_values() -> None:
 
                 # Restore original value
                 _LOGGER.info(f"Restoring original temperature: {current_temp:.1f}°C...")
-                await api.async_write_property(WPMProperties.KOMFORTTEMPERATUR, current_temp)
+                await api.write_property(WPMProperties.KOMFORTTEMPERATUR, current_temp)
         else:
             _LOGGER.info("Could not read current temperature")
 
     finally:
-        api.stop_listening()
-        await api.async_close()
+        await api.stop_listening()
+        await api.close()
 
 
-async def example_monitoring() -> None:
+async def example_monitoring(interface: str, bustype: str) -> None:
     """Example of monitoring property changes in real-time."""
     _LOGGER.info("\n=== Example 3: Real-time Monitoring ===")
 
-    api = WPMCanAPI(interface='vcan0', bustype='socketcan')
+    api = WPMCanAPI(interface=interface, bustype=bustype)
 
     # Define callback for property updates
     def on_temperature_update(prop_id: int, raw_value: int) -> None:
         # Find the property
         for name, prop in WPMProperties.__dict__.items():
             if hasattr(prop, 'id') and prop.id == prop_id:
-                value = api._convert_value_from_raw(raw_value, prop.type)
+                value = prop.deserialize(raw_value)
                 _LOGGER.info(f"Property updated: {name} = {value}")
                 break
 
     try:
-        await api.async_connect()
+        await api.connect()
 
         # Register callbacks for temperature properties
         api.register_callback(WPMProperties.AUSSENTEMP.id, on_temperature_update)
         api.register_callback(WPMProperties.VORLAUFISTTEMP.id, on_temperature_update)
         api.register_callback(WPMProperties.RAUMISTTEMP.id, on_temperature_update)
 
-        api.start_listening()
+        await api.start_listening()
 
         _LOGGER.info("Monitoring temperature changes for 30 seconds...")
         _LOGGER.info("Press Ctrl+C to stop\n")
 
         # Periodically request updates
         for _i in range(10):
-            await api.async_update([
+            await api.update([
                 WPMProperties.AUSSENTEMP,
                 WPMProperties.VORLAUFISTTEMP,
                 WPMProperties.RAUMISTTEMP,
@@ -185,19 +184,19 @@ async def example_monitoring() -> None:
     except KeyboardInterrupt:
         _LOGGER.info("\nStopped by user")
     finally:
-        api.stop_listening()
-        await api.async_close()
+        await api.stop_listening()
+        await api.close()
 
 
-async def example_energy_monitoring() -> None:
+async def example_energy_monitoring(interface: str, bustype: str) -> None:
     """Example of monitoring energy consumption."""
     _LOGGER.info("\n=== Example 4: Energy Monitoring ===")
 
-    api = WPMCanAPI(interface='vcan0', bustype='socketcan')
+    api = WPMCanAPI(interface=interface, bustype=bustype)
 
     try:
-        await api.async_connect()
-        api.start_listening()
+        await api.connect()
+        await api.start_listening()
 
         # Request energy consumption data
         energy_properties = [
@@ -213,7 +212,7 @@ async def example_energy_monitoring() -> None:
 
         _LOGGER.info("Requesting energy consumption data...")
         for prop in energy_properties:
-            await api.async_request_property(prop)
+            await api.request_property(prop)
             await asyncio.sleep(0.1)
 
         # Wait for responses
@@ -251,20 +250,18 @@ async def example_energy_monitoring() -> None:
             _LOGGER.info(f"  COP:             {cop:.2f}")
 
     finally:
-        api.stop_listening()
-        await api.async_close()
+        await api.stop_listening()
+        await api.close()
 
 
-async def example_context_manager() -> None:
+async def example_context_manager(interface: str, bustype: str) -> None:
     """Example using context manager."""
-    _LOGGER.info("\n=== Example 5: Using Context Manager ===")
+    _LOGGER.info("\n=== Example 5: Using Async Context Manager ===")
 
-    # Using context manager for automatic cleanup
-    with WPMCanAPI(interface='vcan0', bustype='socketcan') as api:
-        api.start_listening()
-
+    # Using async context manager for automatic cleanup
+    async with WPMCanAPI(interface=interface, bustype=bustype) as api:
         # Request and display outside temperature
-        await api.async_request_property(WPMProperties.AUSSENTEMP)
+        await api.request_property(WPMProperties.AUSSENTEMP)
         await asyncio.sleep(0.5)
 
         temp = api.get_property_value(WPMProperties.AUSSENTEMP)
@@ -272,23 +269,22 @@ async def example_context_manager() -> None:
             _LOGGER.info(f"Outside temperature: {temp:.1f}°C")
 
 
-async def main() -> None:
+async def main(interface: str, bustype: str) -> None:
     """Run all examples."""
     print("=" * 60)
     print("Stiebel Eltron WPM CAN Bus API Examples")
     print("=" * 60)
     print()
-    print("Note: These examples use 'vcan0' virtual CAN interface.")
-    print("For real hardware, change 'vcan0' to your actual interface (e.g., 'can0')")
+    print(f"Using CAN interface: {interface} (bustype: {bustype})")
     print()
 
     try:
         # Run examples one by one
-        await example_basic_usage()
-        await example_write_values()
-        await example_monitoring()
-        await example_energy_monitoring()
-        await example_context_manager()
+        await example_basic_usage(interface, bustype)
+        await example_write_values(interface, bustype)
+        await example_monitoring(interface, bustype)
+        await example_energy_monitoring(interface, bustype)
+        await example_context_manager(interface, bustype)
 
     except Exception as e:
         _LOGGER.error(f"Error running examples: {e}", exc_info=True)
@@ -300,4 +296,36 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(
+        description="Stiebel Eltron WPM CAN Bus API Examples",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Use virtual CAN interface (for testing without hardware)
+  %(prog)s --interface vcan0
+
+  # Use real hardware CAN interface
+  %(prog)s --interface can0
+
+  # Use PCAN USB adapter
+  %(prog)s --interface PCAN_USBBUS1 --bustype pcan
+"""
+    )
+
+    parser.add_argument(
+        '--interface',
+        type=str,
+        default='vcan0',
+        help='CAN interface name (default: vcan0)'
+    )
+
+    parser.add_argument(
+        '--bustype',
+        type=str,
+        default='socketcan',
+        help='CAN bus type (default: socketcan)'
+    )
+
+    args = parser.parse_args()
+
+    asyncio.run(main(args.interface, args.bustype))

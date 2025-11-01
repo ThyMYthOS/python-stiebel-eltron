@@ -26,24 +26,17 @@ from pystiebeleltron.wpm_can import (
     WPMProperties,
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-
 _LOGGER = logging.getLogger(__name__)
 
 
-async def example_basic_usage(interface: str, bustype: str) -> None:
+async def example_basic_usage(interface: str, channel: str) -> None:
     """Example of basic usage - request and read values."""
     _LOGGER.info("=== Example 1: Basic Usage ===")
 
     # Create API instance
     api = WPMCanAPI(
+        channel=channel,
         interface=interface,
-        bustype=bustype,
-        bitrate=20000,  # Stiebel Eltron uses 20 kbit/s
     )
 
     try:
@@ -100,11 +93,11 @@ async def example_basic_usage(interface: str, bustype: str) -> None:
         await api.close()
 
 
-async def example_write_values(interface: str, bustype: str) -> None:
+async def example_write_values(interface: str, channel: str) -> None:
     """Example of writing values to the heat pump."""
     _LOGGER.info("\n=== Example 2: Writing Values ===")
 
-    api = WPMCanAPI(interface=interface, bustype=bustype)
+    api = WPMCanAPI(channel=channel, interface=interface)
 
     try:
         await api.connect()
@@ -144,11 +137,11 @@ async def example_write_values(interface: str, bustype: str) -> None:
         await api.close()
 
 
-async def example_monitoring(interface: str, bustype: str) -> None:
+async def example_monitoring(interface: str, channel: str) -> None:
     """Example of monitoring property changes in real-time."""
     _LOGGER.info("\n=== Example 3: Real-time Monitoring ===")
 
-    api = WPMCanAPI(interface=interface, bustype=bustype)
+    api = WPMCanAPI(channel=channel, interface=interface)
 
     # Define callback for property updates
     def on_temperature_update(prop_id: int, raw_value: int) -> None:
@@ -188,11 +181,11 @@ async def example_monitoring(interface: str, bustype: str) -> None:
         await api.close()
 
 
-async def example_energy_monitoring(interface: str, bustype: str) -> None:
+async def example_energy_monitoring(interface: str, channel: str) -> None:
     """Example of monitoring energy consumption."""
     _LOGGER.info("\n=== Example 4: Energy Monitoring ===")
 
-    api = WPMCanAPI(interface=interface, bustype=bustype)
+    api = WPMCanAPI(channel=channel, interface=interface)
 
     try:
         await api.connect()
@@ -254,12 +247,12 @@ async def example_energy_monitoring(interface: str, bustype: str) -> None:
         await api.close()
 
 
-async def example_context_manager(interface: str, bustype: str) -> None:
+async def example_context_manager(interface: str, channel: str) -> None:
     """Example using context manager."""
     _LOGGER.info("\n=== Example 5: Using Async Context Manager ===")
 
     # Using async context manager for automatic cleanup
-    async with WPMCanAPI(interface=interface, bustype=bustype) as api:
+    async with WPMCanAPI(channel=channel, interface=interface) as api:
         # Request and display outside temperature
         await api.request_property(WPMProperties.AUSSENTEMP)
         await asyncio.sleep(0.5)
@@ -269,22 +262,22 @@ async def example_context_manager(interface: str, bustype: str) -> None:
             _LOGGER.info(f"Outside temperature: {temp:.1f}°C")
 
 
-async def main(interface: str, bustype: str) -> None:
+async def main(interface: str, channel: str) -> None:
     """Run all examples."""
     print("=" * 60)
     print("Stiebel Eltron WPM CAN Bus API Examples")
     print("=" * 60)
     print()
-    print(f"Using CAN interface: {interface} (bustype: {bustype})")
+    print(f"Using CAN interface: {interface} (channel: {channel})")
     print()
 
     try:
         # Run examples one by one
-        await example_basic_usage(interface, bustype)
-        await example_write_values(interface, bustype)
-        await example_monitoring(interface, bustype)
-        await example_energy_monitoring(interface, bustype)
-        await example_context_manager(interface, bustype)
+        await example_basic_usage(interface, channel)
+        await example_write_values(interface, channel)
+        await example_monitoring(interface, channel)
+        await example_energy_monitoring(interface, channel)
+        await example_context_manager(interface, channel)
 
     except Exception as e:
         _LOGGER.error(f"Error running examples: {e}", exc_info=True)
@@ -302,30 +295,47 @@ if __name__ == "__main__":
         epilog="""
 Examples:
   # Use virtual CAN interface (for testing without hardware)
-  %(prog)s --interface vcan0
+  %(prog)s --channel vcan0
 
   # Use real hardware CAN interface
-  %(prog)s --interface can0
+  %(prog)s --channel can0
 
   # Use PCAN USB adapter
-  %(prog)s --interface PCAN_USBBUS1 --bustype pcan
+  %(prog)s --channel PCAN_USBBUS1 --interface pcan
+
+  # Enable debug logging
+  %(prog)s --channel vcan0 --log-level DEBUG
 """
+    )
+
+    parser.add_argument(
+        '--channel',
+        type=str,
+        default='vcan0',
+        help='CAN channel name (default: vcan0)'
     )
 
     parser.add_argument(
         '--interface',
         type=str,
-        default='vcan0',
-        help='CAN interface name (default: vcan0)'
-    )
-
-    parser.add_argument(
-        '--bustype',
-        type=str,
         default='socketcan',
         help='CAN bus type (default: socketcan)'
     )
 
+    parser.add_argument(
+        '--log-level',
+        type=str,
+        default='INFO',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        help='Logging level (default: INFO)'
+    )
+
     args = parser.parse_args()
 
-    asyncio.run(main(args.interface, args.bustype))
+    # Configure logging with the specified level
+    logging.basicConfig(
+        level=getattr(logging, args.log_level),
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+
+    asyncio.run(main(args.interface, args.channel))

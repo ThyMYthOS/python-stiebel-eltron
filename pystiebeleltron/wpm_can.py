@@ -5,6 +5,60 @@ Stiebel Eltron WPM heat pumps via CAN bus.
 
 Based on the OneESP32ToRuleThemAll project:
 https://github.com/kr0ner/OneESP32ToRuleThemAll
+
+CAN Message Format Documentation
+================================
+
+All CAN messages use 7 data bytes with the following bit field structure:
+
+1. Encoded Message ID (Bytes 0-1, 16 bits):
+   +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+   | 15  | 14  | 13  | 12  | 11  | 10  |  9  |  8  |  7  |  6  |  5  |  4  |  3  |  2  |  1  |  0  |
+   +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+   | CAN | CAN | CAN | CAN | CAN |  0  | RES | RD  |  0  |  0  | CAN | CAN | CAN | CAN | CAN | CAN |
+   | ID  | ID  | ID  | ID  | ID  |     |     |     |     |     | ID  | ID  | ID  | ID  | ID  | ID  |
+   | 10  |  9  |  8  |  7  |  6  |     |     |     |     |     |  5  |  4  |  3  |  2  |  1  |  0  |
+   +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+   - Bits 15-11: CAN ID bits 10-6
+   - Bit 10: Always 0
+   - Bits 9-8: Message type flags
+     * 00: Write request
+     * 01 (bit 8): Read request
+     * 10 (bit 9): Response
+   - Bits 7-6: Always 0
+   - Bits 5-0: CAN ID bits 5-0
+
+2. Format Marker/Property ID (Byte 2, 8 bits):
+   +-----+-----+-----+-----+-----+-----+-----+-----+
+   |  7  |  6  |  5  |  4  |  3  |  2  |  1  |  0  |
+   +-----+-----+-----+-----+-----+-----+-----+-----+
+   | FMT | FMT | FMT | FMT | FMT | FMT | FMT | FMT |
+   +-----+-----+-----+-----+-----+-----+-----+-----+
+   - 0xFA: Extended format (property ID in bytes 3-4, value in bytes 5-6)
+   - Other values: Short format (this byte = property ID, value in bytes 3-6)
+
+3. Property ID High/Low or Value High/Low (Bytes 3-4, 16 bits):
+   +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+   | 15  | 14  | 13  | 12  | 11  | 10  |  9  |  8  |  7  |  6  |  5  |  4  |  3  |  2  |  1  |  0  |
+   +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+   | PROP| PROP| PROP| PROP| PROP| PROP| PROP| PROP| PROP| PROP| PROP| PROP| PROP| PROP| PROP| PROP|
+   |  ID |  ID |  ID |  ID |  ID |  ID |  ID |  ID |  ID |  ID |  ID |  ID |  ID |  ID |  ID |  ID |
+   |  15 |  14 |  13 |  12 |  11 |  10 |   9 |   8 |   7 |   6 |   5 |   4 |   3 |   2 |   1 |   0 |
+   +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+   - Extended format: 16-bit property ID (big-endian)
+   - Short format: High/low bytes of 16-bit value
+
+4. Value (Bytes 5-6, 16 bits, extended format only):
+   +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+   | 15  | 14  | 13  | 12  | 11  | 10  |  9  |  8  |  7  |  6  |  5  |  4  |  3  |  2  |  1  |  0  |
+   +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+   | VAL | VAL | VAL | VAL | VAL | VAL | VAL | VAL | VAL | VAL | VAL | VAL | VAL | VAL | VAL | VAL |
+   | 15  |  14 |  13 |  12 |  11 |  10 |   9 |   8 |   7 |   6 |   5 |   4 |   3 |   2 |   1 |   0 |
+   +-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+
+   - 16-bit value (big-endian, for write operations and responses)
+
+Note: All multi-byte values use big-endian (network) byte order.
+
 """
 
 from __future__ import annotations
@@ -202,9 +256,10 @@ class WPMProperties:
     STEIGUNG_HEIZKURVE: Property[float] = Property("STEIGUNG_HEIZKURVE", 0x4f2b, DecimalType())
     STEIGUNG_HK1: Property[float] = Property("STEIGUNG_HK1", 0x010e, CentimalType())
     FUSSPUNKT_HK1: Property[float] = Property("FUSSPUNKT_HK1", 0x059e, DecimalType())
+    RAUMTEMP_ERFASSUNG: Property[int] = Property("RAUMTEMP_ERFASSUNG", 0x05be, DefaultType())
 
     # Pressures and volumes
-    HEIZUNGSDRUCK: Property[float] = Property("HEIZUNGSDRUCK", 0x4f46, CentimalType())
+    HEIZUNGSDRUCK: Property[float] = Property("HEIZUNGSDRUCK", 0x001f, CentimalType())
     VOLUMENSTROM: Property[float] = Property("VOLUMENSTROM", 0x01da, DecimalType())
     DRUCK_HOCHDRUCK: Property[float] = Property("DRUCK_HOCHDRUCK", 0x07a6, DecimalType())
     DRUCK_NIEDERDRUCK: Property[float] = Property("DRUCK_NIEDERDRUCK", 0x07a7, DecimalType())
@@ -290,16 +345,27 @@ class WPMCanAPI:
     def _encode_message_id(self, can_id: int, message_type: MessageType) -> int:
         """Encode CAN ID and message type into the write/read/response ID.
 
-        The encoding scheme:
-        - Write:    base write ID = ((can_id & 0x7c0) << 5) | (can_id & 0x3f)
-        - Read:     write ID | 0x100
-        - Response: write ID | 0x200
+        Encoding scheme:
+        - Base write ID = ((can_id & 0x7c0) << 5) | (can_id & 0x3f)
+        - Read ID = write ID | 0x100
+        - Response ID = write ID | 0x200
+        - Write ID = write ID | 0x000
+
+        The encoding rearranges the CAN ID bits to fit the protocol requirements.
         """
         write_id = ((can_id & 0x7c0) << 5) | (can_id & 0x3f)
         return write_id | message_type
 
     def _decode_message_id(self, external_id: int) -> tuple[int, MessageType]:
-        """Decode external ID into CAN ID and message type."""
+        """Decode external ID into CAN ID and message type.
+
+        Decoding scheme:
+        - Message type = external_id & 0x300 (0x000=Write, 0x100=Read, 0x200=Response)
+        - Base write ID = external_id & ~0x300
+        - CAN ID = ((write_id >> 5) & 0x7c0) | (write_id & 0x3f)
+
+        This reverses the encoding performed by _encode_message_id.
+        """
         message_type = MessageType.WRITE
         write_id = external_id & ~0x300
         message_type = MessageType(external_id & 0x300)
@@ -309,6 +375,20 @@ class WPMCanAPI:
 
     def _parse_can_message(self, msg: can.Message) -> Optional[tuple[int, int, int, int]]:
         """Parse a CAN message and extract property ID and value.
+
+        CAN message format (7 bytes):
+        - Byte 0-1: Encoded message ID (big-endian)
+          - Bits 15-8: High byte of encoded ID
+          - Bits 7-0: Low byte of encoded ID
+        - Byte 2: Format marker or property ID
+          - 0xFA: Extended format (property ID in bytes 3-4)
+          - Other: Short format (property ID in byte 2)
+        - Byte 3-4: Property ID (extended) or value high/low (short)
+          - Extended: Property ID (big-endian, 16-bit)
+          - Short: Raw value high/low bytes
+        - Byte 5-6: Raw value (big-endian, 16-bit) for extended format
+
+        The arbitration_id contains the sender CAN member ID.
 
         Returns:
             Tuple of (sender_id, can_id, property_id, raw_value) or None if invalid
@@ -406,6 +486,12 @@ class WPMCanAPI:
     async def request_property(self, property: Property[Any], member: Optional[CANMember] = None) -> None:
         """Request a property value from the heat pump.
 
+        Sends a read request message with the following format (7 bytes):
+        - Byte 0-1: Encoded read message ID (big-endian)
+        - Byte 2: 0xFA (extended format marker)
+        - Byte 3-4: Property ID (big-endian, 16-bit)
+        - Byte 5-6: 0x00 (padding)
+
         Args:
             property: The property to request
             member: Target CAN member (defaults to self.target_id)
@@ -439,6 +525,12 @@ class WPMCanAPI:
 
     async def write_property(self, property: Property[Any], value: Any, member: Optional[CANMember] = None) -> None:
         """Write a property value to the heat pump.
+
+        Sends a write request message with the following format (7 bytes):
+        - Byte 0-1: Encoded write message ID (big-endian)
+        - Byte 2: 0xFA (extended format marker)
+        - Byte 3-4: Property ID (big-endian, 16-bit)
+        - Byte 5-6: Raw value to write (big-endian, 16-bit)
 
         Args:
             property: The property to write

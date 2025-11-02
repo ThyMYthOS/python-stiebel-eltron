@@ -64,12 +64,11 @@ async def example_basic_usage(interface: str, channel: str) -> None:
         # Request multiple properties
         _LOGGER.info("Requesting multiple properties...")
         await api.update([
-            WPMProperties.VORLAUFISTTEMP,
-            WPMProperties.RUECKLAUFISTTEMP,
             WPMProperties.SPEICHERISTTEMP,
-            WPMProperties.RAUMISTTEMP,
+            WPMProperties.SPEICHERSOLLTEMP,
             WPMProperties.HEIZUNGSDRUCK,
             WPMProperties.VOLUMENSTROM,
+            WPMProperties.RAUMTEMP_ERFASSUNG
         ], member=CANMember.KESSEL)
 
         # Wait for responses
@@ -80,12 +79,14 @@ async def example_basic_usage(interface: str, channel: str) -> None:
 
         properties_to_display = [
             (WPMProperties.AUSSENTEMP, "Outside Temperature", "°C"),
-            (WPMProperties.VORLAUFISTTEMP, "Flow Temperature", "°C"),
-            (WPMProperties.RUECKLAUFISTTEMP, "Return Temperature", "°C"),
+            #(WPMProperties.VORLAUFISTTEMP, "Flow Temperature", "°C"),
+            #(WPMProperties.RUECKLAUFISTTEMP, "Return Temperature", "°C"),
             (WPMProperties.SPEICHERISTTEMP, "Storage Temperature", "°C"),
-            (WPMProperties.RAUMISTTEMP, "Room Temperature", "°C"),
+            (WPMProperties.SPEICHERSOLLTEMP, "Storage Setpoint", "°C"),
+            #(WPMProperties.RAUMISTTEMP, "Room Temperature", "°C"),
             (WPMProperties.HEIZUNGSDRUCK, "Heating Pressure", "bar"),
             (WPMProperties.VOLUMENSTROM, "Flow Rate", "l/min"),
+            (WPMProperties.RAUMTEMP_ERFASSUNG, "Room Temp. Sensor", "?"),
         ]
 
         for prop, name, unit in properties_to_display:
@@ -111,32 +112,28 @@ async def example_write_values(interface: str, channel: str) -> None:
         await api.connect()
         await api.start_listening()
 
-        # Read current comfort temperature
-        _LOGGER.info("Reading current comfort temperature...")
-        await api.request_property(WPMProperties.KOMFORTTEMPERATUR)
+        # Read current room temperature
+        _LOGGER.info("Reading current room temperature...")
+        await api.request_property(WPMProperties.RAUMISTTEMP, CANMember.HK1)
         await asyncio.sleep(0.5)
 
-        current_temp = api.get_property_value(WPMProperties.KOMFORTTEMPERATUR)
+        current_temp = api.get_property_value(WPMProperties.RAUMISTTEMP)
         if current_temp is not None:
-            _LOGGER.info(f"Current comfort temperature: {current_temp:.1f}°C")
+            _LOGGER.info(f"Current room temperature: {current_temp:.1f}°C")
 
             # Write new value
             new_temp = 21.5
-            _LOGGER.info(f"Setting comfort temperature to {new_temp:.1f}°C...")
-            await api.write_property(WPMProperties.KOMFORTTEMPERATUR, new_temp)
+            _LOGGER.info(f"Setting actual room temperature to {new_temp:.1f}°C...")
+            await api.write_property(WPMProperties.RAUMISTTEMP, new_temp, CANMember.HK1)
 
             # Wait and verify
             await asyncio.sleep(2)
-            await api.request_property(WPMProperties.KOMFORTTEMPERATUR)
+            await api.request_property(WPMProperties.RAUMISTTEMP, CANMember.HK1)
             await asyncio.sleep(0.5)
 
-            verified_temp = api.get_property_value(WPMProperties.KOMFORTTEMPERATUR)
+            verified_temp = api.get_property_value(WPMProperties.RAUMISTTEMP)
             if verified_temp is not None:
                 _LOGGER.info(f"Verified temperature: {verified_temp:.1f}°C")
-
-                # Restore original value
-                _LOGGER.info(f"Restoring original temperature: {current_temp:.1f}°C...")
-                await api.write_property(WPMProperties.KOMFORTTEMPERATUR, current_temp)
         else:
             _LOGGER.info("Could not read current temperature")
 

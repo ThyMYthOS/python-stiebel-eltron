@@ -107,5 +107,6 @@ Modbus address,Object designation ,WPMsystem,WPM 3,WPM 3i,Comments,Min. value,Ma
 606,SET TEMPERATURE,x,,,"Room temperature, cooling circuit 3",,,2,°C,r,ROOM TEMP COOLING3
 607,SET TEMPERATURE,x,,,"Room temperature, cooling circuit 4",,,2,°C,r,ROOM TEMP COOLING4
 608,SET TEMPERATURE,x,,,"Room temperature, cooling circuit 5",,,2,°C,r,ROOM TEMP COOLING5
-609,ACTUAL TEMPERATURE HK 3,x,,,,0,90,2,°C,r,
-610,SET TEMPERATURE HK 3,x,,,,0,65,2,°C,r,
+610,ACTUAL TEMPERATURE HK 3,x,,,,0,90,2,°C,r,
+611,SET TEMPERATURE HK 3,x,,,,0,65,2,°C,r,
+

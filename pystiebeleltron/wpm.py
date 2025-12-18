@@ -577,10 +577,10 @@ WPM_SYSTEM_VALUES_REGISTERS: dict[IsgRegisters, ModbusRegister] = {
         address=608, name="SET TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_COOLING5
     ),
     WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_HK_3: ModbusRegister(
-        address=609, name="ACTUAL TEMPERATURE HK 3", unit="°C", min=0.0, max=90.0, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_HK_3
+        address=610, name="ACTUAL TEMPERATURE HK 3", unit="°C", min=0.0, max=90.0, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_HK_3
     ),
     WpmSystemValuesRegisters.SET_TEMPERATURE_HK_3: ModbusRegister(
-        address=610, name="SET TEMPERATURE HK 3", unit="°C", min=0.0, max=65.0, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_HK_3
+        address=611, name="SET TEMPERATURE HK 3", unit="°C", min=0.0, max=65.0, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_HK_3
     ),
 }
 

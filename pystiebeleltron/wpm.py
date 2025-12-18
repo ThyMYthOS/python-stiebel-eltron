@@ -879,7 +879,7 @@ class WpmStiebelEltronAPI(StiebelEltronAPI):
     def __init__(self, host: str, port: int = 502, device_id: int = 1) -> None:
         super().__init__(
             [
-                ModbusRegisterBlock(base_address=500, count=110, name="System Values", registers=WPM_SYSTEM_VALUES_REGISTERS, register_type=RegisterType.INPUT_REGISTER),
+                ModbusRegisterBlock(base_address=500, count=111, name="System Values", registers=WPM_SYSTEM_VALUES_REGISTERS, register_type=RegisterType.INPUT_REGISTER),
                 ModbusRegisterBlock(base_address=1500, count=52, name="System Parameters", registers=WPM_SYSTEM_PARAMETERS_REGISTERS, register_type=RegisterType.HOLDING_REGISTER),
                 ModbusRegisterBlock(base_address=2500, count=47, name="System State", registers=WPM_SYSTEM_STATE_REGISTERS, register_type=RegisterType.INPUT_REGISTER),
                 ModbusRegisterBlock(base_address=3500, count=86, name="Energy Data", registers=WPM_ENERGY_DATA_REGISTERS, register_type=RegisterType.INPUT_REGISTER),

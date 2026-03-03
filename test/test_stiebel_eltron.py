@@ -6,6 +6,7 @@ from pymodbus.pdu.register_message import (
 )
 from pytest_mock import MockerFixture
 
+from pystiebeleltron import ControllerModel, StiebelEltronModbusError, get_controller_model
 from pystiebeleltron.lwz import LwzEnergyDataRegisters, LwzStiebelEltronAPI, LwzSystemValuesRegisters, OperatingMode
 from pystiebeleltron.wpm import WpmEnergyDataRegisters, WpmStiebelEltronAPI, WpmSystemValuesRegisters
 
@@ -63,3 +64,110 @@ async def test_lwz(mocker: MockerFixture) -> None:
 
     await api.close()
     mock_close.assert_called_once()
+
+
+@pytest.mark.asyncio()
+async def test_get_controller_model_lwz(mocker: MockerFixture) -> None:
+    """Test get_controller_model returns ControllerModel.LWZ for model id 103."""
+
+    async def mock_read_input_registers(self: object, address: int, *, count: int = 1, device_id: int = 0) -> ReadInputRegistersResponse:
+        return ReadInputRegistersResponse(address=address, count=count, registers=[103])
+
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.connect")
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.close")
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_input_registers", mock_read_input_registers)
+
+    model = await get_controller_model("localhost", 502)
+    assert model == ControllerModel.LWZ
+
+
+@pytest.mark.asyncio()
+async def test_get_controller_model_lwz_x04_sol(mocker: MockerFixture) -> None:
+    """Test get_controller_model returns ControllerModel.LWZ_x04_SOL for model id 104."""
+
+    async def mock_read_input_registers(self: object, address: int, *, count: int = 1, device_id: int = 0) -> ReadInputRegistersResponse:
+        return ReadInputRegistersResponse(address=address, count=count, registers=[104])
+
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.connect")
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.close")
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_input_registers", mock_read_input_registers)
+
+    model = await get_controller_model("localhost", 502)
+    assert model == ControllerModel.LWZ_x04_SOL
+
+
+@pytest.mark.asyncio()
+async def test_get_controller_model_wpm_3(mocker: MockerFixture) -> None:
+    """Test get_controller_model returns ControllerModel.WPM_3 for model id 390."""
+
+    async def mock_read_input_registers(self: object, address: int, *, count: int = 1, device_id: int = 0) -> ReadInputRegistersResponse:
+        return ReadInputRegistersResponse(address=address, count=count, registers=[390])
+
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.connect")
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.close")
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_input_registers", mock_read_input_registers)
+
+    model = await get_controller_model("localhost", 502)
+    assert model == ControllerModel.WPM_3
+
+
+@pytest.mark.asyncio()
+async def test_get_controller_model_wpm_3i(mocker: MockerFixture) -> None:
+    """Test get_controller_model returns ControllerModel.WPM_3i for model id 391."""
+
+    async def mock_read_input_registers(self: object, address: int, *, count: int = 1, device_id: int = 0) -> ReadInputRegistersResponse:
+        return ReadInputRegistersResponse(address=address, count=count, registers=[391])
+
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.connect")
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.close")
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_input_registers", mock_read_input_registers)
+
+    model = await get_controller_model("localhost", 502)
+    assert model == ControllerModel.WPM_3i
+
+
+@pytest.mark.asyncio()
+async def test_get_controller_model_wpm_system(mocker: MockerFixture) -> None:
+    """Test get_controller_model returns ControllerModel.WPMsystem for model id 449."""
+
+    async def mock_read_input_registers(self: object, address: int, *, count: int = 1, device_id: int = 0) -> ReadInputRegistersResponse:
+        return ReadInputRegistersResponse(address=address, count=count, registers=[449])
+
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.connect")
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.close")
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_input_registers", mock_read_input_registers)
+
+    model = await get_controller_model("localhost", 502)
+    assert model == ControllerModel.WPMsystem
+
+
+@pytest.mark.asyncio()
+async def test_get_controller_model_lwz_r290(mocker: MockerFixture) -> None:
+    """Test get_controller_model returns ControllerModel.LWZ_R290 for model id 551."""
+
+    async def mock_read_input_registers(self: object, address: int, *, count: int = 1, device_id: int = 0) -> ReadInputRegistersResponse:
+        return ReadInputRegistersResponse(address=address, count=count, registers=[551])
+
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.connect")
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.close")
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_input_registers", mock_read_input_registers)
+
+    model = await get_controller_model("localhost", 502)
+    assert model == ControllerModel.LWZ_R290
+
+
+@pytest.mark.asyncio()
+async def test_get_controller_model_error_response(mocker: MockerFixture) -> None:
+    """Test get_controller_model raises error when modbus returns error."""
+
+    async def mock_read_input_registers_error(self: object, address: int, *, count: int = 1, device_id: int = 0) -> ReadInputRegistersResponse:
+        response = ReadInputRegistersResponse(address=address, count=count, registers=[0])
+        response.isError = lambda: True
+        return response
+
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.connect")
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.close")
+    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_input_registers", mock_read_input_registers_error)
+
+    with pytest.raises(StiebelEltronModbusError):
+        await get_controller_model("localhost", 502)

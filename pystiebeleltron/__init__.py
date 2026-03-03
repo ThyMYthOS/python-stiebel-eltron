@@ -125,6 +125,7 @@ class ControllerModel(Enum):
     WPM_3 = 390
     WPM_3i = 391
     WPMsystem = 449
+    LWZ_R290 = 551
 
 
 async def get_controller_model(host: str, port: int) -> ControllerModel:

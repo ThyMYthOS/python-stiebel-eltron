@@ -10,47 +10,46 @@ permissions:
   contents: read
 
 jobs:
-  build-and-publish:
+  build:
+    name: Build distributions
     runs-on: ubuntu-latest
-    
+
     steps:
-    # Check out the repository code
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    # Set up Python environment
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.12'
-        
-    # Install build dependencies
-    - name: Install build dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install build twine
-        
-    # Build wheel and source distributions
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@e92bafb6253dcd438e0484186d7669ea7a8ca1cc # v6.4.3
+
     - name: Build distributions
-      run: |
-        python -m build
-        
-    # Verify the distributions were created
+      run: uv build
+
     - name: Verify build artifacts
       run: |
-        ls -la dist/
         echo "Built packages:"
         ls dist/
-        
-    # Check the distributions before upload
-    - name: Check distributions
-      run: |
-        python -m twine check dist/*
-        
-    # Upload to PyPI using twine
-    - name: Upload to PyPI
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-      run: |
-        python -m twine upload dist/*
+
+    - name: Upload distributions
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+  publish-to-pypi:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+      url: https://pypi.org/p/pystiebeleltron
+    permissions:
+      id-token: write  # Required for OIDC trusted publishing
+
+    steps:
+    - name: Download distributions
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1

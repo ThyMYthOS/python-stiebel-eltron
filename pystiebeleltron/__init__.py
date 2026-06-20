@@ -8,7 +8,7 @@ from enum import Enum
 from pymodbus.client import AsyncModbusTcpClient
 from pymodbus.pdu import ModbusPDU
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 _LOGGER = logging.getLogger(__package__)
 

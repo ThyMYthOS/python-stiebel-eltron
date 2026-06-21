@@ -19,7 +19,7 @@ classifiers = [
 ]
 requires-python = ">=3.10,<4"
 dependencies = [
-    "pymodbus (>=3.10.0,<4)",
+    "pymodbus>=3.13,<4",
 ]
 
 [build-system]

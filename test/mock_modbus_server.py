@@ -10,12 +10,15 @@ of nodes which can be helpful for testing monitoring software.
 
 from __future__ import annotations
 
+import asyncio
+
 # --------------------------------------------------------------------------- #
 # import the various server implementations
 # --------------------------------------------------------------------------- #
 from pymodbus.datastore import ModbusDeviceContext, ModbusSequentialDataBlock, ModbusServerContext
 from pymodbus.pdu.device import ModbusDeviceIdentification
 from pymodbus.server import ServerStop, StartTcpServer
+from pymodbus.server.base import ModbusBaseServer
 
 
 class MockModbusServer(object):
@@ -84,7 +87,7 @@ class MockModbusServer(object):
         #
         #     store = ModbusDeviceContext(..., zero_mode=True)
         # ----------------------------------------------------------------------- #
-        store = ModbusDeviceContext(hr=ModbusSequentialDataBlock(0, [0] * 3000), ir=ModbusSequentialDataBlock(0, [0] * 3000))
+        store = ModbusDeviceContext(hr=ModbusSequentialDataBlock(1, [0] * 3000), ir=ModbusSequentialDataBlock(1, [0] * 3000))
         self.context = ModbusServerContext(devices=store, single=True)
 
         # ----------------------------------------------------------------------- #
@@ -122,9 +125,13 @@ class MockModbusServer(object):
         """
         assert register == 3 or register == 4
         device_id = 0x00
-        old_values = self.context[device_id].getValues(register, address, count=1)
+        server = ModbusBaseServer.active_server
+        if server is None:
+            raise RuntimeError("Modbus server is not running; cannot update context")
+
+        old_values = asyncio.run_coroutine_threadsafe(server.async_getValues(device_id, register, address, count=len(values)), server.loop).result(timeout=5)
         self.log.debug("Change value at address {} from {} to {}".format(address, old_values, values))
-        self.context[device_id].setValues(register, address, values)
+        asyncio.run_coroutine_threadsafe(server.async_setValues(device_id, register, address, values), server.loop).result(timeout=5)
 
     def update_holding_register(self, address: int, value: float) -> None:
         """Update value of a holding register.

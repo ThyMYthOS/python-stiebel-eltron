@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 from dataclasses import dataclass
 from enum import Enum
 
-from pymodbus.client import AsyncModbusTcpClient
-from pymodbus.pdu import ModbusPDU
+from modbus_connection import ModbusError, ModbusUnit
 
 __version__ = "0.3.2"
 
@@ -128,28 +126,27 @@ class ControllerModel(Enum):
     LWZ_R290 = 551
 
 
-async def get_controller_model(host: str, port: int) -> ControllerModel:
+async def get_controller_model(unit: ModbusUnit) -> ControllerModel:
     """Read the model of the controller.
 
     LWA and LWZ controllers have model ids 103 and 104.
     WPM controllers have 390, 391 or 449.
     """
-    client = AsyncModbusTcpClient(host=host, port=port)
     try:
-        await client.connect()
-        inverter_data = await client.read_input_registers(
-            address=5001,
-            count=1,
-            device_id=1,
-        )
-        if not inverter_data.isError():
-            value = client.convert_from_registers(inverter_data.registers, client.DATATYPE.UINT16)
-            if isinstance(value, int):
-                return ControllerModel(value)
+        registers = await unit.read_input_registers(5001, 1)
+    except ModbusError as err:
+        raise StiebelEltronModbusError from err
+    return ControllerModel(registers[0])
 
-        raise StiebelEltronModbusError
-    finally:
-        client.close()
+
+def _to_int16(register: int) -> int:
+    """Interpret a raw 16-bit register value as a signed integer."""
+    return register - 0x10000 if register >= 0x8000 else register
+
+
+def _to_uint16(value: int) -> int:
+    """Encode an integer as a raw 16-bit register value."""
+    return value & 0xFFFF
 
 
 class StiebelEltronAPI:
@@ -158,42 +155,24 @@ class StiebelEltronAPI:
     def __init__(
         self,
         register_blocks: list[ModbusRegisterBlock],
-        host: str,
-        port: int = 502,
-        device_id: int = 1,
+        unit: ModbusUnit,
     ) -> None:
-        """Initialize Stiebel Eltron communication."""
-        self._device_id = device_id
-        self._lock = asyncio.Lock()
-        self._host = host
-        self._client: AsyncModbusTcpClient = AsyncModbusTcpClient(host=host, port=port)
-        self._lock = asyncio.Lock()
+        """Initialize Stiebel Eltron communication.
+
+        The ``unit`` is an already-bound ``ModbusUnit`` from the
+        ``modbus_connection`` library. The owner of the underlying connection is
+        responsible for its lifecycle (connecting, closing, reconnecting).
+        """
+        self._unit = unit
         self._register_blocks = register_blocks
         self._data: dict[IsgRegisters, float | int | None] = {}
         self._previous_data: dict[IsgRegisters, float | int | None] = {}
-        self._modbus_data: dict[str, ModbusPDU | None] = {}  # store raw data from modbus for debug purpose
-
-    async def close(self) -> None:
-        """Disconnect client."""
-        _LOGGER.debug("Closing connection to %s", self._host)
-        async with self._lock:
-            self._client.close()
-
-    async def connect(self) -> None:
-        """Connect client."""
-        _LOGGER.debug("Connecting to %s", self._host)
-        async with self._lock:
-            await self._client.connect()
+        self._modbus_data: dict[str, list[int] | None] = {}  # store raw data from modbus for debug purpose
 
     @property
     def is_connected(self) -> bool:
-        """Check modbus client connection status."""
-        return self._client.connected
-
-    @property
-    def host(self) -> str:
-        """Return the host address of the Stiebel Eltron ISG."""
-        return self._host
+        """Check modbus connection status."""
+        return self._unit.connected
 
     def get_register_descriptor(self, register: IsgRegisters) -> ModbusRegister | None:
         """Get the descriptor of a register."""
@@ -218,65 +197,52 @@ class StiebelEltronAPI:
         """Writes a modbus register."""
         descriptor = self.get_register_descriptor(register)
         if descriptor is not None:
-            async with self._lock:
-                await self._client.write_register(descriptor.address - 1, value=self.convert_value_to_modbus(value, descriptor), device_id=1)
+            await self._unit.write_register(descriptor.address - 1, self.convert_value_to_modbus(value, descriptor))
         else:
             raise ValueError("invalid register")
 
-    async def read_input_registers(self, device_id: int, address: int, count: int) -> ModbusPDU:
+    async def read_input_registers(self, address: int, count: int) -> list[int]:
         """Read input registers."""
-        _LOGGER.debug(f"Reading {count} input registers from {address} with device_id {device_id}")
-        async with self._lock:
-            return await self._client.read_input_registers(address, count=count, device_id=device_id)
+        _LOGGER.debug(f"Reading {count} input registers from {address}")
+        return await self._unit.read_input_registers(address, count)
 
-    async def read_holding_registers(self, device_id: int, address: int, count: int) -> ModbusPDU:
+    async def read_holding_registers(self, address: int, count: int) -> list[int]:
         """Read holding registers."""
-        _LOGGER.debug(f"Reading {count} holding registers from {address} with device_id {device_id}")
-        async with self._lock:
-            return await self._client.read_holding_registers(address, count=count, device_id=device_id)
+        _LOGGER.debug(f"Reading {count} holding registers from {address}")
+        return await self._unit.read_holding_registers(address, count)
 
     def convert_value_from_modbus(self, register: int, register_description: ModbusRegister) -> float | int | None:
         """Convert a modbus value to a python value."""
         if register_description.data_type == 2:
-            value = self._client.convert_from_registers([register], self._client.DATATYPE.INT16)
-            if isinstance(value, int):
-                if value == -32768:
-                    return None
-                return float(value) * 0.1
+            value = _to_int16(register)
+            if value == -32768:
+                return None
+            return float(value) * 0.1
         elif register_description.data_type == 6:
-            value = self._client.convert_from_registers([register], self._client.DATATYPE.UINT16)
-            if isinstance(value, int):
-                if value == 32768:
-                    return None
-                return value
+            if register == 32768:
+                return None
+            return register
         elif register_description.data_type == 7:
-            value = self._client.convert_from_registers([register], self._client.DATATYPE.INT16)
-            if isinstance(value, int):
-                if value == -32768:
-                    return None
-                return value * 0.01
+            value = _to_int16(register)
+            if value == -32768:
+                return None
+            return value * 0.01
         elif register_description.data_type == 8:
-            value = self._client.convert_from_registers([register], self._client.DATATYPE.UINT16)
-            if isinstance(value, int):
-                if value == 32768:
-                    return None
-                return value
+            if register == 32768:
+                return None
+            return register
         raise ValueError("invalid register.")
 
     def convert_value_to_modbus(self, value: int | float, register_description: ModbusRegister) -> int:
-        """Convert a modbus value to a python value."""
+        """Convert a python value to a modbus register value."""
         if register_description.data_type == 2:
-            register = self._client.convert_to_registers([int(value * 10)], self._client.DATATYPE.INT16)
-            return register[0]
+            return _to_uint16(int(value * 10))
         elif register_description.data_type == 6:
-            register = self._client.convert_to_registers([int(value)], self._client.DATATYPE.UINT16)
-            return register[0]
+            return _to_uint16(int(value))
         elif register_description.data_type == 7:
-            register = self._client.convert_to_registers([int(value * 100)], self._client.DATATYPE.INT16)
-            return register[0]
+            return _to_uint16(int(value * 100))
         elif register_description.data_type == 8:
-            register = self._client.convert_to_registers([int(value)], self._client.DATATYPE.UINT16)
-            return register[0]
+            return _to_uint16(int(value))
         else:
             raise ValueError("invalid register type")
 
@@ -284,30 +250,24 @@ class StiebelEltronAPI:
         """Request current values from heat pump."""
         result: dict[IsgRegisters, float | int | None] = {}
         for registerblock in self._register_blocks:
-            heat_pump_data = None
-            if registerblock.register_type == RegisterType.INPUT_REGISTER:
-                heat_pump_data = await self.read_input_registers(
-                    device_id=self._device_id,
-                    address=registerblock.base_address,
-                    count=registerblock.count,
-                )
-            elif registerblock.register_type == RegisterType.HOLDING_REGISTER:
-                heat_pump_data = await self.read_holding_registers(
-                    device_id=self._device_id,
-                    address=registerblock.base_address,
-                    count=registerblock.count,
-                )
-
-            if heat_pump_data is not None and not heat_pump_data.isError():
-                self._modbus_data[registerblock.name] = heat_pump_data
-                for i in range(0, registerblock.count):
-                    descriptor = get_register_descriptor(
-                        list(registerblock.registers.values()),
-                        i + registerblock.base_address + 1,
-                    )
-                    if descriptor is not None:
-                        result[descriptor.key] = self.convert_value_from_modbus(heat_pump_data.registers[i], descriptor)
-            else:
+            try:
+                if registerblock.register_type == RegisterType.INPUT_REGISTER:
+                    registers = await self.read_input_registers(registerblock.base_address, registerblock.count)
+                elif registerblock.register_type == RegisterType.HOLDING_REGISTER:
+                    registers = await self.read_holding_registers(registerblock.base_address, registerblock.count)
+                else:
+                    continue
+            except ModbusError:
                 self._modbus_data[registerblock.name] = None
+                continue
+
+            self._modbus_data[registerblock.name] = registers
+            for i in range(0, registerblock.count):
+                descriptor = get_register_descriptor(
+                    list(registerblock.registers.values()),
+                    i + registerblock.base_address + 1,
+                )
+                if descriptor is not None:
+                    result[descriptor.key] = self.convert_value_from_modbus(registers[i], descriptor)
         self._previous_data = self._data
         self._data = result

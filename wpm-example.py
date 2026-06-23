@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 import asyncio
 
+from modbus_connection.pymodbus import connect_tcp
+
 from pystiebeleltron.wpm import WpmStiebelEltronAPI, WpmSystemParametersRegisters, WpmSystemValuesRegisters
 
 host_ip = "192.168.1.20"
+host_port = 502
+device_id = 1
 
 
 async def main():
-    api = WpmStiebelEltronAPI(host_ip, 502)
-    await api.connect()
+    connection = await connect_tcp(host_ip, port=host_port)
+    api = WpmStiebelEltronAPI(connection.for_unit(device_id))
 
     await api.async_update()
 
@@ -35,7 +39,7 @@ async def main():
         await asyncio.sleep(3)
         await api.async_update()
     print(f"get_target_temp: {api.get_register_value(WpmSystemParametersRegisters.COMFORT_TEMPERATURE)}")
-    await api.close()
+    await connection.close()
 
 
 if __name__ == "__main__":

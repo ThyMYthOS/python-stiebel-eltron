@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from enum import Enum
 
+from modbus_connection import ModbusUnit
+
 from . import (
     ENERGY_DATA_BLOCK_NAME,
     ENERGY_MANAGEMENT_SETTINGS_REGISTERS,
@@ -351,7 +353,7 @@ class OperatingMode(Enum):
 
 
 class LwzStiebelEltronAPI(StiebelEltronAPI):
-    def __init__(self, host: str, port: int = 502, device_id: int = 1) -> None:
+    def __init__(self, unit: ModbusUnit) -> None:
         super().__init__(
             [
                 ModbusRegisterBlock(base_address=0, count=34, name="System Values", registers=LWZ_SYSTEM_VALUES_REGISTERS, register_type=RegisterType.INPUT_REGISTER),
@@ -361,9 +363,7 @@ class LwzStiebelEltronAPI(StiebelEltronAPI):
                 ModbusRegisterBlock(base_address=4000, count=3, name="Energy Management Settings", registers=ENERGY_MANAGEMENT_SETTINGS_REGISTERS, register_type=RegisterType.HOLDING_REGISTER),
                 ModbusRegisterBlock(base_address=5000, count=2, name="Energy System Information", registers=ENERGY_SYSTEM_INFORMATION_REGISTERS, register_type=RegisterType.INPUT_REGISTER),
             ],
-            host,
-            port,
-            device_id,
+            unit,
         )
 
     async def async_update(self) -> None:

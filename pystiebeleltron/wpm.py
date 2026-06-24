@@ -7,9 +7,13 @@ from modbus_connection.model import Component, ComponentGroup, gauge, integer, s
 
 from . import UNAVAILABLE, EnergyManagementSettings, EnergySystemInformation
 
+WPM_HOLDING_RANGES = ((1500, 1551), (4000, 4002))
+WPM_INPUT_RANGES = ((500, 609), (2500, 2546), (3500, 3585), (3707, 3722), (5000, 5001))
+
 
 class WpmSystemValues(Component):
     register_space = "input"
+    register_ranges = WPM_INPUT_RANGES
 
     actual_temperature_fe7 = gauge(500, 0.1, nan=UNAVAILABLE, unit="°C")
     set_temperature_fe7 = gauge(501, 0.1, nan=UNAVAILABLE, unit="°C")
@@ -125,6 +129,7 @@ class WpmSystemValues(Component):
 
 class WpmSystemParameters(Component):
     register_space = "holding"
+    register_ranges = WPM_HOLDING_RANGES
 
     operating_mode = integer(1500, signed=False, nan=UNAVAILABLE, writable=True)
     comfort_temperature_hk_1 = gauge(1501, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
@@ -154,6 +159,7 @@ class WpmSystemParameters(Component):
 
 class WpmSystemState(Component):
     register_space = "input"
+    register_ranges = WPM_INPUT_RANGES
 
     operating_status = integer(2500, signed=False, nan=UNAVAILABLE)
     power_off = integer(2501, signed=False, nan=UNAVAILABLE)
@@ -206,6 +212,7 @@ class WpmSystemState(Component):
 
 class WpmEnergyData(Component):
     register_space = "input"
+    register_ranges = WPM_INPUT_RANGES
 
     vd_heating_day = integer(3500, signed=False, nan=UNAVAILABLE, unit="kWh")
     vd_heating_total = scaled_sum(3501, (1, 1000), unit="kWh")
@@ -375,6 +382,7 @@ class WpmEnergyData(Component):
 
 class WpmPowerConsumption(Component):
     register_space = "input"
+    register_ranges = WPM_INPUT_RANGES
 
     heating_24h = integer(3707, signed=False, nan=UNAVAILABLE, unit="kWh")
     heating_12m_fraction = integer(3709, signed=False, nan=UNAVAILABLE, unit="kWh")
@@ -398,7 +406,9 @@ class WpmStiebelEltronAPI:
         self.energy_data = WpmEnergyData(unit)
         self.power_consumption = WpmPowerConsumption(unit)
         self.energy_management_settings = EnergyManagementSettings(unit)
+        self.energy_management_settings.register_ranges = WPM_HOLDING_RANGES
         self.energy_system_information = EnergySystemInformation(unit)
+        self.energy_system_information.register_ranges = WPM_INPUT_RANGES
         self._group = ComponentGroup(
             unit,
             [

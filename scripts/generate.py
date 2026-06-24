@@ -114,6 +114,12 @@ def _field_line(name: str, data_type: str, wire: int, unit: str, writable: bool)
     raise ValueError(f"unhandled data type {data_type!r} for {name!r}")
 
 
+# The two shared components from pystiebeleltron/__init__.py, as (low, high) wire
+# address ranges, so they join their space's device-wide ranges.
+SHARED_INPUT_RANGE = (5000, 5001)  # EnergySystemInformation
+SHARED_HOLDING_RANGE = (4000, 4002)  # EnergyManagementSettings
+
+
 @dataclass
 class Component:
     """A rendered component: field/property source lines plus energy metadata."""
@@ -121,6 +127,8 @@ class Component:
     block_name: str  # e.g. "System Values"
     class_suffix: str  # e.g. "SystemValues"
     space: str
+    low: int = 0  # first wire address the block covers
+    high: int = 0  # last wire address the block covers
     fields: list[str] = field(default_factory=list)  # "attr = factory(...)"
     day_and_total: list[tuple[str, str, str]] = field(default_factory=list)
 
@@ -130,8 +138,15 @@ def _read_rows(api_path: Path, block: Block, cols: Columns) -> list[list[str]]:
         return list(csv.reader(handle))[1:]
 
 
+def _span(rows: list[list[str]]) -> tuple[int, int]:
+    """The block's (low, high) wire address range, covering every row read."""
+    addresses = [int(row[0]) - 1 for row in rows]
+    return min(addresses), max(addresses)
+
+
 def _plain_component(block: Block, rows: list[list[str]], cols: Columns) -> Component:
-    component = Component(block.name, class_name(block.name), block.space)
+    low, high = _span(rows)
+    component = Component(block.name, class_name(block.name), block.space, low, high)
     seen: set[str] = set()
     for row in rows:
         name, suffix = row[cols.name], row[cols.suffix]
@@ -147,7 +162,8 @@ def _plain_component(block: Block, rows: list[list[str]], cols: Columns) -> Comp
 
 def _energy_component(block: Block, rows: list[list[str]], cols: Columns) -> Component:
     """Energy block: LOW/HI pairs collapse to scaled_sum; DAY rows gain a running total."""
-    component = Component(block.name, class_name(block.name), block.space)
+    low, high = _span(rows)
+    component = Component(block.name, class_name(block.name), block.space, low, high)
     seen: set[str] = set()
 
     def add(attribute: str, source: str) -> None:
@@ -175,8 +191,29 @@ def _energy_component(block: Block, rows: list[list[str]], cols: Columns) -> Com
     return component
 
 
+def _ranges_const(heatpump: HeatPump, space: str) -> str:
+    """The module-level range-constant name for a heat pump's register space."""
+    return f"{heatpump.type.upper()}_{space.upper()}_RANGES"
+
+
+def _ranges_by_space(components: list[Component]) -> dict[str, tuple[tuple[int, int], ...]]:
+    """The device-wide readable ranges per space (block spans plus the shared blocks)."""
+    shared = {"input": SHARED_INPUT_RANGE, "holding": SHARED_HOLDING_RANGE}
+    spans: dict[str, set[tuple[int, int]]] = {}
+    for component in components:
+        spans.setdefault(component.space, set()).add((component.low, component.high))
+    for space, ranges in spans.items():
+        ranges.add(shared[space])
+    return {space: tuple(sorted(ranges)) for space, ranges in spans.items()}
+
+
 def _render_component(component: Component, heatpump: HeatPump) -> str:
-    lines = [f"class {heatpump.type}{component.class_suffix}(Component):", f'    register_space = "{component.space}"', ""]
+    lines = [
+        f"class {heatpump.type}{component.class_suffix}(Component):",
+        f'    register_space = "{component.space}"',
+        f"    register_ranges = {_ranges_const(heatpump, component.space)}",
+        "",
+    ]
     lines += [f"    {line}" for line in component.fields]
 
     if heatpump.compressor_starts and component.class_suffix == "SystemValues":
@@ -232,8 +269,11 @@ def _render_api(heatpump: HeatPump, components: list[Component]) -> str:
         member = field_attr(component.block_name)
         members.append(member)
         lines.append(f"        self.{member} = {heatpump.type}{component.class_suffix}(unit)")
+    holding, inputs = _ranges_const(heatpump, "holding"), _ranges_const(heatpump, "input")
     lines.append("        self.energy_management_settings = EnergyManagementSettings(unit)")
+    lines.append(f"        self.energy_management_settings.register_ranges = {holding}")
     lines.append("        self.energy_system_information = EnergySystemInformation(unit)")
+    lines.append(f"        self.energy_system_information.register_ranges = {inputs}")
     members += ["energy_management_settings", "energy_system_information"]
     lines.append("        self._group = ComponentGroup(")
     lines.append("            unit,")
@@ -344,7 +384,10 @@ def generate(heatpump: HeatPump, root: Path) -> None:
         "from . import UNAVAILABLE, EnergyManagementSettings, EnergySystemInformation",
     ]
 
-    sections = ["\n".join(header)]
+    ranges = _ranges_by_space(components)
+    range_lines = [f"{_ranges_const(heatpump, space)} = {ranges[space]!r}" for space in sorted(ranges)]
+
+    sections = ["\n".join(header), "\n".join(range_lines)]
     if heatpump.operating_mode:
         sections.append(_OPERATING_MODE)
     sections += [_render_component(component, heatpump) for component in components]

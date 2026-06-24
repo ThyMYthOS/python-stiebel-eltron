@@ -9,6 +9,9 @@ from modbus_connection.model import Component, ComponentGroup, gauge, integer, s
 
 from . import UNAVAILABLE, EnergyManagementSettings, EnergySystemInformation
 
+LWZ_HOLDING_RANGES = ((1000, 1026), (4000, 4002))
+LWZ_INPUT_RANGES = ((0, 33), (2000, 2004), (3000, 3031), (5000, 5001))
+
 
 class OperatingMode(Enum):
     """Enum for the operation mode of the heat pump."""
@@ -24,6 +27,7 @@ class OperatingMode(Enum):
 
 class LwzSystemValues(Component):
     register_space = "input"
+    register_ranges = LWZ_INPUT_RANGES
 
     actual_room_t_hc1 = gauge(0, 0.1, nan=UNAVAILABLE, unit="°C")
     set_room_temperature_hc1 = gauge(1, 0.1, nan=UNAVAILABLE, unit="°C")
@@ -72,6 +76,7 @@ class LwzSystemValues(Component):
 
 class LwzSystemParameters(Component):
     register_space = "holding"
+    register_ranges = LWZ_HOLDING_RANGES
 
     operating_mode = integer(1000, signed=False, nan=UNAVAILABLE, writable=True)
     room_temperature_day_hk1 = gauge(1001, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
@@ -104,6 +109,7 @@ class LwzSystemParameters(Component):
 
 class LwzSystemState(Component):
     register_space = "input"
+    register_ranges = LWZ_INPUT_RANGES
 
     operating_status = integer(2000, signed=False, nan=UNAVAILABLE)
     fault_status = integer(2001, signed=False, nan=UNAVAILABLE)
@@ -114,6 +120,7 @@ class LwzSystemState(Component):
 
 class LwzEnergyData(Component):
     register_space = "input"
+    register_ranges = LWZ_INPUT_RANGES
 
     heat_meter_htg_day = integer(3000, signed=False, nan=UNAVAILABLE, unit="kWh")
     heat_meter_htg_ttl = scaled_sum(3001, (1, 1000), unit="kWh")
@@ -201,7 +208,9 @@ class LwzStiebelEltronAPI:
         self.system_state = LwzSystemState(unit)
         self.energy_data = LwzEnergyData(unit)
         self.energy_management_settings = EnergyManagementSettings(unit)
+        self.energy_management_settings.register_ranges = LWZ_HOLDING_RANGES
         self.energy_system_information = EnergySystemInformation(unit)
+        self.energy_system_information.register_ranges = LWZ_INPUT_RANGES
         self._group = ComponentGroup(
             unit,
             [

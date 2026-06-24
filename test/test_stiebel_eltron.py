@@ -2,70 +2,70 @@ from __future__ import annotations
 
 import pytest
 from modbus_connection.mock import MockModbusConnection, MockModbusUnit
+from modbus_connection.model import Component
 
-from pystiebeleltron import ControllerModel, RegisterType, StiebelEltronAPI, StiebelEltronModbusError, get_controller_model
-from pystiebeleltron.lwz import LwzEnergyDataRegisters, LwzStiebelEltronAPI, LwzSystemValuesRegisters, OperatingMode
-from pystiebeleltron.wpm import WpmEnergyDataRegisters, WpmPowerConsumptionRegisters, WpmStiebelEltronAPI, WpmSystemValuesRegisters
+from pystiebeleltron import ControllerModel, StiebelEltronModbusError, get_controller_model
+from pystiebeleltron.lwz import LwzStiebelEltronAPI, OperatingMode
+from pystiebeleltron.wpm import WpmStiebelEltronAPI
 
 
-def _seed_sequential(unit: MockModbusUnit, api: StiebelEltronAPI) -> None:
-    """Seed each register block so a block read returns ``[0, 1, ..., count - 1]``.
+def _seed(unit: MockModbusUnit, *components: Component) -> None:
+    """Seed each component's store so register ``i`` of a block reads back as ``i``.
 
-    Register ``i`` within a block then reads back as the value ``i``, which is the
-    synthetic pattern the assertions below are derived from.
+    Mirrors the synthetic pattern the assertions are derived from: a block whose
+    fields start at address ``base`` gets ``[0, 1, 2, ...]`` from ``base`` on, so a
+    field at address ``base + n`` decodes the raw value ``n``.
     """
-    for block in api._register_blocks:
-        store = unit.input if block.register_type == RegisterType.INPUT_REGISTER else unit.holding
-        store[block.base_address] = list(range(block.count))
+    for component in components:
+        fields = component._register_fields.values()
+        low = min(field.address for field in fields)
+        high = max(field.address + field.count - 1 for field in fields)
+        store = unit.input if component.register_space == "input" else unit.holding
+        store[low] = list(range(high - low + 1))
 
 
 @pytest.mark.asyncio()
 async def test_wpm(mock_modbus_unit: MockModbusUnit) -> None:
     api = WpmStiebelEltronAPI(mock_modbus_unit)
-    _seed_sequential(mock_modbus_unit, api)
-
-    assert api.is_connected
+    _seed(mock_modbus_unit, api.system_values, api.energy_data)
 
     await api.async_update()
 
-    assert api.get_register_value(WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_FEK) == 0.2
-
-    assert api.get_register_value(WpmEnergyDataRegisters.VD_HEATING_DAY_AND_TOTAL_CONSUMED) == 12021
+    assert api.system_values.actual_temperature_fek == 0.2
+    # vd_heating_day (10) + scaled_sum total (11 + 12 * 1000) = 12021
+    assert api.energy_data.vd_heating_day_and_total_consumed == 12021
 
 
 @pytest.mark.asyncio()
 async def test_wpm_power_consumption_registers(mock_modbus_unit: MockModbusUnit) -> None:
     api = WpmStiebelEltronAPI(mock_modbus_unit)
-    _seed_sequential(mock_modbus_unit, api)
+    _seed(mock_modbus_unit, api.power_consumption)
 
     await api.async_update()
 
-    # Block base_address=3707, count=16 → registers[i] = i for i in 0..15
-    # Address = base_address + 1 + i, so register at address 3708 is index 0 → value 0
-    assert api.get_register_value(WpmPowerConsumptionRegisters.HEATING_24H) == 0
-    assert api.get_register_value(WpmPowerConsumptionRegisters.HEATING_12M_FRACTION) == 2
-    assert api.get_register_value(WpmPowerConsumptionRegisters.HEATING_12M_WHOLE) == 3
-    assert api.get_register_value(WpmPowerConsumptionRegisters.COOLING_24H_FRACTION) == 6
-    assert api.get_register_value(WpmPowerConsumptionRegisters.COOLING_24H_WHOLE) == 7
-    assert api.get_register_value(WpmPowerConsumptionRegisters.COOLING_12M) == 8
-    assert api.get_register_value(WpmPowerConsumptionRegisters.DHW_24H_FRACTION) == 12
-    assert api.get_register_value(WpmPowerConsumptionRegisters.DHW_24H_WHOLE) == 13
-    assert api.get_register_value(WpmPowerConsumptionRegisters.DHW_12M_FRACTION) == 14
-    assert api.get_register_value(WpmPowerConsumptionRegisters.DHW_12M_WHOLE) == 15
+    consumption = api.power_consumption
+    assert consumption.heating_24h == 0
+    assert consumption.heating_12m_fraction == 2
+    assert consumption.heating_12m_whole == 3
+    assert consumption.cooling_24h_fraction == 6
+    assert consumption.cooling_24h_whole == 7
+    assert consumption.cooling_12m == 8
+    assert consumption.dhw_24h_fraction == 12
+    assert consumption.dhw_24h_whole == 13
+    assert consumption.dhw_12m_fraction == 14
+    assert consumption.dhw_12m_whole == 15
 
 
 @pytest.mark.asyncio()
 async def test_lwz(mock_modbus_unit: MockModbusUnit) -> None:
     api = LwzStiebelEltronAPI(mock_modbus_unit)
-    _seed_sequential(mock_modbus_unit, api)
-
-    assert api.is_connected
+    _seed(mock_modbus_unit, api.system_values, api.system_parameters, api.system_state, api.energy_data)
 
     await api.async_update()
 
-    assert api.get_register_value(LwzSystemValuesRegisters.RELATIVE_HUMIDITY_HC1) == 0.2
-
-    assert api.get_register_value(LwzEnergyDataRegisters.HEAT_METER_HTG_DAY_AND_TOTAL) == 2001
+    assert api.system_values.relative_humidity_hc1 == 0.2
+    # heat_meter_htg_day (0) + scaled_sum total (1 + 2 * 1000) = 2001
+    assert api.energy_data.heat_meter_htg_day_and_total == 2001
 
     assert api.get_current_humidity() == 0.2
     assert api.get_current_temp() == 0.0
@@ -73,7 +73,18 @@ async def test_lwz(mock_modbus_unit: MockModbusUnit) -> None:
 
     assert api.get_operation() == OperatingMode.EMERGENCY_OPERATION
 
-    assert api.get_register_value(LwzSystemValuesRegisters.COMPRESSOR_STARTS) == 30033
+    # compressor_starts_hi (30) * 1000 + compressor_starts_low (33) = 30033
+    assert api.system_values.compressor_starts == 30033
+
+
+@pytest.mark.asyncio()
+async def test_write_register(mock_modbus_unit: MockModbusUnit) -> None:
+    api = LwzStiebelEltronAPI(mock_modbus_unit)
+
+    await api.set_target_temp(21.5)
+
+    # room_temperature_day_hk1 is a 0.1-scaled holding register at wire address 1001.
+    assert mock_modbus_unit.holding[1001] == 215
 
 
 @pytest.mark.parametrize(

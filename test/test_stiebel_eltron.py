@@ -112,3 +112,24 @@ async def test_get_controller_model_error_response(mock_modbus_connection: MockM
     await mock_modbus_connection.close()
     with pytest.raises(StiebelEltronModbusError):
         await get_controller_model(mock_modbus_connection.for_unit(1))
+
+
+@pytest.mark.asyncio()
+async def test_get_controller_model_unknown_id(mock_modbus_unit: MockModbusUnit) -> None:
+    """An unrecognized model id surfaces as StiebelEltronModbusError, not ValueError."""
+    mock_modbus_unit.input[5001] = 999
+    with pytest.raises(StiebelEltronModbusError):
+        await get_controller_model(mock_modbus_unit)
+
+
+@pytest.mark.asyncio()
+async def test_energy_counter_unavailable(mock_modbus_unit: MockModbusUnit) -> None:
+    """A magnitude counter with an unavailable (0x8000) word decodes to None."""
+    api = LwzStiebelEltronAPI(mock_modbus_unit)
+    _seed(mock_modbus_unit, api.energy_data)
+    mock_modbus_unit.input[3002] = 0x8000  # the MWh word of heat_meter_htg_ttl
+
+    await api.async_update()
+
+    assert api.energy_data.heat_meter_htg_ttl is None
+    assert api.energy_data.heat_meter_htg_day_and_total is None

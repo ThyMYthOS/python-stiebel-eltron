@@ -19,22 +19,26 @@ class MagnitudeField(RegisterField[int]):
 
     A Stiebel energy counter splits a total across registers of rising magnitude
     (e.g. kWh remainder + MWh whole); ``MagnitudeField(addr, (1, 1000))`` reads
-    both and returns the total in the lowest unit.
+    both and returns the total in the lowest unit. A word equal to ``nan`` (the
+    unavailable sentinel) makes the whole counter decode to ``None``.
     """
 
-    def __init__(self, address: int, magnitudes: tuple[int, ...], *, unit: str | None = None) -> None:
+    def __init__(self, address: int, magnitudes: tuple[int, ...], *, nan: int | None = None, unit: str | None = None) -> None:
         """Build the field over ``len(magnitudes)`` consecutive registers."""
         super().__init__(address, count=len(magnitudes), unit=unit)
         self._magnitudes = magnitudes
+        self._nan = nan
 
-    def decode(self, words: list[int], scale_exponent: int | None = None) -> int:
-        """Sum each register word weighted by its magnitude."""
+    def decode(self, words: list[int], scale_exponent: int | None = None) -> int | None:
+        """Sum each register word weighted by its magnitude, or None if unavailable."""
+        if self._nan is not None and self._nan in words:
+            return None
         return sum((word & 0xFFFF) * magnitude for word, magnitude in zip(words, self._magnitudes, strict=True))
 
 
 def scaled_sum(address: int, magnitudes: tuple[int, ...] = (1, 1000, 1_000_000), *, unit: str | None = None) -> MagnitudeField:
-    """Build a :class:`MagnitudeField`."""
-    return MagnitudeField(address, magnitudes, unit=unit)
+    """Build a :class:`MagnitudeField` using the ISG unavailable sentinel."""
+    return MagnitudeField(address, magnitudes, nan=UNAVAILABLE, unit=unit)
 
 
 class StiebelEltronModbusError(Exception):
@@ -65,9 +69,9 @@ async def get_controller_model(unit: ModbusUnit) -> ControllerModel:
     """
     try:
         registers = await unit.read_input_registers(5001, 1)
-    except ModbusError as err:
+        return ControllerModel(registers[0])
+    except (ModbusError, IndexError, ValueError) as err:
         raise StiebelEltronModbusError from err
-    return ControllerModel(registers[0])
 
 
 class EnergyManagementSettings(Component):

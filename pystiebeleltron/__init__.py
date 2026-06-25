@@ -15,7 +15,7 @@ import logging
 from enum import Enum
 
 from modbus_connection import ModbusError, ModbusUnit
-from modbus_connection.model import Component, integer
+from modbus_connection.model import Component, RegisterField, integer
 
 __version__ = "0.3.2"
 
@@ -23,6 +23,31 @@ _LOGGER = logging.getLogger(__package__)
 
 # Raw register value the ISG returns for an unavailable / unimplemented object.
 UNAVAILABLE = 0x8000
+
+
+class MagnitudeField(RegisterField[int]):
+    """Consecutive registers summed by per-register weight (read-only).
+
+    Stiebel energy counters spread a total across registers of rising magnitude —
+    e.g. a heat meter exposes its kWh remainder and MWh whole in two consecutive
+    registers. ``MagnitudeField(addr, (1, 1000))`` reads both and returns the
+    total in the lowest unit (kWh). This is the ``scaled_sum`` field that lived in
+    ``modbus_connection.model`` before 3.0 dropped it as consumer-specific.
+    """
+
+    def __init__(self, address: int, magnitudes: tuple[int, ...], *, unit: str | None = None) -> None:
+        """Build the field over ``len(magnitudes)`` consecutive registers."""
+        super().__init__(address, count=len(magnitudes), unit=unit)
+        self._magnitudes = magnitudes
+
+    def decode(self, words: list[int], scale_exponent: int | None = None) -> int:
+        """Sum each register word weighted by its magnitude."""
+        return sum((word & 0xFFFF) * magnitude for word, magnitude in zip(words, self._magnitudes, strict=True))
+
+
+def scaled_sum(address: int, magnitudes: tuple[int, ...] = (1, 1000, 1_000_000), *, unit: str | None = None) -> MagnitudeField:
+    """Factory for a :class:`MagnitudeField` (mirrors the old model factory)."""
+    return MagnitudeField(address, magnitudes, unit=unit)
 
 
 class StiebelEltronModbusError(Exception):

@@ -7,7 +7,7 @@ from enum import Enum
 from modbus_connection import ModbusUnit
 from modbus_connection.model import Component, ComponentGroup, gauge, integer
 
-from . import UNAVAILABLE, EnergyManagementSettings, EnergySystemInformation
+from . import UNAVAILABLE, EnergyManagementSettings, EnergySystemInformation, scaled_sum
 
 LWZ_HOLDING_RANGES = ((1000, 1026), (4000, 4002))
 LWZ_INPUT_RANGES = ((0, 33), (2000, 2004), (3000, 3031), (5000, 5001))
@@ -123,127 +123,27 @@ class LwzEnergyData(Component):
     register_ranges = LWZ_INPUT_RANGES
 
     heat_meter_htg_day = integer(3000, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _heat_meter_htg_ttl_low = integer(3001, signed=False)
-    _heat_meter_htg_ttl_hi = integer(3002, signed=False)
+    heat_meter_htg_ttl = scaled_sum(3001, (1, 1000), unit="kWh")
     heat_meter_dhw_day = integer(3003, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _heat_meter_dhw_ttl_low = integer(3004, signed=False)
-    _heat_meter_dhw_ttl_hi = integer(3005, signed=False)
-    _heat_m_boost_htg_ttl_low = integer(3006, signed=False)
-    _heat_m_boost_htg_ttl_hi = integer(3007, signed=False)
-    _heat_m_boost_dhw_ttl_low = integer(3008, signed=False)
-    _heat_m_boost_dhw_ttl_hi = integer(3009, signed=False)
+    heat_meter_dhw_ttl = scaled_sum(3004, (1, 1000), unit="kWh")
+    heat_m_boost_htg_ttl = scaled_sum(3006, (1, 1000), unit="kWh")
+    heat_m_boost_dhw_ttl = scaled_sum(3008, (1, 1000), unit="kWh")
     heat_m_recovery_day = integer(3010, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _heat_m_recovery_ttl_low = integer(3011, signed=False)
-    _heat_m_recovery_ttl_hi = integer(3012, signed=False)
+    heat_m_recovery_ttl = scaled_sum(3011, (1, 1000), unit="kWh")
     hm_solar_htg_day = integer(3013, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _hm_solar_htg_total_low = integer(3014, signed=False)
-    _hm_solar_htg_total_hi = integer(3015, signed=False)
+    hm_solar_htg_total = scaled_sum(3014, (1, 1000), unit="kWh")
     hm_solar_dhw_day = integer(3016, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _hm_solar_dwh_total_low = integer(3017, signed=False)
-    _hm_solar_dwh_total_hi = integer(3018, signed=False)
-    _hm_cooling_total_low = integer(3019, signed=False)
-    _hm_cooling_total_hi = integer(3020, signed=False)
+    hm_solar_dwh_total = scaled_sum(3017, (1, 1000), unit="kWh")
+    hm_cooling_total = scaled_sum(3019, (1, 1000), unit="kWh")
     pwr_con_htg_day = integer(3021, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _pwr_con_htg_ttl_low = integer(3022, signed=False)
-    _pwr_con_htg_ttl_hi = integer(3023, signed=False)
+    pwr_con_htg_ttl = scaled_sum(3022, (1, 1000), unit="kWh")
     pwr_con_dhw_day = integer(3024, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _pwr_con_dhw_ttl_low = integer(3025, signed=False)
-    _pwr_con_dhw_ttl_hi = integer(3026, signed=False)
+    pwr_con_dhw_ttl = scaled_sum(3025, (1, 1000), unit="kWh")
     compressor_heating = integer(3027, signed=False, nan=UNAVAILABLE, unit="h")
     compressor_cooling = integer(3028, signed=False, nan=UNAVAILABLE, unit="h")
     compressor_dhw = integer(3029, signed=False, nan=UNAVAILABLE, unit="h")
     elec_booster_heating = integer(3030, signed=False, nan=UNAVAILABLE, unit="h")
     elec_booster_dhw = integer(3031, signed=False, nan=UNAVAILABLE, unit="h")
-
-    @property
-    def heat_meter_htg_ttl(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._heat_meter_htg_ttl_low
-        high = self._heat_meter_htg_ttl_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def heat_meter_dhw_ttl(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._heat_meter_dhw_ttl_low
-        high = self._heat_meter_dhw_ttl_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def heat_m_boost_htg_ttl(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._heat_m_boost_htg_ttl_low
-        high = self._heat_m_boost_htg_ttl_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def heat_m_boost_dhw_ttl(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._heat_m_boost_dhw_ttl_low
-        high = self._heat_m_boost_dhw_ttl_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def heat_m_recovery_ttl(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._heat_m_recovery_ttl_low
-        high = self._heat_m_recovery_ttl_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def hm_solar_htg_total(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._hm_solar_htg_total_low
-        high = self._hm_solar_htg_total_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def hm_solar_dwh_total(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._hm_solar_dwh_total_low
-        high = self._hm_solar_dwh_total_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def hm_cooling_total(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._hm_cooling_total_low
-        high = self._hm_cooling_total_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def pwr_con_htg_ttl(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._pwr_con_htg_ttl_low
-        high = self._pwr_con_htg_ttl_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def pwr_con_dhw_ttl(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._pwr_con_dhw_ttl_low
-        high = self._pwr_con_dhw_ttl_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
 
     _DAY_AND_TOTAL = (
         ("heat_meter_htg_day", "heat_meter_htg_ttl", "heat_meter_htg_day_and_total"),

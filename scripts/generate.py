@@ -131,9 +131,6 @@ class Component:
     high: int = 0  # last wire address the block covers
     fields: list[str] = field(default_factory=list)  # "attr = factory(...)"
     day_and_total: list[tuple[str, str, str]] = field(default_factory=list)
-    # (attribute, unit, low wire address) for each kWh/MWh counter combined in a
-    # @property from its two private part fields.
-    totals: list[tuple[str, str, int]] = field(default_factory=list)
 
 
 def _read_rows(api_path: Path, block: Block, cols: Columns) -> list[list[str]]:
@@ -179,17 +176,10 @@ def _energy_component(block: Block, rows: list[list[str]], cols: Columns) -> Com
         name, suffix = row[cols.name], row[cols.suffix]
         wire, unit = int(row[0]) - 1, row[cols.unit]
         if suffix[:2] == "HI":
-            continue  # consumed by the preceding LOW row's counter property
+            continue  # consumed by the preceding LOW row's scaled_sum
         if suffix[:3] == "LOW":
-            # kWh (LOW) + MWh (HI) summed into a single counter (in kWh) by a
-            # @property over two private part fields.
-            total = attr(name, suffix[3:].strip())
-            if total in seen:
-                raise ValueError(f"duplicate attribute {total!r} in {block.name}")
-            seen.add(total)
-            add(f"_{total}_low", f"integer({wire}, signed=False)")
-            add(f"_{total}_hi", f"integer({wire + 1}, signed=False)")
-            component.totals.append((total, unit, wire))
+            # kWh (LOW) + MWh (HI) summed into a single counter, in kWh.
+            add(attr(name, suffix[3:].strip()), f'scaled_sum({wire}, (1, 1000), unit="{unit}")')
             continue
         attribute = attr(name, suffix)
         add(attribute, _field_line(name, row[cols.data_type], wire, unit, False))
@@ -225,19 +215,6 @@ def _render_component(component: Component, heatpump: HeatPump) -> str:
         "",
     ]
     lines += [f"    {line}" for line in component.fields]
-
-    for total, unit, _wire in component.totals:
-        lines += [
-            "",
-            "    @property",
-            f"    def {total}(self) -> int | None:",
-            f'        """Combined kWh counter ({unit}): low kWh + high MWh."""',
-            f"        low = self._{total}_low",
-            f"        high = self._{total}_hi",
-            "        if low is None or high is None:",
-            "            return None",
-            "        return low + high * 1000",
-        ]
 
     if heatpump.compressor_starts and component.class_suffix == "SystemValues":
         lines += [
@@ -404,7 +381,7 @@ def generate(heatpump: HeatPump, root: Path) -> None:
         "from modbus_connection import ModbusUnit",
         "from modbus_connection.model import Component, ComponentGroup, gauge, integer",
         "",
-        "from . import UNAVAILABLE, EnergyManagementSettings, EnergySystemInformation",
+        "from . import UNAVAILABLE, EnergyManagementSettings, EnergySystemInformation, scaled_sum",
     ]
 
     ranges = _ranges_by_space(components)

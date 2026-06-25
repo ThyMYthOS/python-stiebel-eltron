@@ -5,7 +5,7 @@ from __future__ import annotations
 from modbus_connection import ModbusUnit
 from modbus_connection.model import Component, ComponentGroup, gauge, integer
 
-from . import UNAVAILABLE, EnergyManagementSettings, EnergySystemInformation
+from . import UNAVAILABLE, EnergyManagementSettings, EnergySystemInformation, scaled_sum
 
 WPM_HOLDING_RANGES = ((1500, 1551), (4000, 4002))
 WPM_INPUT_RANGES = ((500, 609), (2500, 2546), (3500, 3585), (3707, 3722), (5000, 5001))
@@ -215,21 +215,15 @@ class WpmEnergyData(Component):
     register_ranges = WPM_INPUT_RANGES
 
     vd_heating_day = integer(3500, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _vd_heating_total_low = integer(3501, signed=False)
-    _vd_heating_total_hi = integer(3502, signed=False)
+    vd_heating_total = scaled_sum(3501, (1, 1000), unit="kWh")
     vd_dhw_day = integer(3503, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _vd_dhw_total_low = integer(3504, signed=False)
-    _vd_dhw_total_hi = integer(3505, signed=False)
-    _nhz_heating_total_low = integer(3506, signed=False)
-    _nhz_heating_total_hi = integer(3507, signed=False)
-    _nhz_dhw_total_low = integer(3508, signed=False)
-    _nhz_dhw_total_hi = integer(3509, signed=False)
+    vd_dhw_total = scaled_sum(3504, (1, 1000), unit="kWh")
+    nhz_heating_total = scaled_sum(3506, (1, 1000), unit="kWh")
+    nhz_dhw_total = scaled_sum(3508, (1, 1000), unit="kWh")
     vd_heating_day_consumed = integer(3510, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _vd_heating_total_consumed_low = integer(3511, signed=False)
-    _vd_heating_total_consumed_hi = integer(3512, signed=False)
+    vd_heating_total_consumed = scaled_sum(3511, (1, 1000), unit="kWh")
     vd_dhw_day_consumed = integer(3513, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _vd_dhw_total_consumed_low = integer(3514, signed=False)
-    _vd_dhw_total_consumed_hi = integer(3515, signed=False)
+    vd_dhw_total_consumed = scaled_sum(3514, (1, 1000), unit="kWh")
     vd_heating = integer(3516, signed=False, nan=UNAVAILABLE, unit="h")
     vd_dhw = integer(3517, signed=False, nan=UNAVAILABLE, unit="h")
     vd_cooling = integer(3518, signed=False, nan=UNAVAILABLE, unit="h")
@@ -237,21 +231,15 @@ class WpmEnergyData(Component):
     nhz_2 = integer(3520, signed=False, nan=UNAVAILABLE, unit="h")
     nhz_1_2 = integer(3521, signed=False, nan=UNAVAILABLE, unit="h")
     vd_heating_day_hp_1 = integer(3522, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _vd_heating_total_hp_1_low = integer(3523, signed=False)
-    _vd_heating_total_hp_1_hi = integer(3524, signed=False)
+    vd_heating_total_hp_1 = scaled_sum(3523, (1, 1000), unit="kWh")
     vd_dhw_day_hp_1 = integer(3525, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _vd_dhw_total_hp_1_low = integer(3526, signed=False)
-    _vd_dhw_total_hp_1_hi = integer(3527, signed=False)
-    _nhz_heating_total_hp_1_low = integer(3528, signed=False)
-    _nhz_heating_total_hp_1_hi = integer(3529, signed=False)
-    _nhz_dhw_total_hp_1_low = integer(3530, signed=False)
-    _nhz_dhw_total_hp_1_hi = integer(3531, signed=False)
+    vd_dhw_total_hp_1 = scaled_sum(3526, (1, 1000), unit="kWh")
+    nhz_heating_total_hp_1 = scaled_sum(3528, (1, 1000), unit="kWh")
+    nhz_dhw_total_hp_1 = scaled_sum(3530, (1, 1000), unit="kWh")
     vd_heating_day_consumed_hp_1 = integer(3532, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _vd_heating_total_consumed_hp_1_low = integer(3533, signed=False)
-    _vd_heating_total_consumed_hp_1_hi = integer(3534, signed=False)
+    vd_heating_total_consumed_hp_1 = scaled_sum(3533, (1, 1000), unit="kWh")
     vd_dhw_day_consumedhp_1 = integer(3535, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _vd_dhw_total_consumed_hp_1_low = integer(3536, signed=False)
-    _vd_dhw_total_consumed_hp_1_hi = integer(3537, signed=False)
+    vd_dhw_total_consumed_hp_1 = scaled_sum(3536, (1, 1000), unit="kWh")
     vd_1_heating_hp_1 = integer(3538, signed=False, nan=UNAVAILABLE, unit="h")
     vd_2_heating_hp_1 = integer(3539, signed=False, nan=UNAVAILABLE, unit="h")
     vd_1_2_heating_hp_1 = integer(3540, signed=False, nan=UNAVAILABLE, unit="h")
@@ -263,17 +251,13 @@ class WpmEnergyData(Component):
     nhz_2_reheating = integer(3546, signed=False, nan=UNAVAILABLE, unit="h")
     nhz_1_2_reheating = integer(3547, signed=False, nan=UNAVAILABLE, unit="h")
     vd_heating_day_hp_2 = integer(3548, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _vd_heating_total_hp_2_low = integer(3549, signed=False)
-    _vd_heating_total_hp_2_hi = integer(3550, signed=False)
+    vd_heating_total_hp_2 = scaled_sum(3549, (1, 1000), unit="kWh")
     vd_dhw_day_hp_2 = integer(3551, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _vd_dhw_total_hp_2_low = integer(3552, signed=False)
-    _vd_dhw_total_hp_2_hi = integer(3553, signed=False)
+    vd_dhw_total_hp_2 = scaled_sum(3552, (1, 1000), unit="kWh")
     vd_heating_day_consumed_hp_2 = integer(3554, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _vd_heating_total_consumed_hp_2_low = integer(3555, signed=False)
-    _vd_heating_total_consumed_hp_2_hi = integer(3556, signed=False)
+    vd_heating_total_consumed_hp_2 = scaled_sum(3555, (1, 1000), unit="kWh")
     vd_dhw_day_consumed_hp_2 = integer(3557, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _vd_dhw_total_consumed_hp_2_low = integer(3558, signed=False)
-    _vd_dhw_total_consumed_hp_2_hi = integer(3559, signed=False)
+    vd_dhw_total_consumed_hp_2 = scaled_sum(3558, (1, 1000), unit="kWh")
     vd_1_heating_hp_2 = integer(3560, signed=False, nan=UNAVAILABLE, unit="h")
     vd_2_heating_hp_2 = integer(3561, signed=False, nan=UNAVAILABLE, unit="h")
     vd_1_2_heating_hp_2 = integer(3562, signed=False, nan=UNAVAILABLE, unit="h")
@@ -282,17 +266,13 @@ class WpmEnergyData(Component):
     vd_1_2_dhw_hp_2 = integer(3565, signed=False, nan=UNAVAILABLE, unit="h")
     vd_cooling_hp_2 = integer(3566, signed=False, nan=UNAVAILABLE, unit="h")
     vd_heating_day_hp_3 = integer(3567, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _vd_heating_total_hp_3_low = integer(3568, signed=False)
-    _vd_heating_total_hp_3_hi = integer(3569, signed=False)
+    vd_heating_total_hp_3 = scaled_sum(3568, (1, 1000), unit="kWh")
     vd_dhw_day_hp_3 = integer(3570, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _vd_dhw_total_hp_3_low = integer(3571, signed=False)
-    _vd_dhw_total_hp_3_hi = integer(3572, signed=False)
+    vd_dhw_total_hp_3 = scaled_sum(3571, (1, 1000), unit="kWh")
     vd_heating_day_consumed_hp_3 = integer(3573, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _vd_heating_total_consumed_hp_3_low = integer(3574, signed=False)
-    _vd_heating_total_consumed_hp_3_hi = integer(3575, signed=False)
+    vd_heating_total_consumed_hp_3 = scaled_sum(3574, (1, 1000), unit="kWh")
     vd_dhw_day_consumed_hp_3 = integer(3576, signed=False, nan=UNAVAILABLE, unit="kWh")
-    _vd_dhw_total_consumed_hp_3_low = integer(3577, signed=False)
-    _vd_dhw_total_consumed_hp_3_hi = integer(3578, signed=False)
+    vd_dhw_total_consumed_hp_3 = scaled_sum(3577, (1, 1000), unit="kWh")
     vd_1_heating_hp_3 = integer(3579, signed=False, nan=UNAVAILABLE, unit="h")
     vd_2_heating_hp_3 = integer(3580, signed=False, nan=UNAVAILABLE, unit="h")
     vd_1_2_heating_hp_3 = integer(3581, signed=False, nan=UNAVAILABLE, unit="h")
@@ -300,186 +280,6 @@ class WpmEnergyData(Component):
     vd_2_dhw_hp_3 = integer(3583, signed=False, nan=UNAVAILABLE, unit="h")
     vd_1_2_dhw_hp_3 = integer(3584, signed=False, nan=UNAVAILABLE, unit="h")
     vd_cooling_hp_3 = integer(3585, signed=False, nan=UNAVAILABLE, unit="h")
-
-    @property
-    def vd_heating_total(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._vd_heating_total_low
-        high = self._vd_heating_total_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def vd_dhw_total(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._vd_dhw_total_low
-        high = self._vd_dhw_total_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def nhz_heating_total(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._nhz_heating_total_low
-        high = self._nhz_heating_total_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def nhz_dhw_total(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._nhz_dhw_total_low
-        high = self._nhz_dhw_total_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def vd_heating_total_consumed(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._vd_heating_total_consumed_low
-        high = self._vd_heating_total_consumed_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def vd_dhw_total_consumed(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._vd_dhw_total_consumed_low
-        high = self._vd_dhw_total_consumed_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def vd_heating_total_hp_1(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._vd_heating_total_hp_1_low
-        high = self._vd_heating_total_hp_1_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def vd_dhw_total_hp_1(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._vd_dhw_total_hp_1_low
-        high = self._vd_dhw_total_hp_1_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def nhz_heating_total_hp_1(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._nhz_heating_total_hp_1_low
-        high = self._nhz_heating_total_hp_1_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def nhz_dhw_total_hp_1(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._nhz_dhw_total_hp_1_low
-        high = self._nhz_dhw_total_hp_1_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def vd_heating_total_consumed_hp_1(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._vd_heating_total_consumed_hp_1_low
-        high = self._vd_heating_total_consumed_hp_1_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def vd_dhw_total_consumed_hp_1(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._vd_dhw_total_consumed_hp_1_low
-        high = self._vd_dhw_total_consumed_hp_1_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def vd_heating_total_hp_2(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._vd_heating_total_hp_2_low
-        high = self._vd_heating_total_hp_2_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def vd_dhw_total_hp_2(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._vd_dhw_total_hp_2_low
-        high = self._vd_dhw_total_hp_2_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def vd_heating_total_consumed_hp_2(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._vd_heating_total_consumed_hp_2_low
-        high = self._vd_heating_total_consumed_hp_2_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def vd_dhw_total_consumed_hp_2(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._vd_dhw_total_consumed_hp_2_low
-        high = self._vd_dhw_total_consumed_hp_2_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def vd_heating_total_hp_3(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._vd_heating_total_hp_3_low
-        high = self._vd_heating_total_hp_3_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def vd_dhw_total_hp_3(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._vd_dhw_total_hp_3_low
-        high = self._vd_dhw_total_hp_3_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def vd_heating_total_consumed_hp_3(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._vd_heating_total_consumed_hp_3_low
-        high = self._vd_heating_total_consumed_hp_3_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
-
-    @property
-    def vd_dhw_total_consumed_hp_3(self) -> int | None:
-        """Combined kWh counter (kWh): low kWh + high MWh."""
-        low = self._vd_dhw_total_consumed_hp_3_low
-        high = self._vd_dhw_total_consumed_hp_3_hi
-        if low is None or high is None:
-            return None
-        return low + high * 1000
 
     _DAY_AND_TOTAL = (
         ("vd_heating_day", "vd_heating_total", "vd_heating_day_and_total"),

@@ -1,14 +1,3 @@
-"""Python API for Stiebel Eltron ISG heat pumps over Modbus.
-
-Built on the ``modbus_connection`` device-model framework: each register block is
-a :class:`~modbus_connection.model.Component` of typed fields, and a heat pump
-(see :mod:`pystiebeleltron.wpm` / :mod:`pystiebeleltron.lwz`) groups its
-components behind one pooled update.
-
-See the ISG Modbus manual:
-https://www.stiebel-eltron.de/content/dam/ste/de/de/home/services/Downloadlisten/ISG%20Modbus_Stiebel_Bedienungsanleitung.pdf
-"""
-
 from __future__ import annotations
 
 import logging
@@ -28,11 +17,9 @@ UNAVAILABLE = 0x8000
 class MagnitudeField(RegisterField[int]):
     """Consecutive registers summed by per-register weight (read-only).
 
-    Stiebel energy counters spread a total across registers of rising magnitude —
-    e.g. a heat meter exposes its kWh remainder and MWh whole in two consecutive
-    registers. ``MagnitudeField(addr, (1, 1000))`` reads both and returns the
-    total in the lowest unit (kWh). This is the ``scaled_sum`` field that lived in
-    ``modbus_connection.model`` before 3.0 dropped it as consumer-specific.
+    A Stiebel energy counter splits a total across registers of rising magnitude
+    (e.g. kWh remainder + MWh whole); ``MagnitudeField(addr, (1, 1000))`` reads
+    both and returns the total in the lowest unit.
     """
 
     def __init__(self, address: int, magnitudes: tuple[int, ...], *, unit: str | None = None) -> None:
@@ -46,7 +33,7 @@ class MagnitudeField(RegisterField[int]):
 
 
 def scaled_sum(address: int, magnitudes: tuple[int, ...] = (1, 1000, 1_000_000), *, unit: str | None = None) -> MagnitudeField:
-    """Factory for a :class:`MagnitudeField` (mirrors the old model factory)."""
+    """Build a :class:`MagnitudeField`."""
     return MagnitudeField(address, magnitudes, unit=unit)
 
 

@@ -1,83 +1,71 @@
 from __future__ import annotations
 
 import pytest
-from pymodbus.pdu.register_message import (
-    ReadInputRegistersResponse,
-)
-from pytest_mock import MockerFixture
+from modbus_connection.mock import MockModbusConnection, MockModbusUnit
+from modbus_connection.model import Component
 
 from pystiebeleltron import ControllerModel, StiebelEltronModbusError, get_controller_model
-from pystiebeleltron.lwz import LwzEnergyDataRegisters, LwzStiebelEltronAPI, LwzSystemValuesRegisters, OperatingMode
-from pystiebeleltron.wpm import WpmEnergyDataRegisters, WpmPowerConsumptionRegisters, WpmStiebelEltronAPI, WpmSystemValuesRegisters
+from pystiebeleltron.lwz import LwzStiebelEltronAPI, OperatingMode
+from pystiebeleltron.wpm import WpmStiebelEltronAPI
 
 
-async def read_registers(client: object, address: int, *, count: int = 1, device_id: int = 0, no_response_expected: bool = False) -> ReadInputRegistersResponse:
-    """Read a slice from the input register."""
-    return ReadInputRegistersResponse(address=address, count=count, registers=list(range(count)))
+def _seed(unit: MockModbusUnit, *components: Component) -> None:
+    """Seed each component's store so register ``i`` of a block reads back as ``i``.
 
-
-@pytest.mark.asyncio()
-async def test_wpm(mocker: MockerFixture) -> None:
-    api = WpmStiebelEltronAPI("localhost")
-    mock_connect = mocker.patch("pymodbus.client.AsyncModbusTcpClient.connect")
-    mock_close = mocker.patch("pymodbus.client.AsyncModbusTcpClient.close")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_holding_registers", read_registers)
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_input_registers", read_registers)
-
-    await api.connect()
-    mock_connect.assert_called_once()
-
-    await api.async_update()
-
-    assert api.get_register_value(WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_FEK) == 0.2
-
-    assert api.get_register_value(WpmEnergyDataRegisters.VD_HEATING_DAY_AND_TOTAL_CONSUMED) == 12021
-
-    await api.close()
-    mock_close.assert_called_once()
+    Mirrors the synthetic pattern the assertions are derived from: a block whose
+    fields start at address ``base`` gets ``[0, 1, 2, ...]`` from ``base`` on, so a
+    field at address ``base + n`` decodes the raw value ``n``.
+    """
+    for component in components:
+        fields = component._register_fields.values()
+        low = min(field.address for field in fields)
+        high = max(field.address + field.count - 1 for field in fields)
+        store = unit.input if component.register_space == "input" else unit.holding
+        store[low] = list(range(high - low + 1))
 
 
 @pytest.mark.asyncio()
-async def test_wpm_power_consumption_registers(mocker: MockerFixture) -> None:
-    api = WpmStiebelEltronAPI("localhost")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.connect")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.close")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_holding_registers", read_registers)
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_input_registers", read_registers)
+async def test_wpm(mock_modbus_unit: MockModbusUnit) -> None:
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    _seed(mock_modbus_unit, api.system_values, api.energy_data)
 
-    await api.connect()
     await api.async_update()
 
-    # Block base_address=3707, count=16 → registers[i] = i for i in 0..15
-    # Address = base_address + 1 + i, so register at address 3708 is index 0 → value 0
-    assert api.get_register_value(WpmPowerConsumptionRegisters.HEATING_24H) == 0
-    assert api.get_register_value(WpmPowerConsumptionRegisters.HEATING_12M_FRACTION) == 2
-    assert api.get_register_value(WpmPowerConsumptionRegisters.HEATING_12M_WHOLE) == 3
-    assert api.get_register_value(WpmPowerConsumptionRegisters.COOLING_24H_FRACTION) == 6
-    assert api.get_register_value(WpmPowerConsumptionRegisters.COOLING_24H_WHOLE) == 7
-    assert api.get_register_value(WpmPowerConsumptionRegisters.COOLING_12M) == 8
-    assert api.get_register_value(WpmPowerConsumptionRegisters.DHW_24H_FRACTION) == 12
-    assert api.get_register_value(WpmPowerConsumptionRegisters.DHW_24H_WHOLE) == 13
-    assert api.get_register_value(WpmPowerConsumptionRegisters.DHW_12M_FRACTION) == 14
-    assert api.get_register_value(WpmPowerConsumptionRegisters.DHW_12M_WHOLE) == 15
+    assert api.system_values.actual_temperature_fek == 0.2
+    # vd_heating_day (10) + scaled_sum total (11 + 12 * 1000) = 12021
+    assert api.energy_data.vd_heating_day_and_total_consumed == 12021
 
 
 @pytest.mark.asyncio()
-async def test_lwz(mocker: MockerFixture) -> None:
-    api = LwzStiebelEltronAPI("localhost")
-    mock_connect = mocker.patch("pymodbus.client.AsyncModbusTcpClient.connect")
-    mock_close = mocker.patch("pymodbus.client.AsyncModbusTcpClient.close")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_holding_registers", read_registers)
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_input_registers", read_registers)
-
-    await api.connect()
-    mock_connect.assert_called_once()
+async def test_wpm_power_consumption_registers(mock_modbus_unit: MockModbusUnit) -> None:
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    _seed(mock_modbus_unit, api.power_consumption)
 
     await api.async_update()
 
-    assert api.get_register_value(LwzSystemValuesRegisters.RELATIVE_HUMIDITY_HC1) == 0.2
+    consumption = api.power_consumption
+    assert consumption.heating_24h == 0
+    assert consumption.heating_12m_fraction == 2
+    assert consumption.heating_12m_whole == 3
+    assert consumption.cooling_24h_fraction == 6
+    assert consumption.cooling_24h_whole == 7
+    assert consumption.cooling_12m == 8
+    assert consumption.dhw_24h_fraction == 12
+    assert consumption.dhw_24h_whole == 13
+    assert consumption.dhw_12m_fraction == 14
+    assert consumption.dhw_12m_whole == 15
 
-    assert api.get_register_value(LwzEnergyDataRegisters.HEAT_METER_HTG_DAY_AND_TOTAL) == 2001
+
+@pytest.mark.asyncio()
+async def test_lwz(mock_modbus_unit: MockModbusUnit) -> None:
+    api = LwzStiebelEltronAPI(mock_modbus_unit)
+    _seed(mock_modbus_unit, api.system_values, api.system_parameters, api.system_state, api.energy_data)
+
+    await api.async_update()
+
+    assert api.system_values.relative_humidity_hc1 == 0.2
+    # heat_meter_htg_day (0) + scaled_sum total (1 + 2 * 1000) = 2001
+    assert api.energy_data.heat_meter_htg_day_and_total == 2001
 
     assert api.get_current_humidity() == 0.2
     assert api.get_current_temp() == 0.0
@@ -85,114 +73,63 @@ async def test_lwz(mocker: MockerFixture) -> None:
 
     assert api.get_operation() == OperatingMode.EMERGENCY_OPERATION
 
-    assert api.get_register_value(LwzSystemValuesRegisters.COMPRESSOR_STARTS) == 30033
-
-    await api.close()
-    mock_close.assert_called_once()
+    # compressor_starts_hi (30) * 1000 + compressor_starts_low (33) = 30033
+    assert api.system_values.compressor_starts == 30033
 
 
 @pytest.mark.asyncio()
-async def test_get_controller_model_lwz(mocker: MockerFixture) -> None:
-    """Test get_controller_model returns ControllerModel.LWZ for model id 103."""
+async def test_write_register(mock_modbus_unit: MockModbusUnit) -> None:
+    api = LwzStiebelEltronAPI(mock_modbus_unit)
 
-    async def mock_read_input_registers(self: object, address: int, *, count: int = 1, device_id: int = 0) -> ReadInputRegistersResponse:
-        return ReadInputRegistersResponse(address=address, count=count, registers=[103])
+    await api.set_target_temp(21.5)
 
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.connect")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.close")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_input_registers", mock_read_input_registers)
+    # room_temperature_day_hk1 is a 0.1-scaled holding register at wire address 1001.
+    assert mock_modbus_unit.holding[1001] == 215
 
-    model = await get_controller_model("localhost", 502)
-    assert model == ControllerModel.LWZ
+
+@pytest.mark.parametrize(
+    ("model_id", "expected"),
+    [
+        (103, ControllerModel.LWZ),
+        (104, ControllerModel.LWZ_x04_SOL),
+        (390, ControllerModel.WPM_3),
+        (391, ControllerModel.WPM_3i),
+        (449, ControllerModel.WPMsystem),
+        (551, ControllerModel.LWZ_R290),
+    ],
+)
+@pytest.mark.asyncio()
+async def test_get_controller_model(mock_modbus_unit: MockModbusUnit, model_id: int, expected: ControllerModel) -> None:
+    """Test get_controller_model maps a model id register to its ControllerModel."""
+    mock_modbus_unit.input[5001] = model_id
+    model = await get_controller_model(mock_modbus_unit)
+    assert model == expected
 
 
 @pytest.mark.asyncio()
-async def test_get_controller_model_lwz_x04_sol(mocker: MockerFixture) -> None:
-    """Test get_controller_model returns ControllerModel.LWZ_x04_SOL for model id 104."""
-
-    async def mock_read_input_registers(self: object, address: int, *, count: int = 1, device_id: int = 0) -> ReadInputRegistersResponse:
-        return ReadInputRegistersResponse(address=address, count=count, registers=[104])
-
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.connect")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.close")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_input_registers", mock_read_input_registers)
-
-    model = await get_controller_model("localhost", 502)
-    assert model == ControllerModel.LWZ_x04_SOL
-
-
-@pytest.mark.asyncio()
-async def test_get_controller_model_wpm_3(mocker: MockerFixture) -> None:
-    """Test get_controller_model returns ControllerModel.WPM_3 for model id 390."""
-
-    async def mock_read_input_registers(self: object, address: int, *, count: int = 1, device_id: int = 0) -> ReadInputRegistersResponse:
-        return ReadInputRegistersResponse(address=address, count=count, registers=[390])
-
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.connect")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.close")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_input_registers", mock_read_input_registers)
-
-    model = await get_controller_model("localhost", 502)
-    assert model == ControllerModel.WPM_3
-
-
-@pytest.mark.asyncio()
-async def test_get_controller_model_wpm_3i(mocker: MockerFixture) -> None:
-    """Test get_controller_model returns ControllerModel.WPM_3i for model id 391."""
-
-    async def mock_read_input_registers(self: object, address: int, *, count: int = 1, device_id: int = 0) -> ReadInputRegistersResponse:
-        return ReadInputRegistersResponse(address=address, count=count, registers=[391])
-
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.connect")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.close")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_input_registers", mock_read_input_registers)
-
-    model = await get_controller_model("localhost", 502)
-    assert model == ControllerModel.WPM_3i
-
-
-@pytest.mark.asyncio()
-async def test_get_controller_model_wpm_system(mocker: MockerFixture) -> None:
-    """Test get_controller_model returns ControllerModel.WPMsystem for model id 449."""
-
-    async def mock_read_input_registers(self: object, address: int, *, count: int = 1, device_id: int = 0) -> ReadInputRegistersResponse:
-        return ReadInputRegistersResponse(address=address, count=count, registers=[449])
-
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.connect")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.close")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_input_registers", mock_read_input_registers)
-
-    model = await get_controller_model("localhost", 502)
-    assert model == ControllerModel.WPMsystem
-
-
-@pytest.mark.asyncio()
-async def test_get_controller_model_lwz_r290(mocker: MockerFixture) -> None:
-    """Test get_controller_model returns ControllerModel.LWZ_R290 for model id 551."""
-
-    async def mock_read_input_registers(self: object, address: int, *, count: int = 1, device_id: int = 0) -> ReadInputRegistersResponse:
-        return ReadInputRegistersResponse(address=address, count=count, registers=[551])
-
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.connect")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.close")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_input_registers", mock_read_input_registers)
-
-    model = await get_controller_model("localhost", 502)
-    assert model == ControllerModel.LWZ_R290
-
-
-@pytest.mark.asyncio()
-async def test_get_controller_model_error_response(mocker: MockerFixture) -> None:
-    """Test get_controller_model raises error when modbus returns error."""
-
-    async def mock_read_input_registers_error(self: object, address: int, *, count: int = 1, device_id: int = 0) -> ReadInputRegistersResponse:
-        response = ReadInputRegistersResponse(address=address, count=count, registers=[0])
-        response.isError = lambda: True
-        return response
-
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.connect")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.close")
-    mocker.patch("pymodbus.client.AsyncModbusTcpClient.read_input_registers", mock_read_input_registers_error)
-
+async def test_get_controller_model_error_response(mock_modbus_connection: MockModbusConnection) -> None:
+    """Test get_controller_model raises error when the modbus read fails."""
+    await mock_modbus_connection.close()
     with pytest.raises(StiebelEltronModbusError):
-        await get_controller_model("localhost", 502)
+        await get_controller_model(mock_modbus_connection.for_unit(1))
+
+
+@pytest.mark.asyncio()
+async def test_get_controller_model_unknown_id(mock_modbus_unit: MockModbusUnit) -> None:
+    """An unrecognized model id surfaces as StiebelEltronModbusError, not ValueError."""
+    mock_modbus_unit.input[5001] = 999
+    with pytest.raises(StiebelEltronModbusError):
+        await get_controller_model(mock_modbus_unit)
+
+
+@pytest.mark.asyncio()
+async def test_energy_counter_unavailable(mock_modbus_unit: MockModbusUnit) -> None:
+    """A magnitude counter with an unavailable (0x8000) word decodes to None."""
+    api = LwzStiebelEltronAPI(mock_modbus_unit)
+    _seed(mock_modbus_unit, api.energy_data)
+    mock_modbus_unit.input[3002] = 0x8000  # the MWh word of heat_meter_htg_ttl
+
+    await api.async_update()
+
+    assert api.energy_data.heat_meter_htg_ttl is None
+    assert api.energy_data.heat_meter_htg_day_and_total is None

@@ -33,19 +33,26 @@ The package is available in the [Python Package Index](https://pypi.python.org/)
 ## Example usage of the module
 The sample below shows how to use this Python module (api for wpm heat pumps).
 
+The API takes an already-connected [`ModbusUnit`](https://github.com/home-assistant-libs/modbus-connection). You own the connection: open it, hand a unit to the API, and close it when done. Each register block is a component exposed on the API, and values are read as typed attributes (`None` when the register is unavailable).
+
 ```python
     import asyncio
-    from pystiebeleltron.wpm import WpmStiebelEltronAPI, WpmSystemParametersRegisters
+    from modbus_connection.pymodbus import connect_tcp
+    from pystiebeleltron.wpm import WpmStiebelEltronAPI
 
     async def main():
-      api = WpmStiebelEltronAPI('IP_ADDRESS_ISG')
-      await api.connect()
+      connection = await connect_tcp('IP_ADDRESS_ISG', port=502)
+      api = WpmStiebelEltronAPI(connection.for_unit(1))
 
       await api.async_update()
 
-      print("water comfort target temperature: {}".format(api.get_register_value(WpmSystemParametersRegisters.COMFORT_TEMPERATURE)))
+      print(f"outside temperature: {api.system_values.outside_temperature}")
+      print(f"water comfort target temperature: {api.system_parameters.comfort_temperature}")
 
-      await api.close()
+      # Writing a register:
+      await api.system_parameters.write("comfort_temperature", 50)
+
+      await connection.close()
 
     asyncio.run(main())
 ```

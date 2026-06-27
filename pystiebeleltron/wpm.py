@@ -2,958 +2,426 @@
 
 from __future__ import annotations
 
-from . import (
-    ENERGY_DATA_BLOCK_NAME,
-    ENERGY_MANAGEMENT_SETTINGS_REGISTERS,
-    ENERGY_SYSTEM_INFORMATION_REGISTERS,
-    VIRTUAL_REGISTER_OFFSET,
-    VIRTUAL_TOTAL_AND_DAY_REGISTER_OFFSET,
-    IsgRegisters,
-    ModbusRegister,
-    ModbusRegisterBlock,
-    RegisterType,
-    StiebelEltronAPI,
-)
+from modbus_connection import ModbusUnit
+from modbus_connection.model import Component, ComponentGroup, gauge, integer
+
+from . import UNAVAILABLE, EnergyManagementSettings, EnergySystemInformation, scaled_sum
+
+WPM_HOLDING_RANGES = ((1500, 1551), (4000, 4002))
+WPM_INPUT_RANGES = ((500, 609), (2500, 2546), (3500, 3585), (3707, 3722), (5000, 5001))
 
 
-class WpmSystemValuesRegisters(IsgRegisters):
-    ACTUAL_TEMPERATURE_FE7 = 501
-    SET_TEMPERATURE_FE7 = 502
-    ACTUAL_TEMPERATURE_FEK = 503
-    SET_TEMPERATURE_FEK = 504
-    RELATIVE_HUMIDITY = 505
-    DEW_POINT_TEMPERATURE = 506
-    OUTSIDE_TEMPERATURE = 507
-    ACTUAL_TEMPERATURE_HK_1 = 508
-    SET_TEMPERATURE_HK_1_WPM3I = 509
-    SET_TEMPERATURE_HK_1 = 510
-    ACTUAL_TEMPERATURE_HK_2 = 511
-    SET_TEMPERATURE_HK_2 = 512
-    ACTUAL_FLOW_TEMPERATURE_WP = 513
-    ACTUAL_FLOW_TEMPERATURE_NHZ = 514
-    ACTUAL_FLOW_TEMPERATURE = 515
-    ACTUAL_RETURN_TEMPERATURE = 516
-    SET_FIXED_TEMPERATURE = 517
-    ACTUAL_BUFFER_TEMPERATURE = 518
-    SET_BUFFER_TEMPERATURE = 519
-    HEATING_PRESSURE = 520
-    FLOW_RATE = 521
-    ACTUAL_TEMPERATURE_DHW = 522
-    SET_TEMPERATURE_DHW = 523
-    ACTUAL_TEMPERATURE_FAN = 524
-    SET_TEMPERATURE_FAN = 525
-    ACTUAL_TEMPERATURE_AREA = 526
-    SET_TEMPERATURE_AREA = 527
-    COLLECTOR_TEMPERATURE = 528
-    CYLINDER_TEMPERATURE = 529
-    RUNTIME = 530
-    ACTUAL_TEMPERATURE_EXTERNAL = 531
-    SET_TEMPERATURE_EXTERNAL = 532
-    APPLICATION_LIMIT_HZG = 533
-    APPLICATION_LIMIT_WW = 534
-    RUNTIME_EHS = 535
-    SOURCE_TEMPERATURE = 536
-    MIN_SOURCE_TEMPERATURE = 537
-    SOURCE_PRESSURE = 538
-    HOT_GAS_TEMPERATURE = 539
-    HIGH_PRESSURE = 540
-    LOW_PRESSURE = 541
-    RETURN_TEMPERATURE_HP1 = 542
-    FLOW_TEMPERATURE_HP1 = 543
-    HOT_GAS_TEMPERATURE_HP1 = 544
-    LOW_PRESSURE_HP1 = 545
-    MEAN_PRESSURE_HP1 = 546
-    HIGH_PRESSURE_HP1 = 547
-    WP_WATER_FLOW_RATE_HP1 = 548
-    RETURN_TEMPERATURE_HP2 = 549
-    FLOW_TEMPERATURE_HP2 = 550
-    HOT_GAS_TEMPERATURE_HP2 = 551
-    LOW_PRESSURE_HP2 = 552
-    MEAN_PRESSURE_HP2 = 553
-    HIGH_PRESSURE_HP2 = 554
-    WP_WATER_FLOW_RATE_HP2 = 555
-    RETURN_TEMPERATURE_HP3 = 556
-    FLOW_TEMPERATURE_HP3 = 557
-    HOT_GAS_TEMPERATURE_HP3 = 558
-    LOW_PRESSURE_HP3 = 559
-    MEAN_PRESSURE_HP3 = 560
-    HIGH_PRESSURE_HP3 = 561
-    WP_WATER_FLOW_RATE_HP3 = 562
-    RETURN_TEMPERATURE_HP4 = 563
-    FLOW_TEMPERATURE_HP4 = 564
-    HOT_GAS_TEMPERATURE_HP4 = 565
-    LOW_PRESSURE_HP4 = 566
-    MEAN_PRESSURE_HP4 = 567
-    HIGH_PRESSURE_HP4 = 568
-    WP_WATER_FLOW_RATE_HP4 = 569
-    RETURN_TEMPERATURE_HP5 = 570
-    FLOW_TEMPERATURE_HP5 = 571
-    HOT_GAS_TEMPERATURE_HP5 = 572
-    LOW_PRESSURE_HP5 = 573
-    MEAN_PRESSURE_HP5 = 574
-    HIGH_PRESSURE_HP5 = 575
-    WP_WATER_RATE_HP5 = 576
-    RETURN_TEMPERATURE_HP6 = 577
-    FLOW_TEMPERATURE_HP6 = 578
-    HOT_GAS_HP6 = 579
-    LOW_PRESSURE_HP6 = 580
-    MEAN_PRESSURE_HP6 = 581
-    HIGH_PRESSURE_HP6 = 582
-    WP_WATER_FLOW_RATE_HP6 = 583
-    ACTUAL_TEMPERATURE_ROOM_TEMP_HC1 = 584
-    SET_TEMPERATURE_ROOM_TEMP_HC1 = 585
-    RELATIVE_HUMIDITY_ROOM_TEMP_HC1 = 586
-    DEW_POINT_TEMPERATURE_ROOM_TEMP_HC1 = 587
-    ACTUAL_TEMPERATURE_ROOM_TEMP_HC2 = 588
-    SET_TEMPERATURE_ROOM_TEMP_HC2 = 589
-    RELATIVE_HUMIDITY_ROOM_TEMP_HC2 = 590
-    DEW_POINT_TEMPERATURE_ROOM_TEMP_HC2 = 591
-    ACTUAL_TEMPERATURE_ROOM_TEMP_HC3 = 592
-    SET_TEMPERATURE_ROOM_TEMP_HC3 = 593
-    RELATIVE_HUMIDITY_ROOM_TEMP_HC3 = 594
-    DEW_POINT_TEMPERATURE_ROOM_TEMP_HC3 = 595
-    ACTUAL_TEMPERATURE_ROOM_TEMP_HC4 = 596
-    SET_TEMPERATURE_ROOM_TEMP_HC4 = 597
-    RELATIVE_HUMIDITY_ROOM_TEMP_HC4 = 598
-    DEW_POINT_TEMPERATURE_ROOM_TEMP_HC4 = 599
-    ACTUAL_TEMPERATURE_ROOM_TEMP_HC5 = 600
-    SET_TEMPERATURE_ROOM_TEMP_HC5 = 601
-    RELATIVE_HUMIDITY_ROOM_TEMP_HC5 = 602
-    DEW_POINT_TEMPERATURE_ROOM_TEMP_HC5 = 603
-    SET_TEMPERATURE_ROOM_TEMP_COOLING1 = 604
-    SET_TEMPERATURE_ROOM_TEMP_COOLING2 = 605
-    SET_TEMPERATURE_ROOM_TEMP_COOLING3 = 606
-    SET_TEMPERATURE_ROOM_TEMP_COOLING4 = 607
-    SET_TEMPERATURE_ROOM_TEMP_COOLING5 = 608
-    ACTUAL_TEMPERATURE_HK_3 = 609
-    SET_TEMPERATURE_HK_3 = 610
+class WpmSystemValues(Component):
+    register_space = "input"
+    register_ranges = WPM_INPUT_RANGES
+
+    actual_temperature_fe7 = gauge(500, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_fe7 = gauge(501, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_temperature_fek = gauge(502, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_fek = gauge(503, 0.1, nan=UNAVAILABLE, unit="°C")
+    relative_humidity = gauge(504, 0.1, nan=UNAVAILABLE, unit="%")
+    dew_point_temperature = gauge(505, 0.1, nan=UNAVAILABLE, unit="°C")
+    outside_temperature = gauge(506, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_temperature_hk_1 = gauge(507, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_hk_1_wpm3i = gauge(508, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_hk_1 = gauge(509, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_temperature_hk_2 = gauge(510, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_hk_2 = gauge(511, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_flow_temperature_wp = gauge(512, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_flow_temperature_nhz = gauge(513, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_flow_temperature = gauge(514, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_return_temperature = gauge(515, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_fixed_temperature = gauge(516, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_buffer_temperature = gauge(517, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_buffer_temperature = gauge(518, 0.1, nan=UNAVAILABLE, unit="°C")
+    heating_pressure = gauge(519, 0.01, nan=UNAVAILABLE, unit="bar")
+    flow_rate = gauge(520, 0.01, nan=UNAVAILABLE, unit="l/min")
+    actual_temperature_dhw = gauge(521, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_dhw = gauge(522, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_temperature_fan = gauge(523, 0.1, nan=UNAVAILABLE, unit="K")
+    set_temperature_fan = gauge(524, 0.1, nan=UNAVAILABLE, unit="K")
+    actual_temperature_area = gauge(525, 0.1, nan=UNAVAILABLE, unit="K")
+    set_temperature_area = gauge(526, 0.1, nan=UNAVAILABLE, unit="K")
+    collector_temperature = gauge(527, 0.1, nan=UNAVAILABLE, unit="°C")
+    cylinder_temperature = gauge(528, 0.1, nan=UNAVAILABLE, unit="°C")
+    runtime = integer(529, signed=False, nan=UNAVAILABLE, unit="h")
+    actual_temperature_external = gauge(530, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_external = gauge(531, 0.1, nan=UNAVAILABLE, unit="K")
+    application_limit_hzg = gauge(532, 0.1, nan=UNAVAILABLE, unit="°C")
+    application_limit_ww = gauge(533, 0.1, nan=UNAVAILABLE, unit="°C")
+    runtime_ehs = integer(534, signed=False, nan=UNAVAILABLE, unit="h")
+    source_temperature = gauge(535, 0.1, nan=UNAVAILABLE, unit="°C")
+    min_source_temperature = gauge(536, 0.1, nan=UNAVAILABLE, unit="°C")
+    source_pressure = gauge(537, 0.01, nan=UNAVAILABLE, unit="bar")
+    hot_gas_temperature = gauge(538, 0.1, nan=UNAVAILABLE, unit="°C")
+    high_pressure = gauge(539, 0.1, nan=UNAVAILABLE, unit="bar")
+    low_pressure = gauge(540, 0.1, nan=UNAVAILABLE, unit="bar")
+    return_temperature_hp1 = gauge(541, 0.1, nan=UNAVAILABLE, unit="°C")
+    flow_temperature_hp1 = gauge(542, 0.1, nan=UNAVAILABLE, unit="°C")
+    hot_gas_temperature_hp1 = gauge(543, 0.1, nan=UNAVAILABLE, unit="°C")
+    low_pressure_hp1 = gauge(544, 0.01, nan=UNAVAILABLE, unit="bar")
+    mean_pressure_hp1 = gauge(545, 0.01, nan=UNAVAILABLE, unit="bar")
+    high_pressure_hp1 = gauge(546, 0.01, nan=UNAVAILABLE, unit="bar")
+    wp_water_flow_rate_hp1 = gauge(547, 0.1, nan=UNAVAILABLE, unit="l/min")
+    return_temperature_hp2 = gauge(548, 0.1, nan=UNAVAILABLE, unit="°C")
+    flow_temperature_hp2 = gauge(549, 0.1, nan=UNAVAILABLE, unit="°C")
+    hot_gas_temperature_hp2 = gauge(550, 0.1, nan=UNAVAILABLE, unit="°C")
+    low_pressure_hp2 = gauge(551, 0.01, nan=UNAVAILABLE, unit="bar")
+    mean_pressure_hp2 = gauge(552, 0.01, nan=UNAVAILABLE, unit="bar")
+    high_pressure_hp2 = gauge(553, 0.01, nan=UNAVAILABLE, unit="bar")
+    wp_water_flow_rate_hp2 = gauge(554, 0.1, nan=UNAVAILABLE, unit="l/min")
+    return_temperature_hp3 = gauge(555, 0.1, nan=UNAVAILABLE, unit="°C")
+    flow_temperature_hp3 = gauge(556, 0.1, nan=UNAVAILABLE, unit="°C")
+    hot_gas_temperature_hp3 = gauge(557, 0.1, nan=UNAVAILABLE, unit="°C")
+    low_pressure_hp3 = gauge(558, 0.01, nan=UNAVAILABLE, unit="bar")
+    mean_pressure_hp3 = gauge(559, 0.01, nan=UNAVAILABLE, unit="bar")
+    high_pressure_hp3 = gauge(560, 0.01, nan=UNAVAILABLE, unit="bar")
+    wp_water_flow_rate_hp3 = gauge(561, 0.1, nan=UNAVAILABLE, unit="l/min")
+    return_temperature_hp4 = gauge(562, 0.1, nan=UNAVAILABLE, unit="°C")
+    flow_temperature_hp4 = gauge(563, 0.1, nan=UNAVAILABLE, unit="°C")
+    hot_gas_temperature_hp4 = gauge(564, 0.1, nan=UNAVAILABLE, unit="°C")
+    low_pressure_hp4 = gauge(565, 0.01, nan=UNAVAILABLE, unit="bar")
+    mean_pressure_hp4 = gauge(566, 0.01, nan=UNAVAILABLE, unit="bar")
+    high_pressure_hp4 = gauge(567, 0.01, nan=UNAVAILABLE, unit="bar")
+    wp_water_flow_rate_hp4 = gauge(568, 0.1, nan=UNAVAILABLE, unit="l/min")
+    return_temperature_hp5 = gauge(569, 0.1, nan=UNAVAILABLE, unit="°C")
+    flow_temperature_hp5 = gauge(570, 0.1, nan=UNAVAILABLE, unit="°C")
+    hot_gas_temperature_hp5 = gauge(571, 0.1, nan=UNAVAILABLE, unit="°C")
+    low_pressure_hp5 = gauge(572, 0.01, nan=UNAVAILABLE, unit="bar")
+    mean_pressure_hp5 = gauge(573, 0.01, nan=UNAVAILABLE, unit="bar")
+    high_pressure_hp5 = gauge(574, 0.01, nan=UNAVAILABLE, unit="bar")
+    wp_water_rate_hp5 = gauge(575, 0.1, nan=UNAVAILABLE, unit="l/min")
+    return_temperature_hp6 = gauge(576, 0.1, nan=UNAVAILABLE, unit="°C")
+    flow_temperature_hp6 = gauge(577, 0.1, nan=UNAVAILABLE, unit="°C")
+    hot_gas_hp6 = gauge(578, 0.1, nan=UNAVAILABLE, unit="°C")
+    low_pressure_hp6 = gauge(579, 0.01, nan=UNAVAILABLE, unit="bar")
+    mean_pressure_hp6 = gauge(580, 0.01, nan=UNAVAILABLE, unit="bar")
+    high_pressure_hp6 = gauge(581, 0.01, nan=UNAVAILABLE, unit="bar")
+    wp_water_flow_rate_hp6 = gauge(582, 0.1, nan=UNAVAILABLE, unit="l/min")
+    actual_temperature_room_temp_hc1 = gauge(583, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_room_temp_hc1 = gauge(584, 0.1, nan=UNAVAILABLE, unit="°C")
+    relative_humidity_room_temp_hc1 = gauge(585, 0.1, nan=UNAVAILABLE, unit="%")
+    dew_point_temperature_room_temp_hc1 = gauge(586, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_temperature_room_temp_hc2 = gauge(587, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_room_temp_hc2 = gauge(588, 0.1, nan=UNAVAILABLE, unit="°C")
+    relative_humidity_room_temp_hc2 = gauge(589, 0.1, nan=UNAVAILABLE, unit="%")
+    dew_point_temperature_room_temp_hc2 = gauge(590, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_temperature_room_temp_hc3 = gauge(591, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_room_temp_hc3 = gauge(592, 0.1, nan=UNAVAILABLE, unit="°C")
+    relative_humidity_room_temp_hc3 = gauge(593, 0.1, nan=UNAVAILABLE, unit="%")
+    dew_point_temperature_room_temp_hc3 = gauge(594, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_temperature_room_temp_hc4 = gauge(595, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_room_temp_hc4 = gauge(596, 0.1, nan=UNAVAILABLE, unit="°C")
+    relative_humidity_room_temp_hc4 = gauge(597, 0.1, nan=UNAVAILABLE, unit="%")
+    dew_point_temperature_room_temp_hc4 = gauge(598, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_temperature_room_temp_hc5 = gauge(599, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_room_temp_hc5 = gauge(600, 0.1, nan=UNAVAILABLE, unit="°C")
+    relative_humidity_room_temp_hc5 = gauge(601, 0.1, nan=UNAVAILABLE, unit="%")
+    dew_point_temperature_room_temp_hc5 = gauge(602, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_room_temp_cooling1 = gauge(603, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_room_temp_cooling2 = gauge(604, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_room_temp_cooling3 = gauge(605, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_room_temp_cooling4 = gauge(606, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_room_temp_cooling5 = gauge(607, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_temperature_hk_3 = gauge(608, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_hk_3 = gauge(609, 0.1, nan=UNAVAILABLE, unit="°C")
 
 
-class WpmSystemParametersRegisters(IsgRegisters):
-    OPERATING_MODE = 1501
-    COMFORT_TEMPERATURE_HK_1 = 1502
-    ECO_TEMPERATURE_HK_1 = 1503
-    HEATING_CURVE_RISE_HK_1 = 1504
-    COMFORT_TEMPERATURE_HK_2 = 1505
-    ECO_TEMPERATURE_HK_2 = 1506
-    HEATING_CURVE_RISE_HK_2 = 1507
-    FIXED_VALUE_OPERATION = 1508
-    DUAL_MODE_TEMP_HZG = 1509
-    COMFORT_TEMPERATURE = 1510
-    ECO_TEMPERATURE = 1511
-    DHW_STAGES = 1512
-    DUAL_MODE_TEMP_WW = 1513
-    SET_FLOW_TEMPERATURE_AREA = 1514
-    FLOW_TEMP_HYSTERESIS_AREA = 1515
-    SET_ROOM_TEMPERATURE_AREA = 1516
-    SET_FLOW_TEMPERATURE_FAN = 1517
-    FLOW_TEMP_HYSTERESIS_FAN = 1518
-    SET_ROOM_TEMPERATURE_FAN = 1519
-    RESET = 1520
-    RESTART_ISG = 1521
-    COMFORT_TEMPERATURE_HK_3 = 1550
-    ECO_TEMPERATURE_HK_3 = 1551
-    HEATING_CURVE_RISE_HK_3 = 1552
+class WpmSystemParameters(Component):
+    register_space = "holding"
+    register_ranges = WPM_HOLDING_RANGES
+
+    operating_mode = integer(1500, signed=False, nan=UNAVAILABLE, writable=True)
+    comfort_temperature_hk_1 = gauge(1501, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    eco_temperature_hk_1 = gauge(1502, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    heating_curve_rise_hk_1 = gauge(1503, 0.01, nan=UNAVAILABLE, writable=True)
+    comfort_temperature_hk_2 = gauge(1504, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    eco_temperature_hk_2 = gauge(1505, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    heating_curve_rise_hk_2 = gauge(1506, 0.01, nan=UNAVAILABLE, writable=True)
+    fixed_value_operation = gauge(1507, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    dual_mode_temp_hzg = gauge(1508, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    comfort_temperature = gauge(1509, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    eco_temperature = gauge(1510, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    dhw_stages = integer(1511, signed=False, nan=UNAVAILABLE, writable=True)
+    dual_mode_temp_ww = gauge(1512, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    set_flow_temperature_area = gauge(1513, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    flow_temp_hysteresis_area = gauge(1514, 0.1, nan=UNAVAILABLE, unit="K", writable=True)
+    set_room_temperature_area = gauge(1515, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    set_flow_temperature_fan = gauge(1516, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    flow_temp_hysteresis_fan = gauge(1517, 0.1, nan=UNAVAILABLE, unit="K", writable=True)
+    set_room_temperature_fan = gauge(1518, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    reset = integer(1519, signed=False, nan=UNAVAILABLE, writable=True)
+    restart_isg = integer(1520, signed=False, nan=UNAVAILABLE, writable=True)
+    comfort_temperature_hk_3 = gauge(1549, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    eco_temperature_hk_3 = gauge(1550, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    heating_curve_rise_hk_3 = gauge(1551, 0.01, nan=UNAVAILABLE, writable=True)
 
 
-class WpmSystemStateRegisters(IsgRegisters):
-    OPERATING_STATUS = 2501
-    POWER_OFF = 2502
-    OPERATING_STATUS_WPM_3 = 2503
-    FAULT_STATUS = 2504
-    BUS_STATUS = 2505
-    DEFROST_INITIATED = 2506
-    ACTIVE_ERROR = 2507
-    MESSAGE_NUMBER = 2508
-    HEATING_CIRCUIT_PUMP_1 = 2509
-    HEATING_CIRCUIT_PUMP_2 = 2510
-    HEATING_CIRCUIT_PUMP_3 = 2511
-    BUFFER_CHARGING_PUMP_1 = 2512
-    BUFFER_CHARGING_PUMP_2 = 2513
-    DHW_CHARGING_PUMP = 2514
-    SOURCE_PUMP = 2515
-    FAULT_OUTPUT = 2516
-    DHW_CIRCULATION_PUMP = 2517
-    WE_2_DHW = 2518
-    WE_2_HEATING = 2519
-    COOLING_MODE = 2520
-    MIXER_OPEN_HC2 = 2521
-    MIXER_CLOSE_HC2 = 2522
-    MIXER_OPEN_HC3 = 2523
-    MIXER_CLOSE_HC3 = 2524
-    NHZ_1 = 2525
-    NHZ_2 = 2526
-    NHZ_1_2 = 2527
-    HEATING_CIRCUIT_PUMP_4 = 2528
-    HEATING_CIRCUIT_PUMP_5 = 2529
-    BUFFER_CHARGING_PUMP_3 = 2530
-    BUFFER_CHARGING_PUMP_4 = 2531
-    BUFFER_CHARGING_PUMP_5 = 2532
-    BUFFER_CHARGING_PUMP_6 = 2533
-    DIFF_CONTROLLER_PUMP_1 = 2534
-    DIFF_CONTROLLER_PUMP_2 = 2535
-    POOL_PUMP_PRIMARY = 2536
-    POOL_PUMP_SECONDARY = 2537
-    MIXER_OPEN_HC4 = 2538
-    MIXER_CLOSE_HC4 = 2539
-    MIXER_OPEN_HC5 = 2540
-    MIXER_CLOSE_HC5 = 2541
-    COMPRESSOR_1 = 2542
-    COMPRESSOR_2 = 2543
-    COMPRESSOR_3 = 2544
-    COMPRESSOR_4 = 2545
-    COMPRESSOR_5 = 2546
-    COMPRESSOR_6 = 2547
+class WpmSystemState(Component):
+    register_space = "input"
+    register_ranges = WPM_INPUT_RANGES
+
+    operating_status = integer(2500, signed=False, nan=UNAVAILABLE)
+    power_off = integer(2501, signed=False, nan=UNAVAILABLE)
+    operating_status_wpm_3 = integer(2502, signed=False, nan=UNAVAILABLE)
+    fault_status = integer(2503, signed=False, nan=UNAVAILABLE)
+    bus_status = integer(2504, signed=False, nan=UNAVAILABLE)
+    defrost_initiated = integer(2505, signed=False, nan=UNAVAILABLE)
+    active_error = integer(2506, signed=False, nan=UNAVAILABLE)
+    message_number = integer(2507, signed=False, nan=UNAVAILABLE)
+    heating_circuit_pump_1 = integer(2508, signed=False, nan=UNAVAILABLE)
+    heating_circuit_pump_2 = integer(2509, signed=False, nan=UNAVAILABLE)
+    heating_circuit_pump_3 = integer(2510, signed=False, nan=UNAVAILABLE)
+    buffer_charging_pump_1 = integer(2511, signed=False, nan=UNAVAILABLE)
+    buffer_charging_pump_2 = integer(2512, signed=False, nan=UNAVAILABLE)
+    dhw_charging_pump = integer(2513, signed=False, nan=UNAVAILABLE)
+    source_pump = integer(2514, signed=False, nan=UNAVAILABLE)
+    fault_output = integer(2515, signed=False, nan=UNAVAILABLE)
+    dhw_circulation_pump = integer(2516, signed=False, nan=UNAVAILABLE)
+    we_2_dhw = integer(2517, signed=False, nan=UNAVAILABLE)
+    we_2_heating = integer(2518, signed=False, nan=UNAVAILABLE)
+    cooling_mode = integer(2519, signed=False, nan=UNAVAILABLE)
+    mixer_open_hc2 = integer(2520, signed=False, nan=UNAVAILABLE)
+    mixer_close_hc2 = integer(2521, signed=False, nan=UNAVAILABLE)
+    mixer_open_hc3 = integer(2522, signed=False, nan=UNAVAILABLE)
+    mixer_close_hc3 = integer(2523, signed=False, nan=UNAVAILABLE)
+    nhz_1 = integer(2524, signed=False, nan=UNAVAILABLE)
+    nhz_2 = integer(2525, signed=False, nan=UNAVAILABLE)
+    nhz_1_2 = integer(2526, signed=False, nan=UNAVAILABLE)
+    heating_circuit_pump_4 = integer(2527, signed=False, nan=UNAVAILABLE)
+    heating_circuit_pump_5 = integer(2528, signed=False, nan=UNAVAILABLE)
+    buffer_charging_pump_3 = integer(2529, signed=False, nan=UNAVAILABLE)
+    buffer_charging_pump_4 = integer(2530, signed=False, nan=UNAVAILABLE)
+    buffer_charging_pump_5 = integer(2531, signed=False, nan=UNAVAILABLE)
+    buffer_charging_pump_6 = integer(2532, signed=False, nan=UNAVAILABLE)
+    diff_controller_pump_1 = integer(2533, signed=False, nan=UNAVAILABLE)
+    diff_controller_pump_2 = integer(2534, signed=False, nan=UNAVAILABLE)
+    pool_pump_primary = integer(2535, signed=False, nan=UNAVAILABLE)
+    pool_pump_secondary = integer(2536, signed=False, nan=UNAVAILABLE)
+    mixer_open_hc4 = integer(2537, signed=False, nan=UNAVAILABLE)
+    mixer_close_hc4 = integer(2538, signed=False, nan=UNAVAILABLE)
+    mixer_open_hc5 = integer(2539, signed=False, nan=UNAVAILABLE)
+    mixer_close_hc5 = integer(2540, signed=False, nan=UNAVAILABLE)
+    compressor_1 = integer(2541, signed=False, nan=UNAVAILABLE)
+    compressor_2 = integer(2542, signed=False, nan=UNAVAILABLE)
+    compressor_3 = integer(2543, signed=False, nan=UNAVAILABLE)
+    compressor_4 = integer(2544, signed=False, nan=UNAVAILABLE)
+    compressor_5 = integer(2545, signed=False, nan=UNAVAILABLE)
+    compressor_6 = integer(2546, signed=False, nan=UNAVAILABLE)
 
 
-class WpmEnergyDataRegisters(IsgRegisters):
-    VD_HEATING_DAY = 3501
-    VD_HEATING_DAY_AND_TOTAL = 203502
-    VD_HEATING_TOTAL_LOW = 3502
-    VD_HEATING_TOTAL = 103502
-    VD_HEATING_TOTAL_HI = 3503
-    VD_DHW_DAY = 3504
-    VD_DHW_DAY_AND_TOTAL = 203505
-    VD_DHW_TOTAL_LOW = 3505
-    VD_DHW_TOTAL = 103505
-    VD_DHW_TOTAL_HI = 3506
-    NHZ_HEATING_TOTAL_LOW = 3507
-    NHZ_HEATING_TOTAL = 103507
-    NHZ_HEATING_TOTAL_HI = 3508
-    NHZ_DHW_TOTAL_LOW = 3509
-    NHZ_DHW_TOTAL = 103509
-    NHZ_DHW_TOTAL_HI = 3510
-    VD_HEATING_DAY_CONSUMED = 3511
-    VD_HEATING_DAY_AND_TOTAL_CONSUMED = 203512
-    VD_HEATING_TOTAL_LOW_CONSUMED = 3512
-    VD_HEATING_TOTAL_CONSUMED = 103512
-    VD_HEATING_TOTAL_HI_CONSUMED = 3513
-    VD_DHW_DAY_CONSUMED = 3514
-    VD_DHW_DAY_AND_TOTAL_CONSUMED = 203515
-    VD_DHW_TOTAL_LOW_CONSUMED = 3515
-    VD_DHW_TOTAL_CONSUMED = 103515
-    VD_DHW_TOTAL_HI_CONSUMED = 3516
-    VD_HEATING = 3517
-    VD_DHW = 3518
-    VD_COOLING = 3519
-    NHZ_1 = 3520
-    NHZ_2 = 3521
-    NHZ_1_2 = 3522
-    VD_HEATING_DAY_HP_1 = 3523
-    VD_HEATING_DAY_AND_TOTAL_HP_1 = 203524
-    VD_HEATING_TOTAL_LOW_HP_1 = 3524
-    VD_HEATING_TOTAL_HP_1 = 103524
-    VD_HEATING_TOTAL_HI_HP_1 = 3525
-    VD_DHW_DAY_HP_1 = 3526
-    VD_DHW_DAY_AND_TOTAL_HP_1 = 203527
-    VD_DHW_TOTAL_LOW_HP_1 = 3527
-    VD_DHW_TOTAL_HP_1 = 103527
-    VD_DHW_TOTAL_HI_HP_1 = 3528
-    NHZ_HEATING_TOTAL_LOW_HP_1 = 3529
-    NHZ_HEATING_TOTAL_HP_1 = 103529
-    NHZ_HEATING_TOTAL_HI_HP_1 = 3530
-    NHZ_DHW_TOTAL_LOW_HP_1 = 3531
-    NHZ_DHW_TOTAL_HP_1 = 103531
-    NHZ_DHW_TOTAL_HI_HP_1 = 3532
-    VD_HEATING_DAY_CONSUMED_HP_1 = 3533
-    VD_HEATING_DAY_AND_TOTAL_CONSUMED_HP_1 = 203534
-    VD_HEATING_TOTAL_LOW_CONSUMED_HP_1 = 3534
-    VD_HEATING_TOTAL_CONSUMED_HP_1 = 103534
-    VD_HEATING_TOTAL_HI_CONSUMED_HP_1 = 3535
-    VD_DHW_DAY_CONSUMEDHP_1 = 3536
-    VD_DHW_DAY_AND_TOTAL_CONSUMEDHP_1 = 203537
-    VD_DHW_TOTAL_LOW_CONSUMED_HP_1 = 3537
-    VD_DHW_TOTAL_CONSUMED_HP_1 = 103537
-    VD_DHW_TOTAL_HI_CONSUMED_HP_1 = 3538
-    VD_1_HEATING_HP_1 = 3539
-    VD_2_HEATING_HP_1 = 3540
-    VD_1_2_HEATING_HP_1 = 3541
-    VD_1_DHW_HP_1 = 3542
-    VD_2_DHW_HP_1 = 3543
-    VD_1_2_DHW_HP_1 = 3544
-    VD_COOLING_x_HP_1 = 3545
-    NHZ_1_REHEATING = 3546
-    NHZ_2_REHEATING = 3547
-    NHZ_1_2_REHEATING = 3548
-    VD_HEATING_DAY_HP_2 = 3549
-    VD_HEATING_DAY_AND_TOTAL_HP_2 = 203550
-    VD_HEATING_TOTAL_LOW_HP_2 = 3550
-    VD_HEATING_TOTAL_HP_2 = 103550
-    VD_HEATING_TOTAL_HI_HP_2 = 3551
-    VD_DHW_DAY_HP_2 = 3552
-    VD_DHW_DAY_AND_TOTAL_HP_2 = 203553
-    VD_DHW_TOTAL_LOW_HP_2 = 3553
-    VD_DHW_TOTAL_HP_2 = 103553
-    VD_DHW_TOTAL_HI_HP_2 = 3554
-    VD_HEATING_DAY_CONSUMED_HP_2 = 3555
-    VD_HEATING_DAY_AND_TOTAL_CONSUMED_HP_2 = 203556
-    VD_HEATING_TOTAL_LOW_CONSUMED_HP_2 = 3556
-    VD_HEATING_TOTAL_CONSUMED_HP_2 = 103556
-    VD_HEATING_TOTAL_HI_CONSUMED_HP_2 = 3557
-    VD_DHW_DAY_CONSUMED_HP_2 = 3558
-    VD_DHW_DAY_AND_TOTAL_CONSUMED_HP_2 = 203559
-    VD_DHW_TOTAL_LOW_CONSUMED_HP_2 = 3559
-    VD_DHW_TOTAL_CONSUMED_HP_2 = 103559
-    VD_DHW_TOTAL_HI_CONSUMED_HP_2 = 3560
-    VD_1_HEATING_HP_2 = 3561
-    VD_2_HEATING_HP_2 = 3562
-    VD_1_2_HEATING_HP_2 = 3563
-    VD_1_DHW_HP_2 = 3564
-    VD_2_DHW_HP_2 = 3565
-    VD_1_2_DHW_HP_2 = 3566
-    VD_COOLING_HP_2 = 3567
-    VD_HEATING_DAY_HP_3 = 3568
-    VD_HEATING_DAY_AND_TOTAL_HP_3 = 203569
-    VD_HEATING_TOTAL_LOW_HP_3 = 3569
-    VD_HEATING_TOTAL_HP_3 = 103569
-    VD_HEATING_TOTAL_HI_HP_3 = 3570
-    VD_DHW_DAY_HP_3 = 3571
-    VD_DHW_DAY_AND_TOTAL_HP_3 = 203572
-    VD_DHW_TOTAL_LOW_HP_3 = 3572
-    VD_DHW_TOTAL_HP_3 = 103572
-    VD_DHW_TOTAL_HI_HP_3 = 3573
-    VD_HEATING_DAY_CONSUMED_HP_3 = 3574
-    VD_HEATING_DAY_AND_TOTAL_CONSUMED_HP_3 = 203575
-    VD_HEATING_TOTAL_LOW_CONSUMED_HP_3 = 3575
-    VD_HEATING_TOTAL_CONSUMED_HP_3 = 103575
-    VD_HEATING_TOTAL_HI_CONSUMED_HP_3 = 3576
-    VD_DHW_DAY_CONSUMED_HP_3 = 3577
-    VD_DHW_DAY_AND_TOTAL_CONSUMED_HP_3 = 203578
-    VD_DHW_TOTAL_LOW_CONSUMED_HP_3 = 3578
-    VD_DHW_TOTAL_CONSUMED_HP_3 = 103578
-    VD_DHW_TOTAL_HI_CONSUMED_HP_3 = 3579
-    VD_1_HEATING_HP_3 = 3580
-    VD_2_HEATING_HP_3 = 3581
-    VD_1_2_HEATING_HP_3 = 3582
-    VD_1_DHW_HP_3 = 3583
-    VD_2_DHW_HP_3 = 3584
-    VD_1_2_DHW_HP_3 = 3585
-    VD_COOLING_HP_3 = 3586
+class WpmEnergyData(Component):
+    register_space = "input"
+    register_ranges = WPM_INPUT_RANGES
+
+    vd_heating_day = integer(3500, signed=False, nan=UNAVAILABLE, unit="kWh")
+    vd_heating_total = scaled_sum(3501, (1, 1000), unit="kWh")
+    vd_dhw_day = integer(3503, signed=False, nan=UNAVAILABLE, unit="kWh")
+    vd_dhw_total = scaled_sum(3504, (1, 1000), unit="kWh")
+    nhz_heating_total = scaled_sum(3506, (1, 1000), unit="kWh")
+    nhz_dhw_total = scaled_sum(3508, (1, 1000), unit="kWh")
+    vd_heating_day_consumed = integer(3510, signed=False, nan=UNAVAILABLE, unit="kWh")
+    vd_heating_total_consumed = scaled_sum(3511, (1, 1000), unit="kWh")
+    vd_dhw_day_consumed = integer(3513, signed=False, nan=UNAVAILABLE, unit="kWh")
+    vd_dhw_total_consumed = scaled_sum(3514, (1, 1000), unit="kWh")
+    vd_heating = integer(3516, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_dhw = integer(3517, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_cooling = integer(3518, signed=False, nan=UNAVAILABLE, unit="h")
+    nhz_1 = integer(3519, signed=False, nan=UNAVAILABLE, unit="h")
+    nhz_2 = integer(3520, signed=False, nan=UNAVAILABLE, unit="h")
+    nhz_1_2 = integer(3521, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_heating_day_hp_1 = integer(3522, signed=False, nan=UNAVAILABLE, unit="kWh")
+    vd_heating_total_hp_1 = scaled_sum(3523, (1, 1000), unit="kWh")
+    vd_dhw_day_hp_1 = integer(3525, signed=False, nan=UNAVAILABLE, unit="kWh")
+    vd_dhw_total_hp_1 = scaled_sum(3526, (1, 1000), unit="kWh")
+    nhz_heating_total_hp_1 = scaled_sum(3528, (1, 1000), unit="kWh")
+    nhz_dhw_total_hp_1 = scaled_sum(3530, (1, 1000), unit="kWh")
+    vd_heating_day_consumed_hp_1 = integer(3532, signed=False, nan=UNAVAILABLE, unit="kWh")
+    vd_heating_total_consumed_hp_1 = scaled_sum(3533, (1, 1000), unit="kWh")
+    vd_dhw_day_consumedhp_1 = integer(3535, signed=False, nan=UNAVAILABLE, unit="kWh")
+    vd_dhw_total_consumed_hp_1 = scaled_sum(3536, (1, 1000), unit="kWh")
+    vd_1_heating_hp_1 = integer(3538, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_2_heating_hp_1 = integer(3539, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_1_2_heating_hp_1 = integer(3540, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_1_dhw_hp_1 = integer(3541, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_2_dhw_hp_1 = integer(3542, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_1_2_dhw_hp_1 = integer(3543, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_cooling_x_hp_1 = integer(3544, signed=False, nan=UNAVAILABLE, unit="h")
+    nhz_1_reheating = integer(3545, signed=False, nan=UNAVAILABLE, unit="h")
+    nhz_2_reheating = integer(3546, signed=False, nan=UNAVAILABLE, unit="h")
+    nhz_1_2_reheating = integer(3547, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_heating_day_hp_2 = integer(3548, signed=False, nan=UNAVAILABLE, unit="kWh")
+    vd_heating_total_hp_2 = scaled_sum(3549, (1, 1000), unit="kWh")
+    vd_dhw_day_hp_2 = integer(3551, signed=False, nan=UNAVAILABLE, unit="kWh")
+    vd_dhw_total_hp_2 = scaled_sum(3552, (1, 1000), unit="kWh")
+    vd_heating_day_consumed_hp_2 = integer(3554, signed=False, nan=UNAVAILABLE, unit="kWh")
+    vd_heating_total_consumed_hp_2 = scaled_sum(3555, (1, 1000), unit="kWh")
+    vd_dhw_day_consumed_hp_2 = integer(3557, signed=False, nan=UNAVAILABLE, unit="kWh")
+    vd_dhw_total_consumed_hp_2 = scaled_sum(3558, (1, 1000), unit="kWh")
+    vd_1_heating_hp_2 = integer(3560, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_2_heating_hp_2 = integer(3561, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_1_2_heating_hp_2 = integer(3562, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_1_dhw_hp_2 = integer(3563, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_2_dhw_hp_2 = integer(3564, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_1_2_dhw_hp_2 = integer(3565, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_cooling_hp_2 = integer(3566, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_heating_day_hp_3 = integer(3567, signed=False, nan=UNAVAILABLE, unit="kWh")
+    vd_heating_total_hp_3 = scaled_sum(3568, (1, 1000), unit="kWh")
+    vd_dhw_day_hp_3 = integer(3570, signed=False, nan=UNAVAILABLE, unit="kWh")
+    vd_dhw_total_hp_3 = scaled_sum(3571, (1, 1000), unit="kWh")
+    vd_heating_day_consumed_hp_3 = integer(3573, signed=False, nan=UNAVAILABLE, unit="kWh")
+    vd_heating_total_consumed_hp_3 = scaled_sum(3574, (1, 1000), unit="kWh")
+    vd_dhw_day_consumed_hp_3 = integer(3576, signed=False, nan=UNAVAILABLE, unit="kWh")
+    vd_dhw_total_consumed_hp_3 = scaled_sum(3577, (1, 1000), unit="kWh")
+    vd_1_heating_hp_3 = integer(3579, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_2_heating_hp_3 = integer(3580, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_1_2_heating_hp_3 = integer(3581, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_1_dhw_hp_3 = integer(3582, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_2_dhw_hp_3 = integer(3583, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_1_2_dhw_hp_3 = integer(3584, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_cooling_hp_3 = integer(3585, signed=False, nan=UNAVAILABLE, unit="h")
+
+    _DAY_AND_TOTAL = (
+        ("vd_heating_day", "vd_heating_total", "vd_heating_day_and_total"),
+        ("vd_dhw_day", "vd_dhw_total", "vd_dhw_day_and_total"),
+        ("vd_heating_day_consumed", "vd_heating_total_consumed", "vd_heating_day_and_total_consumed"),
+        ("vd_dhw_day_consumed", "vd_dhw_total_consumed", "vd_dhw_day_and_total_consumed"),
+        ("vd_heating_day_hp_1", "vd_heating_total_hp_1", "vd_heating_day_and_total_hp_1"),
+        ("vd_dhw_day_hp_1", "vd_dhw_total_hp_1", "vd_dhw_day_and_total_hp_1"),
+        ("vd_heating_day_consumed_hp_1", "vd_heating_total_consumed_hp_1", "vd_heating_day_and_total_consumed_hp_1"),
+        ("vd_dhw_day_consumedhp_1", "vd_dhw_total_consumed_hp_1", "vd_dhw_day_and_total_consumedhp_1"),
+        ("vd_heating_day_hp_2", "vd_heating_total_hp_2", "vd_heating_day_and_total_hp_2"),
+        ("vd_dhw_day_hp_2", "vd_dhw_total_hp_2", "vd_dhw_day_and_total_hp_2"),
+        ("vd_heating_day_consumed_hp_2", "vd_heating_total_consumed_hp_2", "vd_heating_day_and_total_consumed_hp_2"),
+        ("vd_dhw_day_consumed_hp_2", "vd_dhw_total_consumed_hp_2", "vd_dhw_day_and_total_consumed_hp_2"),
+        ("vd_heating_day_hp_3", "vd_heating_total_hp_3", "vd_heating_day_and_total_hp_3"),
+        ("vd_dhw_day_hp_3", "vd_dhw_total_hp_3", "vd_dhw_day_and_total_hp_3"),
+        ("vd_heating_day_consumed_hp_3", "vd_heating_total_consumed_hp_3", "vd_heating_day_and_total_consumed_hp_3"),
+        ("vd_dhw_day_consumed_hp_3", "vd_dhw_total_consumed_hp_3", "vd_dhw_day_and_total_consumed_hp_3"),
+    )
+
+    def __init__(self, unit: ModbusUnit, index: int = 1) -> None:
+        super().__init__(unit, index)
+        self._running_totals: dict[str, int] = {}
+
+    def notify(self) -> None:
+        """Refresh the monotonic day-and-total counters, then notify listeners."""
+        for day_attr, total_attr, key in self._DAY_AND_TOTAL:
+            day = getattr(self, day_attr)
+            total = getattr(self, total_attr)
+            if day is not None and total is not None:
+                combined = day + total
+                previous = self._running_totals.get(key)
+                self._running_totals[key] = combined if previous is None else max(combined, previous)
+        super().notify()
+
+    @property
+    def vd_heating_day_and_total(self) -> int | None:
+        return self._running_totals.get("vd_heating_day_and_total")
+
+    @property
+    def vd_dhw_day_and_total(self) -> int | None:
+        return self._running_totals.get("vd_dhw_day_and_total")
+
+    @property
+    def vd_heating_day_and_total_consumed(self) -> int | None:
+        return self._running_totals.get("vd_heating_day_and_total_consumed")
+
+    @property
+    def vd_dhw_day_and_total_consumed(self) -> int | None:
+        return self._running_totals.get("vd_dhw_day_and_total_consumed")
+
+    @property
+    def vd_heating_day_and_total_hp_1(self) -> int | None:
+        return self._running_totals.get("vd_heating_day_and_total_hp_1")
+
+    @property
+    def vd_dhw_day_and_total_hp_1(self) -> int | None:
+        return self._running_totals.get("vd_dhw_day_and_total_hp_1")
+
+    @property
+    def vd_heating_day_and_total_consumed_hp_1(self) -> int | None:
+        return self._running_totals.get("vd_heating_day_and_total_consumed_hp_1")
+
+    @property
+    def vd_dhw_day_and_total_consumedhp_1(self) -> int | None:
+        return self._running_totals.get("vd_dhw_day_and_total_consumedhp_1")
+
+    @property
+    def vd_heating_day_and_total_hp_2(self) -> int | None:
+        return self._running_totals.get("vd_heating_day_and_total_hp_2")
+
+    @property
+    def vd_dhw_day_and_total_hp_2(self) -> int | None:
+        return self._running_totals.get("vd_dhw_day_and_total_hp_2")
+
+    @property
+    def vd_heating_day_and_total_consumed_hp_2(self) -> int | None:
+        return self._running_totals.get("vd_heating_day_and_total_consumed_hp_2")
+
+    @property
+    def vd_dhw_day_and_total_consumed_hp_2(self) -> int | None:
+        return self._running_totals.get("vd_dhw_day_and_total_consumed_hp_2")
+
+    @property
+    def vd_heating_day_and_total_hp_3(self) -> int | None:
+        return self._running_totals.get("vd_heating_day_and_total_hp_3")
+
+    @property
+    def vd_dhw_day_and_total_hp_3(self) -> int | None:
+        return self._running_totals.get("vd_dhw_day_and_total_hp_3")
+
+    @property
+    def vd_heating_day_and_total_consumed_hp_3(self) -> int | None:
+        return self._running_totals.get("vd_heating_day_and_total_consumed_hp_3")
+
+    @property
+    def vd_dhw_day_and_total_consumed_hp_3(self) -> int | None:
+        return self._running_totals.get("vd_dhw_day_and_total_consumed_hp_3")
 
 
-class WpmPowerConsumptionRegisters(IsgRegisters):
-    HEATING_24H = 3708
-    HEATING_12M_FRACTION = 3710
-    HEATING_12M_WHOLE = 3711
-    COOLING_24H_FRACTION = 3714
-    COOLING_24H_WHOLE = 3715
-    COOLING_12M = 3716
-    DHW_24H_FRACTION = 3720
-    DHW_24H_WHOLE = 3721
-    DHW_12M_FRACTION = 3722
-    DHW_12M_WHOLE = 3723
+class WpmPowerConsumption(Component):
+    register_space = "input"
+    register_ranges = WPM_INPUT_RANGES
+
+    heating_24h = integer(3707, signed=False, nan=UNAVAILABLE, unit="kWh")
+    heating_12m_fraction = integer(3709, signed=False, nan=UNAVAILABLE, unit="kWh")
+    heating_12m_whole = integer(3710, signed=False, nan=UNAVAILABLE, unit="kWh")
+    cooling_24h_fraction = integer(3713, signed=False, nan=UNAVAILABLE, unit="kWh")
+    cooling_24h_whole = integer(3714, signed=False, nan=UNAVAILABLE, unit="kWh")
+    cooling_12m = integer(3715, signed=False, nan=UNAVAILABLE, unit="kWh")
+    dhw_24h_fraction = integer(3719, signed=False, nan=UNAVAILABLE, unit="kWh")
+    dhw_24h_whole = integer(3720, signed=False, nan=UNAVAILABLE, unit="kWh")
+    dhw_12m_fraction = integer(3721, signed=False, nan=UNAVAILABLE, unit="kWh")
+    dhw_12m_whole = integer(3722, signed=False, nan=UNAVAILABLE, unit="kWh")
 
 
-WPM_SYSTEM_VALUES_REGISTERS: dict[IsgRegisters, ModbusRegister] = {
-    WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_FE7: ModbusRegister(
-        address=501, name="ACTUAL TEMPERATURE FE7", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_FE7
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_FE7: ModbusRegister(address=502, name="SET TEMPERATURE FE7", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_FE7),
-    WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_FEK: ModbusRegister(
-        address=503, name="ACTUAL TEMPERATURE FEK", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_FEK
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_FEK: ModbusRegister(address=504, name="SET TEMPERATURE FEK", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_FEK),
-    WpmSystemValuesRegisters.RELATIVE_HUMIDITY: ModbusRegister(address=505, name="RELATIVE HUMIDITY", unit="%", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.RELATIVE_HUMIDITY),
-    WpmSystemValuesRegisters.DEW_POINT_TEMPERATURE: ModbusRegister(
-        address=506, name="DEW POINT TEMPERATURE", unit="°C", min=-40.0, max=30.0, data_type=2, key=WpmSystemValuesRegisters.DEW_POINT_TEMPERATURE
-    ),
-    WpmSystemValuesRegisters.OUTSIDE_TEMPERATURE: ModbusRegister(
-        address=507, name="OUTSIDE TEMPERATURE", unit="°C", min=-60.0, max=80.0, data_type=2, key=WpmSystemValuesRegisters.OUTSIDE_TEMPERATURE
-    ),
-    WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_HK_1: ModbusRegister(
-        address=508, name="ACTUAL TEMPERATURE HK 1", unit="°C", min=0.0, max=40.0, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_HK_1
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_HK_1_WPM3I: ModbusRegister(
-        address=509, name="SET TEMPERATURE HK 1", unit="°C", min=0.0, max=65.0, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_HK_1_WPM3I
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_HK_1: ModbusRegister(
-        address=510, name="SET TEMPERATURE HK 1", unit="°C", min=0.0, max=40.0, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_HK_1
-    ),
-    WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_HK_2: ModbusRegister(
-        address=511, name="ACTUAL TEMPERATURE HK 2", unit="°C", min=0.0, max=90.0, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_HK_2
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_HK_2: ModbusRegister(
-        address=512, name="SET TEMPERATURE HK 2", unit="°C", min=0.0, max=65.0, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_HK_2
-    ),
-    WpmSystemValuesRegisters.ACTUAL_FLOW_TEMPERATURE_WP: ModbusRegister(
-        address=513, name="ACTUAL FLOW TEMPERATURE WP", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_FLOW_TEMPERATURE_WP
-    ),
-    WpmSystemValuesRegisters.ACTUAL_FLOW_TEMPERATURE_NHZ: ModbusRegister(
-        address=514, name="ACTUAL FLOW TEMPERATURE NHZ", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_FLOW_TEMPERATURE_NHZ
-    ),
-    WpmSystemValuesRegisters.ACTUAL_FLOW_TEMPERATURE: ModbusRegister(
-        address=515, name="ACTUAL FLOW TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_FLOW_TEMPERATURE
-    ),
-    WpmSystemValuesRegisters.ACTUAL_RETURN_TEMPERATURE: ModbusRegister(
-        address=516, name="ACTUAL RETURN TEMPERATURE", unit="°C", min=0.0, max=90.0, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_RETURN_TEMPERATURE
-    ),
-    WpmSystemValuesRegisters.SET_FIXED_TEMPERATURE: ModbusRegister(
-        address=517, name="SET FIXED TEMPERATURE", unit="°C", min=20.0, max=50.0, data_type=2, key=WpmSystemValuesRegisters.SET_FIXED_TEMPERATURE
-    ),
-    WpmSystemValuesRegisters.ACTUAL_BUFFER_TEMPERATURE: ModbusRegister(
-        address=518, name="ACTUAL BUFFER TEMPERATURE", unit="°C", min=0.0, max=90.0, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_BUFFER_TEMPERATURE
-    ),
-    WpmSystemValuesRegisters.SET_BUFFER_TEMPERATURE: ModbusRegister(
-        address=519, name="SET BUFFER TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.SET_BUFFER_TEMPERATURE
-    ),
-    WpmSystemValuesRegisters.HEATING_PRESSURE: ModbusRegister(address=520, name="HEATING PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.HEATING_PRESSURE),
-    WpmSystemValuesRegisters.FLOW_RATE: ModbusRegister(address=521, name="FLOW RATE", unit="l/min", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.FLOW_RATE),
-    WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_DHW: ModbusRegister(
-        address=522, name="ACTUAL TEMPERATURE DHW", unit="°C", min=10.0, max=65.0, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_DHW
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_DHW: ModbusRegister(address=523, name="SET TEMPERATURE DHW", unit="°C", min=10.0, max=65.0, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_DHW),
-    WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_FAN: ModbusRegister(
-        address=524, name="ACTUAL TEMPERATURE FAN", unit="K", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_FAN
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_FAN: ModbusRegister(address=525, name="SET TEMPERATURE FAN", unit="K", min=7.0, max=25.0, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_FAN),
-    WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_AREA: ModbusRegister(
-        address=526, name="ACTUAL TEMPERATURE AREA", unit="K", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_AREA
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_AREA: ModbusRegister(
-        address=527, name="SET TEMPERATURE AREA", unit="K", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_AREA
-    ),
-    WpmSystemValuesRegisters.COLLECTOR_TEMPERATURE: ModbusRegister(
-        address=528, name="COLLECTOR TEMPERATURE", unit="°C", min=0.0, max=90.0, data_type=2, key=WpmSystemValuesRegisters.COLLECTOR_TEMPERATURE
-    ),
-    WpmSystemValuesRegisters.CYLINDER_TEMPERATURE: ModbusRegister(
-        address=529, name="CYLINDER TEMPERATURE", unit="°C", min=0.0, max=90.0, data_type=2, key=WpmSystemValuesRegisters.CYLINDER_TEMPERATURE
-    ),
-    WpmSystemValuesRegisters.RUNTIME: ModbusRegister(address=530, name="RUNTIME", unit="h", min=None, max=None, data_type=6, key=WpmSystemValuesRegisters.RUNTIME),
-    WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_EXTERNAL: ModbusRegister(
-        address=531, name="ACTUAL TEMPERATURE EXTERNAL", unit="°C", min=10.0, max=90.0, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_EXTERNAL
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_EXTERNAL: ModbusRegister(
-        address=532, name="SET TEMPERATURE EXTERNAL", unit="K", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_EXTERNAL
-    ),
-    WpmSystemValuesRegisters.APPLICATION_LIMIT_HZG: ModbusRegister(
-        address=533, name="APPLICATION LIMIT HZG", unit="°C", min=-40.0, max=40.0, data_type=2, key=WpmSystemValuesRegisters.APPLICATION_LIMIT_HZG
-    ),
-    WpmSystemValuesRegisters.APPLICATION_LIMIT_WW: ModbusRegister(
-        address=534, name="APPLICATION LIMIT WW", unit="°C", min=-40.0, max=40.0, data_type=2, key=WpmSystemValuesRegisters.APPLICATION_LIMIT_WW
-    ),
-    WpmSystemValuesRegisters.RUNTIME_EHS: ModbusRegister(address=535, name="RUNTIME", unit="h", min=None, max=None, data_type=6, key=WpmSystemValuesRegisters.RUNTIME_EHS),
-    WpmSystemValuesRegisters.SOURCE_TEMPERATURE: ModbusRegister(address=536, name="SOURCE TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.SOURCE_TEMPERATURE),
-    WpmSystemValuesRegisters.MIN_SOURCE_TEMPERATURE: ModbusRegister(
-        address=537, name="MIN SOURCE TEMPERATURE", unit="°C", min=-10.0, max=10.0, data_type=2, key=WpmSystemValuesRegisters.MIN_SOURCE_TEMPERATURE
-    ),
-    WpmSystemValuesRegisters.SOURCE_PRESSURE: ModbusRegister(address=538, name="SOURCE PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.SOURCE_PRESSURE),
-    WpmSystemValuesRegisters.HOT_GAS_TEMPERATURE: ModbusRegister(address=539, name="HOT GAS TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.HOT_GAS_TEMPERATURE),
-    WpmSystemValuesRegisters.HIGH_PRESSURE: ModbusRegister(address=540, name="HIGH PRESSURE", unit="bar", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.HIGH_PRESSURE),
-    WpmSystemValuesRegisters.LOW_PRESSURE: ModbusRegister(address=541, name="LOW PRESSURE", unit="bar", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.LOW_PRESSURE),
-    WpmSystemValuesRegisters.RETURN_TEMPERATURE_HP1: ModbusRegister(
-        address=542, name="RETURN TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.RETURN_TEMPERATURE_HP1
-    ),
-    WpmSystemValuesRegisters.FLOW_TEMPERATURE_HP1: ModbusRegister(address=543, name="FLOW TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.FLOW_TEMPERATURE_HP1),
-    WpmSystemValuesRegisters.HOT_GAS_TEMPERATURE_HP1: ModbusRegister(
-        address=544, name="HOT GAS TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.HOT_GAS_TEMPERATURE_HP1
-    ),
-    WpmSystemValuesRegisters.LOW_PRESSURE_HP1: ModbusRegister(address=545, name="LOW PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.LOW_PRESSURE_HP1),
-    WpmSystemValuesRegisters.MEAN_PRESSURE_HP1: ModbusRegister(address=546, name="MEAN PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.MEAN_PRESSURE_HP1),
-    WpmSystemValuesRegisters.HIGH_PRESSURE_HP1: ModbusRegister(address=547, name="HIGH PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.HIGH_PRESSURE_HP1),
-    WpmSystemValuesRegisters.WP_WATER_FLOW_RATE_HP1: ModbusRegister(
-        address=548, name="WP WATER FLOW RATE", unit="l/min", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.WP_WATER_FLOW_RATE_HP1
-    ),
-    WpmSystemValuesRegisters.RETURN_TEMPERATURE_HP2: ModbusRegister(
-        address=549, name="RETURN TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.RETURN_TEMPERATURE_HP2
-    ),
-    WpmSystemValuesRegisters.FLOW_TEMPERATURE_HP2: ModbusRegister(address=550, name="FLOW TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.FLOW_TEMPERATURE_HP2),
-    WpmSystemValuesRegisters.HOT_GAS_TEMPERATURE_HP2: ModbusRegister(
-        address=551, name="HOT GAS TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.HOT_GAS_TEMPERATURE_HP2
-    ),
-    WpmSystemValuesRegisters.LOW_PRESSURE_HP2: ModbusRegister(address=552, name="LOW PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.LOW_PRESSURE_HP2),
-    WpmSystemValuesRegisters.MEAN_PRESSURE_HP2: ModbusRegister(address=553, name="MEAN PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.MEAN_PRESSURE_HP2),
-    WpmSystemValuesRegisters.HIGH_PRESSURE_HP2: ModbusRegister(address=554, name="HIGH PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.HIGH_PRESSURE_HP2),
-    WpmSystemValuesRegisters.WP_WATER_FLOW_RATE_HP2: ModbusRegister(
-        address=555, name="WP WATER FLOW RATE", unit="l/min", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.WP_WATER_FLOW_RATE_HP2
-    ),
-    WpmSystemValuesRegisters.RETURN_TEMPERATURE_HP3: ModbusRegister(
-        address=556, name="RETURN TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.RETURN_TEMPERATURE_HP3
-    ),
-    WpmSystemValuesRegisters.FLOW_TEMPERATURE_HP3: ModbusRegister(address=557, name="FLOW TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.FLOW_TEMPERATURE_HP3),
-    WpmSystemValuesRegisters.HOT_GAS_TEMPERATURE_HP3: ModbusRegister(
-        address=558, name="HOT GAS TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.HOT_GAS_TEMPERATURE_HP3
-    ),
-    WpmSystemValuesRegisters.LOW_PRESSURE_HP3: ModbusRegister(address=559, name="LOW PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.LOW_PRESSURE_HP3),
-    WpmSystemValuesRegisters.MEAN_PRESSURE_HP3: ModbusRegister(address=560, name="MEAN PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.MEAN_PRESSURE_HP3),
-    WpmSystemValuesRegisters.HIGH_PRESSURE_HP3: ModbusRegister(address=561, name="HIGH PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.HIGH_PRESSURE_HP3),
-    WpmSystemValuesRegisters.WP_WATER_FLOW_RATE_HP3: ModbusRegister(
-        address=562, name="WP WATER FLOW RATE", unit="l/min", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.WP_WATER_FLOW_RATE_HP3
-    ),
-    WpmSystemValuesRegisters.RETURN_TEMPERATURE_HP4: ModbusRegister(
-        address=563, name="RETURN TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.RETURN_TEMPERATURE_HP4
-    ),
-    WpmSystemValuesRegisters.FLOW_TEMPERATURE_HP4: ModbusRegister(address=564, name="FLOW TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.FLOW_TEMPERATURE_HP4),
-    WpmSystemValuesRegisters.HOT_GAS_TEMPERATURE_HP4: ModbusRegister(
-        address=565, name="HOT GAS TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.HOT_GAS_TEMPERATURE_HP4
-    ),
-    WpmSystemValuesRegisters.LOW_PRESSURE_HP4: ModbusRegister(address=566, name="LOW PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.LOW_PRESSURE_HP4),
-    WpmSystemValuesRegisters.MEAN_PRESSURE_HP4: ModbusRegister(address=567, name="MEAN PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.MEAN_PRESSURE_HP4),
-    WpmSystemValuesRegisters.HIGH_PRESSURE_HP4: ModbusRegister(address=568, name="HIGH PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.HIGH_PRESSURE_HP4),
-    WpmSystemValuesRegisters.WP_WATER_FLOW_RATE_HP4: ModbusRegister(
-        address=569, name="WP WATER FLOW RATE", unit="l/min", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.WP_WATER_FLOW_RATE_HP4
-    ),
-    WpmSystemValuesRegisters.RETURN_TEMPERATURE_HP5: ModbusRegister(
-        address=570, name="RETURN TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.RETURN_TEMPERATURE_HP5
-    ),
-    WpmSystemValuesRegisters.FLOW_TEMPERATURE_HP5: ModbusRegister(address=571, name="FLOW TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.FLOW_TEMPERATURE_HP5),
-    WpmSystemValuesRegisters.HOT_GAS_TEMPERATURE_HP5: ModbusRegister(
-        address=572, name="HOT GAS TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.HOT_GAS_TEMPERATURE_HP5
-    ),
-    WpmSystemValuesRegisters.LOW_PRESSURE_HP5: ModbusRegister(address=573, name="LOW PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.LOW_PRESSURE_HP5),
-    WpmSystemValuesRegisters.MEAN_PRESSURE_HP5: ModbusRegister(address=574, name="MEAN PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.MEAN_PRESSURE_HP5),
-    WpmSystemValuesRegisters.HIGH_PRESSURE_HP5: ModbusRegister(address=575, name="HIGH PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.HIGH_PRESSURE_HP5),
-    WpmSystemValuesRegisters.WP_WATER_RATE_HP5: ModbusRegister(address=576, name="WP WATER RATE", unit="l/min", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.WP_WATER_RATE_HP5),
-    WpmSystemValuesRegisters.RETURN_TEMPERATURE_HP6: ModbusRegister(
-        address=577, name="RETURN TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.RETURN_TEMPERATURE_HP6
-    ),
-    WpmSystemValuesRegisters.FLOW_TEMPERATURE_HP6: ModbusRegister(address=578, name="FLOW TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.FLOW_TEMPERATURE_HP6),
-    WpmSystemValuesRegisters.HOT_GAS_HP6: ModbusRegister(address=579, name="HOT GAS", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.HOT_GAS_HP6),
-    WpmSystemValuesRegisters.LOW_PRESSURE_HP6: ModbusRegister(address=580, name="LOW PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.LOW_PRESSURE_HP6),
-    WpmSystemValuesRegisters.MEAN_PRESSURE_HP6: ModbusRegister(address=581, name="MEAN PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.MEAN_PRESSURE_HP6),
-    WpmSystemValuesRegisters.HIGH_PRESSURE_HP6: ModbusRegister(address=582, name="HIGH PRESSURE", unit="bar", min=None, max=None, data_type=7, key=WpmSystemValuesRegisters.HIGH_PRESSURE_HP6),
-    WpmSystemValuesRegisters.WP_WATER_FLOW_RATE_HP6: ModbusRegister(
-        address=583, name="WP WATER FLOW RATE", unit="l/min", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.WP_WATER_FLOW_RATE_HP6
-    ),
-    WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_ROOM_TEMP_HC1: ModbusRegister(
-        address=584, name="ACTUAL TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_ROOM_TEMP_HC1
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_HC1: ModbusRegister(
-        address=585, name="SET TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_HC1
-    ),
-    WpmSystemValuesRegisters.RELATIVE_HUMIDITY_ROOM_TEMP_HC1: ModbusRegister(
-        address=586, name="RELATIVE HUMIDITY", unit="%", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.RELATIVE_HUMIDITY_ROOM_TEMP_HC1
-    ),
-    WpmSystemValuesRegisters.DEW_POINT_TEMPERATURE_ROOM_TEMP_HC1: ModbusRegister(
-        address=587, name="DEW POINT TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.DEW_POINT_TEMPERATURE_ROOM_TEMP_HC1
-    ),
-    WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_ROOM_TEMP_HC2: ModbusRegister(
-        address=588, name="ACTUAL TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_ROOM_TEMP_HC2
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_HC2: ModbusRegister(
-        address=589, name="SET TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_HC2
-    ),
-    WpmSystemValuesRegisters.RELATIVE_HUMIDITY_ROOM_TEMP_HC2: ModbusRegister(
-        address=590, name="RELATIVE HUMIDITY", unit="%", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.RELATIVE_HUMIDITY_ROOM_TEMP_HC2
-    ),
-    WpmSystemValuesRegisters.DEW_POINT_TEMPERATURE_ROOM_TEMP_HC2: ModbusRegister(
-        address=591, name="DEW POINT TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.DEW_POINT_TEMPERATURE_ROOM_TEMP_HC2
-    ),
-    WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_ROOM_TEMP_HC3: ModbusRegister(
-        address=592, name="ACTUAL TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_ROOM_TEMP_HC3
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_HC3: ModbusRegister(
-        address=593, name="SET TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_HC3
-    ),
-    WpmSystemValuesRegisters.RELATIVE_HUMIDITY_ROOM_TEMP_HC3: ModbusRegister(
-        address=594, name="RELATIVE HUMIDITY", unit="%", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.RELATIVE_HUMIDITY_ROOM_TEMP_HC3
-    ),
-    WpmSystemValuesRegisters.DEW_POINT_TEMPERATURE_ROOM_TEMP_HC3: ModbusRegister(
-        address=595, name="DEW POINT TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.DEW_POINT_TEMPERATURE_ROOM_TEMP_HC3
-    ),
-    WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_ROOM_TEMP_HC4: ModbusRegister(
-        address=596, name="ACTUAL TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_ROOM_TEMP_HC4
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_HC4: ModbusRegister(
-        address=597, name="SET TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_HC4
-    ),
-    WpmSystemValuesRegisters.RELATIVE_HUMIDITY_ROOM_TEMP_HC4: ModbusRegister(
-        address=598, name="RELATIVE HUMIDITY", unit="%", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.RELATIVE_HUMIDITY_ROOM_TEMP_HC4
-    ),
-    WpmSystemValuesRegisters.DEW_POINT_TEMPERATURE_ROOM_TEMP_HC4: ModbusRegister(
-        address=599, name="DEW POINT TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.DEW_POINT_TEMPERATURE_ROOM_TEMP_HC4
-    ),
-    WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_ROOM_TEMP_HC5: ModbusRegister(
-        address=600, name="ACTUAL TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_ROOM_TEMP_HC5
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_HC5: ModbusRegister(
-        address=601, name="SET TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_HC5
-    ),
-    WpmSystemValuesRegisters.RELATIVE_HUMIDITY_ROOM_TEMP_HC5: ModbusRegister(
-        address=602, name="RELATIVE HUMIDITY", unit="%", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.RELATIVE_HUMIDITY_ROOM_TEMP_HC5
-    ),
-    WpmSystemValuesRegisters.DEW_POINT_TEMPERATURE_ROOM_TEMP_HC5: ModbusRegister(
-        address=603, name="DEW POINT TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.DEW_POINT_TEMPERATURE_ROOM_TEMP_HC5
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_COOLING1: ModbusRegister(
-        address=604, name="SET TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_COOLING1
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_COOLING2: ModbusRegister(
-        address=605, name="SET TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_COOLING2
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_COOLING3: ModbusRegister(
-        address=606, name="SET TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_COOLING3
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_COOLING4: ModbusRegister(
-        address=607, name="SET TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_COOLING4
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_COOLING5: ModbusRegister(
-        address=608, name="SET TEMPERATURE", unit="°C", min=None, max=None, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_ROOM_TEMP_COOLING5
-    ),
-    WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_HK_3: ModbusRegister(
-        address=609, name="ACTUAL TEMPERATURE HK 3", unit="°C", min=0.0, max=90.0, data_type=2, key=WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_HK_3
-    ),
-    WpmSystemValuesRegisters.SET_TEMPERATURE_HK_3: ModbusRegister(
-        address=610, name="SET TEMPERATURE HK 3", unit="°C", min=0.0, max=65.0, data_type=2, key=WpmSystemValuesRegisters.SET_TEMPERATURE_HK_3
-    ),
-}
+class WpmStiebelEltronAPI:
+    """Stiebel Eltron heat pump API over a modbus_connection ModbusUnit."""
 
-WPM_SYSTEM_PARAMETERS_REGISTERS: dict[IsgRegisters, ModbusRegister] = {
-    WpmSystemParametersRegisters.OPERATING_MODE: ModbusRegister(address=1501, name="OPERATING MODE", unit="", min=0.0, max=5.0, data_type=8, key=WpmSystemParametersRegisters.OPERATING_MODE),
-    WpmSystemParametersRegisters.COMFORT_TEMPERATURE_HK_1: ModbusRegister(
-        address=1502, name="COMFORT TEMPERATURE", unit="°C", min=5.0, max=30.0, data_type=2, key=WpmSystemParametersRegisters.COMFORT_TEMPERATURE_HK_1
-    ),
-    WpmSystemParametersRegisters.ECO_TEMPERATURE_HK_1: ModbusRegister(
-        address=1503, name="ECO TEMPERATURE", unit="°C", min=5.0, max=30.0, data_type=2, key=WpmSystemParametersRegisters.ECO_TEMPERATURE_HK_1
-    ),
-    WpmSystemParametersRegisters.HEATING_CURVE_RISE_HK_1: ModbusRegister(
-        address=1504, name="HEATING CURVE RISE", unit="", min=0.0, max=3.0, data_type=7, key=WpmSystemParametersRegisters.HEATING_CURVE_RISE_HK_1
-    ),
-    WpmSystemParametersRegisters.COMFORT_TEMPERATURE_HK_2: ModbusRegister(
-        address=1505, name="COMFORT TEMPERATURE", unit="°C", min=5.0, max=30.0, data_type=2, key=WpmSystemParametersRegisters.COMFORT_TEMPERATURE_HK_2
-    ),
-    WpmSystemParametersRegisters.ECO_TEMPERATURE_HK_2: ModbusRegister(
-        address=1506, name="ECO TEMPERATURE", unit="°C", min=5.0, max=30.0, data_type=2, key=WpmSystemParametersRegisters.ECO_TEMPERATURE_HK_2
-    ),
-    WpmSystemParametersRegisters.HEATING_CURVE_RISE_HK_2: ModbusRegister(
-        address=1507, name="HEATING CURVE RISE", unit="", min=0.0, max=3.0, data_type=7, key=WpmSystemParametersRegisters.HEATING_CURVE_RISE_HK_2
-    ),
-    WpmSystemParametersRegisters.FIXED_VALUE_OPERATION: ModbusRegister(
-        address=1508, name="FIXED VALUE OPERATION", unit="°C", min=20.0, max=70.0, data_type=2, key=WpmSystemParametersRegisters.FIXED_VALUE_OPERATION
-    ),
-    WpmSystemParametersRegisters.DUAL_MODE_TEMP_HZG: ModbusRegister(
-        address=1509, name="DUAL MODE TEMP HZG", unit="°C", min=-40.0, max=40.0, data_type=2, key=WpmSystemParametersRegisters.DUAL_MODE_TEMP_HZG
-    ),
-    WpmSystemParametersRegisters.COMFORT_TEMPERATURE: ModbusRegister(
-        address=1510, name="COMFORT TEMPERATURE", unit="°C", min=10.0, max=60.0, data_type=2, key=WpmSystemParametersRegisters.COMFORT_TEMPERATURE
-    ),
-    WpmSystemParametersRegisters.ECO_TEMPERATURE: ModbusRegister(address=1511, name="ECO TEMPERATURE", unit="°C", min=10.0, max=60.0, data_type=2, key=WpmSystemParametersRegisters.ECO_TEMPERATURE),
-    WpmSystemParametersRegisters.DHW_STAGES: ModbusRegister(address=1512, name="DHW STAGES", unit="", min=0.0, max=6.0, data_type=8, key=WpmSystemParametersRegisters.DHW_STAGES),
-    WpmSystemParametersRegisters.DUAL_MODE_TEMP_WW: ModbusRegister(
-        address=1513, name="DUAL MODE TEMP WW", unit="°C", min=-40.0, max=40.0, data_type=2, key=WpmSystemParametersRegisters.DUAL_MODE_TEMP_WW
-    ),
-    WpmSystemParametersRegisters.SET_FLOW_TEMPERATURE_AREA: ModbusRegister(
-        address=1514, name="SET FLOW TEMPERATURE", unit="°C", min=7.0, max=25.0, data_type=2, key=WpmSystemParametersRegisters.SET_FLOW_TEMPERATURE_AREA
-    ),
-    WpmSystemParametersRegisters.FLOW_TEMP_HYSTERESIS_AREA: ModbusRegister(
-        address=1515, name="FLOW TEMP HYSTERESIS", unit="K", min=1.0, max=5.0, data_type=2, key=WpmSystemParametersRegisters.FLOW_TEMP_HYSTERESIS_AREA
-    ),
-    WpmSystemParametersRegisters.SET_ROOM_TEMPERATURE_AREA: ModbusRegister(
-        address=1516, name="SET ROOM TEMPERATURE", unit="°C", min=20.0, max=30.0, data_type=2, key=WpmSystemParametersRegisters.SET_ROOM_TEMPERATURE_AREA
-    ),
-    WpmSystemParametersRegisters.SET_FLOW_TEMPERATURE_FAN: ModbusRegister(
-        address=1517, name="SET FLOW TEMPERATURE", unit="°C", min=7.0, max=25.0, data_type=2, key=WpmSystemParametersRegisters.SET_FLOW_TEMPERATURE_FAN
-    ),
-    WpmSystemParametersRegisters.FLOW_TEMP_HYSTERESIS_FAN: ModbusRegister(
-        address=1518, name="FLOW TEMP HYSTERESIS", unit="K", min=1.0, max=5.0, data_type=2, key=WpmSystemParametersRegisters.FLOW_TEMP_HYSTERESIS_FAN
-    ),
-    WpmSystemParametersRegisters.SET_ROOM_TEMPERATURE_FAN: ModbusRegister(
-        address=1519, name="SET ROOM TEMPERATURE", unit="°C", min=20.0, max=30.0, data_type=2, key=WpmSystemParametersRegisters.SET_ROOM_TEMPERATURE_FAN
-    ),
-    WpmSystemParametersRegisters.RESET: ModbusRegister(address=1520, name="RESET", unit="", min=1.0, max=3.0, data_type=6, key=WpmSystemParametersRegisters.RESET),
-    WpmSystemParametersRegisters.RESTART_ISG: ModbusRegister(address=1521, name="RESTART ISG", unit="", min=0.0, max=2.0, data_type=6, key=WpmSystemParametersRegisters.RESTART_ISG),
-    WpmSystemParametersRegisters.COMFORT_TEMPERATURE_HK_3: ModbusRegister(
-        address=1550, name="COMFORT TEMPERATURE", unit="°C", min=5.0, max=30.0, data_type=2, key=WpmSystemParametersRegisters.COMFORT_TEMPERATURE_HK_3
-    ),
-    WpmSystemParametersRegisters.ECO_TEMPERATURE_HK_3: ModbusRegister(
-        address=1551, name="ECO TEMPERATURE", unit="°C", min=5.0, max=30.0, data_type=2, key=WpmSystemParametersRegisters.ECO_TEMPERATURE_HK_3
-    ),
-    WpmSystemParametersRegisters.HEATING_CURVE_RISE_HK_3: ModbusRegister(
-        address=1552, name="HEATING CURVE RISE", unit="", min=0.0, max=3.0, data_type=7, key=WpmSystemParametersRegisters.HEATING_CURVE_RISE_HK_3
-    ),
-}
-
-WPM_SYSTEM_STATE_REGISTERS: dict[IsgRegisters, ModbusRegister] = {
-    WpmSystemStateRegisters.OPERATING_STATUS: ModbusRegister(address=2501, name="OPERATING STATUS", unit="", min=None, max=None, data_type=6, key=WpmSystemStateRegisters.OPERATING_STATUS),
-    WpmSystemStateRegisters.POWER_OFF: ModbusRegister(address=2502, name="POWER OFF", unit="", min=None, max=None, data_type=8, key=WpmSystemStateRegisters.POWER_OFF),
-    WpmSystemStateRegisters.OPERATING_STATUS_WPM_3: ModbusRegister(address=2503, name="OPERATING STATUS", unit="", min=None, max=None, data_type=6, key=WpmSystemStateRegisters.OPERATING_STATUS_WPM_3),
-    WpmSystemStateRegisters.FAULT_STATUS: ModbusRegister(address=2504, name="FAULT STATUS", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.FAULT_STATUS),
-    WpmSystemStateRegisters.BUS_STATUS: ModbusRegister(address=2505, name="BUS STATUS", unit="", min=-4.0, max=0.0, data_type=6, key=WpmSystemStateRegisters.BUS_STATUS),
-    WpmSystemStateRegisters.DEFROST_INITIATED: ModbusRegister(address=2506, name="DEFROST INITIATED", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.DEFROST_INITIATED),
-    WpmSystemStateRegisters.ACTIVE_ERROR: ModbusRegister(address=2507, name="ACTIVE ERROR", unit="", min=0.0, max=65535.0, data_type=6, key=WpmSystemStateRegisters.ACTIVE_ERROR),
-    WpmSystemStateRegisters.MESSAGE_NUMBER: ModbusRegister(address=2508, name="MESSAGE NUMBER", unit="", min=0.0, max=65535.0, data_type=6, key=WpmSystemStateRegisters.MESSAGE_NUMBER),
-    WpmSystemStateRegisters.HEATING_CIRCUIT_PUMP_1: ModbusRegister(
-        address=2509, name="HEATING CIRCUIT PUMP 1", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.HEATING_CIRCUIT_PUMP_1
-    ),
-    WpmSystemStateRegisters.HEATING_CIRCUIT_PUMP_2: ModbusRegister(
-        address=2510, name="HEATING CIRCUIT PUMP 2", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.HEATING_CIRCUIT_PUMP_2
-    ),
-    WpmSystemStateRegisters.HEATING_CIRCUIT_PUMP_3: ModbusRegister(
-        address=2511, name="HEATING CIRCUIT PUMP 3", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.HEATING_CIRCUIT_PUMP_3
-    ),
-    WpmSystemStateRegisters.BUFFER_CHARGING_PUMP_1: ModbusRegister(
-        address=2512, name="BUFFER CHARGING PUMP 1", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.BUFFER_CHARGING_PUMP_1
-    ),
-    WpmSystemStateRegisters.BUFFER_CHARGING_PUMP_2: ModbusRegister(
-        address=2513, name="BUFFER CHARGING PUMP 2", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.BUFFER_CHARGING_PUMP_2
-    ),
-    WpmSystemStateRegisters.DHW_CHARGING_PUMP: ModbusRegister(address=2514, name="DHW CHARGING PUMP", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.DHW_CHARGING_PUMP),
-    WpmSystemStateRegisters.SOURCE_PUMP: ModbusRegister(address=2515, name="SOURCE PUMP", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.SOURCE_PUMP),
-    WpmSystemStateRegisters.FAULT_OUTPUT: ModbusRegister(address=2516, name="FAULT OUTPUT", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.FAULT_OUTPUT),
-    WpmSystemStateRegisters.DHW_CIRCULATION_PUMP: ModbusRegister(address=2517, name="DHW CIRCULATION PUMP", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.DHW_CIRCULATION_PUMP),
-    WpmSystemStateRegisters.WE_2_DHW: ModbusRegister(address=2518, name="WE 2 DHW", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.WE_2_DHW),
-    WpmSystemStateRegisters.WE_2_HEATING: ModbusRegister(address=2519, name="WE 2 HEATING", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.WE_2_HEATING),
-    WpmSystemStateRegisters.COOLING_MODE: ModbusRegister(address=2520, name="COOLING MODE", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.COOLING_MODE),
-    WpmSystemStateRegisters.MIXER_OPEN_HC2: ModbusRegister(address=2521, name="MIXER OPEN HC2", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.MIXER_OPEN_HC2),
-    WpmSystemStateRegisters.MIXER_CLOSE_HC2: ModbusRegister(address=2522, name="MIXER CLOSE HC2", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.MIXER_CLOSE_HC2),
-    WpmSystemStateRegisters.MIXER_OPEN_HC3: ModbusRegister(address=2523, name="MIXER OPEN HC3", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.MIXER_OPEN_HC3),
-    WpmSystemStateRegisters.MIXER_CLOSE_HC3: ModbusRegister(address=2524, name="MIXER CLOSE HC3", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.MIXER_CLOSE_HC3),
-    WpmSystemStateRegisters.NHZ_1: ModbusRegister(address=2525, name="NHZ 1 ", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.NHZ_1),
-    WpmSystemStateRegisters.NHZ_2: ModbusRegister(address=2526, name="NHZ 2", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.NHZ_2),
-    WpmSystemStateRegisters.NHZ_1_2: ModbusRegister(address=2527, name="NHZ 1 2", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.NHZ_1_2),
-    WpmSystemStateRegisters.HEATING_CIRCUIT_PUMP_4: ModbusRegister(
-        address=2528, name="HEATING CIRCUIT PUMP 4", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.HEATING_CIRCUIT_PUMP_4
-    ),
-    WpmSystemStateRegisters.HEATING_CIRCUIT_PUMP_5: ModbusRegister(
-        address=2529, name="HEATING CIRCUIT PUMP 5", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.HEATING_CIRCUIT_PUMP_5
-    ),
-    WpmSystemStateRegisters.BUFFER_CHARGING_PUMP_3: ModbusRegister(
-        address=2530, name="BUFFER CHARGING PUMP 3", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.BUFFER_CHARGING_PUMP_3
-    ),
-    WpmSystemStateRegisters.BUFFER_CHARGING_PUMP_4: ModbusRegister(
-        address=2531, name="BUFFER CHARGING PUMP 4", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.BUFFER_CHARGING_PUMP_4
-    ),
-    WpmSystemStateRegisters.BUFFER_CHARGING_PUMP_5: ModbusRegister(
-        address=2532, name="BUFFER CHARGING PUMP 5", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.BUFFER_CHARGING_PUMP_5
-    ),
-    WpmSystemStateRegisters.BUFFER_CHARGING_PUMP_6: ModbusRegister(
-        address=2533, name="BUFFER CHARGING PUMP 6", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.BUFFER_CHARGING_PUMP_6
-    ),
-    WpmSystemStateRegisters.DIFF_CONTROLLER_PUMP_1: ModbusRegister(
-        address=2534, name="DIFF CONTROLLER PUMP 1", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.DIFF_CONTROLLER_PUMP_1
-    ),
-    WpmSystemStateRegisters.DIFF_CONTROLLER_PUMP_2: ModbusRegister(
-        address=2535, name="DIFF CONTROLLER PUMP 2", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.DIFF_CONTROLLER_PUMP_2
-    ),
-    WpmSystemStateRegisters.POOL_PUMP_PRIMARY: ModbusRegister(address=2536, name="POOL PUMP PRIMARY", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.POOL_PUMP_PRIMARY),
-    WpmSystemStateRegisters.POOL_PUMP_SECONDARY: ModbusRegister(address=2537, name="POOL PUMP SECONDARY", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.POOL_PUMP_SECONDARY),
-    WpmSystemStateRegisters.MIXER_OPEN_HC4: ModbusRegister(address=2538, name="MIXER OPEN HC4", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.MIXER_OPEN_HC4),
-    WpmSystemStateRegisters.MIXER_CLOSE_HC4: ModbusRegister(address=2539, name="MIXER CLOSE HC4", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.MIXER_CLOSE_HC4),
-    WpmSystemStateRegisters.MIXER_OPEN_HC5: ModbusRegister(address=2540, name="MIXER OPEN HC5", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.MIXER_OPEN_HC5),
-    WpmSystemStateRegisters.MIXER_CLOSE_HC5: ModbusRegister(address=2541, name="MIXER CLOSE HC5", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.MIXER_CLOSE_HC5),
-    WpmSystemStateRegisters.COMPRESSOR_1: ModbusRegister(address=2542, name="COMPRESSOR 1", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.COMPRESSOR_1),
-    WpmSystemStateRegisters.COMPRESSOR_2: ModbusRegister(address=2543, name="COMPRESSOR 2", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.COMPRESSOR_2),
-    WpmSystemStateRegisters.COMPRESSOR_3: ModbusRegister(address=2544, name="COMPRESSOR 3", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.COMPRESSOR_3),
-    WpmSystemStateRegisters.COMPRESSOR_4: ModbusRegister(address=2545, name="COMPRESSOR 4", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.COMPRESSOR_4),
-    WpmSystemStateRegisters.COMPRESSOR_5: ModbusRegister(address=2546, name="COMPRESSOR 5", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.COMPRESSOR_5),
-    WpmSystemStateRegisters.COMPRESSOR_6: ModbusRegister(address=2547, name="COMPRESSOR 6", unit="", min=0.0, max=1.0, data_type=6, key=WpmSystemStateRegisters.COMPRESSOR_6),
-}
-
-WPM_ENERGY_DATA_REGISTERS: dict[IsgRegisters, ModbusRegister] = {
-    WpmEnergyDataRegisters.VD_HEATING_DAY: ModbusRegister(address=3501, name="VD HEATING DAY", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_DAY),
-    WpmEnergyDataRegisters.VD_HEATING_TOTAL_LOW: ModbusRegister(address=3502, name="VD HEATING TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_TOTAL_LOW),
-    WpmEnergyDataRegisters.VD_HEATING_TOTAL_HI: ModbusRegister(address=3503, name="VD HEATING TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_TOTAL_HI),
-    WpmEnergyDataRegisters.VD_DHW_DAY: ModbusRegister(address=3504, name="VD DHW DAY", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_DAY),
-    WpmEnergyDataRegisters.VD_DHW_TOTAL_LOW: ModbusRegister(address=3505, name="VD DHW TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_TOTAL_LOW),
-    WpmEnergyDataRegisters.VD_DHW_TOTAL_HI: ModbusRegister(address=3506, name="VD DHW TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_TOTAL_HI),
-    WpmEnergyDataRegisters.NHZ_HEATING_TOTAL_LOW: ModbusRegister(address=3507, name="NHZ HEATING TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.NHZ_HEATING_TOTAL_LOW),
-    WpmEnergyDataRegisters.NHZ_HEATING_TOTAL_HI: ModbusRegister(address=3508, name="NHZ HEATING TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.NHZ_HEATING_TOTAL_HI),
-    WpmEnergyDataRegisters.NHZ_DHW_TOTAL_LOW: ModbusRegister(address=3509, name="NHZ DHW TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.NHZ_DHW_TOTAL_LOW),
-    WpmEnergyDataRegisters.NHZ_DHW_TOTAL_HI: ModbusRegister(address=3510, name="NHZ DHW TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.NHZ_DHW_TOTAL_HI),
-    WpmEnergyDataRegisters.VD_HEATING_DAY_CONSUMED: ModbusRegister(
-        address=3511, name="VD HEATING DAY", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_DAY_CONSUMED
-    ),
-    WpmEnergyDataRegisters.VD_HEATING_TOTAL_LOW_CONSUMED: ModbusRegister(
-        address=3512, name="VD HEATING TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_TOTAL_LOW_CONSUMED
-    ),
-    WpmEnergyDataRegisters.VD_HEATING_TOTAL_HI_CONSUMED: ModbusRegister(
-        address=3513, name="VD HEATING TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_TOTAL_HI_CONSUMED
-    ),
-    WpmEnergyDataRegisters.VD_DHW_DAY_CONSUMED: ModbusRegister(address=3514, name="VD DHW DAY", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_DAY_CONSUMED),
-    WpmEnergyDataRegisters.VD_DHW_TOTAL_LOW_CONSUMED: ModbusRegister(
-        address=3515, name="VD DHW TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_TOTAL_LOW_CONSUMED
-    ),
-    WpmEnergyDataRegisters.VD_DHW_TOTAL_HI_CONSUMED: ModbusRegister(
-        address=3516, name="VD DHW TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_TOTAL_HI_CONSUMED
-    ),
-    WpmEnergyDataRegisters.VD_HEATING: ModbusRegister(address=3517, name="VD HEATING", unit="h", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING),
-    WpmEnergyDataRegisters.VD_DHW: ModbusRegister(address=3518, name="VD DHW", unit="h", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW),
-    WpmEnergyDataRegisters.VD_COOLING: ModbusRegister(address=3519, name="VD COOLING", unit="h", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_COOLING),
-    WpmEnergyDataRegisters.NHZ_1: ModbusRegister(address=3520, name="NHZ 1", unit="h", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.NHZ_1),
-    WpmEnergyDataRegisters.NHZ_2: ModbusRegister(address=3521, name="NHZ 2", unit="h", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.NHZ_2),
-    WpmEnergyDataRegisters.NHZ_1_2: ModbusRegister(address=3522, name="NHZ 1_2", unit="h", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.NHZ_1_2),
-    WpmEnergyDataRegisters.VD_HEATING_DAY_HP_1: ModbusRegister(address=3523, name="VD HEATING DAY", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_DAY_HP_1),
-    WpmEnergyDataRegisters.VD_HEATING_TOTAL_LOW_HP_1: ModbusRegister(
-        address=3524, name="VD HEATING TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_TOTAL_LOW_HP_1
-    ),
-    WpmEnergyDataRegisters.VD_HEATING_TOTAL_HI_HP_1: ModbusRegister(
-        address=3525, name="VD HEATING TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_TOTAL_HI_HP_1
-    ),
-    WpmEnergyDataRegisters.VD_DHW_DAY_HP_1: ModbusRegister(address=3526, name="VD DHW DAY", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_DAY_HP_1),
-    WpmEnergyDataRegisters.VD_DHW_TOTAL_LOW_HP_1: ModbusRegister(address=3527, name="VD DHW TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_TOTAL_LOW_HP_1),
-    WpmEnergyDataRegisters.VD_DHW_TOTAL_HI_HP_1: ModbusRegister(address=3528, name="VD DHW TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_TOTAL_HI_HP_1),
-    WpmEnergyDataRegisters.NHZ_HEATING_TOTAL_LOW_HP_1: ModbusRegister(
-        address=3529, name="NHZ HEATING TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.NHZ_HEATING_TOTAL_LOW_HP_1
-    ),
-    WpmEnergyDataRegisters.NHZ_HEATING_TOTAL_HI_HP_1: ModbusRegister(
-        address=3530, name="NHZ HEATING TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.NHZ_HEATING_TOTAL_HI_HP_1
-    ),
-    WpmEnergyDataRegisters.NHZ_DHW_TOTAL_LOW_HP_1: ModbusRegister(address=3531, name="NHZ DHW TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.NHZ_DHW_TOTAL_LOW_HP_1),
-    WpmEnergyDataRegisters.NHZ_DHW_TOTAL_HI_HP_1: ModbusRegister(address=3532, name="NHZ DHW TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.NHZ_DHW_TOTAL_HI_HP_1),
-    WpmEnergyDataRegisters.VD_HEATING_DAY_CONSUMED_HP_1: ModbusRegister(
-        address=3533, name="VD HEATING DAY", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_DAY_CONSUMED_HP_1
-    ),
-    WpmEnergyDataRegisters.VD_HEATING_TOTAL_LOW_CONSUMED_HP_1: ModbusRegister(
-        address=3534, name="VD HEATING TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_TOTAL_LOW_CONSUMED_HP_1
-    ),
-    WpmEnergyDataRegisters.VD_HEATING_TOTAL_HI_CONSUMED_HP_1: ModbusRegister(
-        address=3535, name="VD HEATING TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_TOTAL_HI_CONSUMED_HP_1
-    ),
-    WpmEnergyDataRegisters.VD_DHW_DAY_CONSUMEDHP_1: ModbusRegister(address=3536, name="VD DHW DAY", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_DAY_CONSUMEDHP_1),
-    WpmEnergyDataRegisters.VD_DHW_TOTAL_LOW_CONSUMED_HP_1: ModbusRegister(
-        address=3537, name="VD DHW TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_TOTAL_LOW_CONSUMED_HP_1
-    ),
-    WpmEnergyDataRegisters.VD_DHW_TOTAL_HI_CONSUMED_HP_1: ModbusRegister(
-        address=3538, name="VD DHW TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_TOTAL_HI_CONSUMED_HP_1
-    ),
-    WpmEnergyDataRegisters.VD_1_HEATING_HP_1: ModbusRegister(address=3539, name="VD 1 HEATING", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_1_HEATING_HP_1),
-    WpmEnergyDataRegisters.VD_2_HEATING_HP_1: ModbusRegister(address=3540, name="VD 2 HEATING", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_2_HEATING_HP_1),
-    WpmEnergyDataRegisters.VD_1_2_HEATING_HP_1: ModbusRegister(address=3541, name="VD 1_2 HEATING", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_1_2_HEATING_HP_1),
-    WpmEnergyDataRegisters.VD_1_DHW_HP_1: ModbusRegister(address=3542, name="VD 1 DHW", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_1_DHW_HP_1),
-    WpmEnergyDataRegisters.VD_2_DHW_HP_1: ModbusRegister(address=3543, name="VD 2 DHW", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_2_DHW_HP_1),
-    WpmEnergyDataRegisters.VD_1_2_DHW_HP_1: ModbusRegister(address=3544, name="VD 1_2 DHW", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_1_2_DHW_HP_1),
-    WpmEnergyDataRegisters.VD_COOLING_x_HP_1: ModbusRegister(address=3545, name="VD COOLING x", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_COOLING_x_HP_1),
-    WpmEnergyDataRegisters.NHZ_1_REHEATING: ModbusRegister(address=3546, name="NHZ 1", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.NHZ_1_REHEATING),
-    WpmEnergyDataRegisters.NHZ_2_REHEATING: ModbusRegister(address=3547, name="NHZ 2", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.NHZ_2_REHEATING),
-    WpmEnergyDataRegisters.NHZ_1_2_REHEATING: ModbusRegister(address=3548, name="NHZ 1_2", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.NHZ_1_2_REHEATING),
-    WpmEnergyDataRegisters.VD_HEATING_DAY_HP_2: ModbusRegister(address=3549, name="VD HEATING DAY", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_DAY_HP_2),
-    WpmEnergyDataRegisters.VD_HEATING_TOTAL_LOW_HP_2: ModbusRegister(
-        address=3550, name="VD HEATING TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_TOTAL_LOW_HP_2
-    ),
-    WpmEnergyDataRegisters.VD_HEATING_TOTAL_HI_HP_2: ModbusRegister(
-        address=3551, name="VD HEATING TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_TOTAL_HI_HP_2
-    ),
-    WpmEnergyDataRegisters.VD_DHW_DAY_HP_2: ModbusRegister(address=3552, name="VD DHW DAY", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_DAY_HP_2),
-    WpmEnergyDataRegisters.VD_DHW_TOTAL_LOW_HP_2: ModbusRegister(address=3553, name="VD DHW TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_TOTAL_LOW_HP_2),
-    WpmEnergyDataRegisters.VD_DHW_TOTAL_HI_HP_2: ModbusRegister(address=3554, name="VD DHW TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_TOTAL_HI_HP_2),
-    WpmEnergyDataRegisters.VD_HEATING_DAY_CONSUMED_HP_2: ModbusRegister(
-        address=3555, name="VD HEATING DAY", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_DAY_CONSUMED_HP_2
-    ),
-    WpmEnergyDataRegisters.VD_HEATING_TOTAL_LOW_CONSUMED_HP_2: ModbusRegister(
-        address=3556, name="VD HEATING TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_TOTAL_LOW_CONSUMED_HP_2
-    ),
-    WpmEnergyDataRegisters.VD_HEATING_TOTAL_HI_CONSUMED_HP_2: ModbusRegister(
-        address=3557, name="VD HEATING TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_TOTAL_HI_CONSUMED_HP_2
-    ),
-    WpmEnergyDataRegisters.VD_DHW_DAY_CONSUMED_HP_2: ModbusRegister(
-        address=3558, name="VD DHW DAY", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_DAY_CONSUMED_HP_2
-    ),
-    WpmEnergyDataRegisters.VD_DHW_TOTAL_LOW_CONSUMED_HP_2: ModbusRegister(
-        address=3559, name="VD DHW TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_TOTAL_LOW_CONSUMED_HP_2
-    ),
-    WpmEnergyDataRegisters.VD_DHW_TOTAL_HI_CONSUMED_HP_2: ModbusRegister(
-        address=3560, name="VD DHW TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_TOTAL_HI_CONSUMED_HP_2
-    ),
-    WpmEnergyDataRegisters.VD_1_HEATING_HP_2: ModbusRegister(address=3561, name="VD 1 HEATING", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_1_HEATING_HP_2),
-    WpmEnergyDataRegisters.VD_2_HEATING_HP_2: ModbusRegister(address=3562, name="VD 2 HEATING", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_2_HEATING_HP_2),
-    WpmEnergyDataRegisters.VD_1_2_HEATING_HP_2: ModbusRegister(address=3563, name="VD 1_2 HEATING", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_1_2_HEATING_HP_2),
-    WpmEnergyDataRegisters.VD_1_DHW_HP_2: ModbusRegister(address=3564, name="VD 1 DHW", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_1_DHW_HP_2),
-    WpmEnergyDataRegisters.VD_2_DHW_HP_2: ModbusRegister(address=3565, name="VD 2 DHW", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_2_DHW_HP_2),
-    WpmEnergyDataRegisters.VD_1_2_DHW_HP_2: ModbusRegister(address=3566, name="VD 1_2 DHW", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_1_2_DHW_HP_2),
-    WpmEnergyDataRegisters.VD_COOLING_HP_2: ModbusRegister(address=3567, name="VD COOLING", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_COOLING_HP_2),
-    WpmEnergyDataRegisters.VD_HEATING_DAY_HP_3: ModbusRegister(address=3568, name="VD HEATING DAY", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_DAY_HP_3),
-    WpmEnergyDataRegisters.VD_HEATING_TOTAL_LOW_HP_3: ModbusRegister(
-        address=3569, name="VD HEATING TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_TOTAL_LOW_HP_3
-    ),
-    WpmEnergyDataRegisters.VD_HEATING_TOTAL_HI_HP_3: ModbusRegister(
-        address=3570, name="VD HEATING TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_TOTAL_HI_HP_3
-    ),
-    WpmEnergyDataRegisters.VD_DHW_DAY_HP_3: ModbusRegister(address=3571, name="VD DHW DAY", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_DAY_HP_3),
-    WpmEnergyDataRegisters.VD_DHW_TOTAL_LOW_HP_3: ModbusRegister(address=3572, name="VD DHW TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_TOTAL_LOW_HP_3),
-    WpmEnergyDataRegisters.VD_DHW_TOTAL_HI_HP_3: ModbusRegister(address=3573, name="VD DHW TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_TOTAL_HI_HP_3),
-    WpmEnergyDataRegisters.VD_HEATING_DAY_CONSUMED_HP_3: ModbusRegister(
-        address=3574, name="VD HEATING DAY", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_DAY_CONSUMED_HP_3
-    ),
-    WpmEnergyDataRegisters.VD_HEATING_TOTAL_LOW_CONSUMED_HP_3: ModbusRegister(
-        address=3575, name="VD HEATING TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_TOTAL_LOW_CONSUMED_HP_3
-    ),
-    WpmEnergyDataRegisters.VD_HEATING_TOTAL_HI_CONSUMED_HP_3: ModbusRegister(
-        address=3576, name="VD HEATING TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_HEATING_TOTAL_HI_CONSUMED_HP_3
-    ),
-    WpmEnergyDataRegisters.VD_DHW_DAY_CONSUMED_HP_3: ModbusRegister(
-        address=3577, name="VD DHW DAY", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_DAY_CONSUMED_HP_3
-    ),
-    WpmEnergyDataRegisters.VD_DHW_TOTAL_LOW_CONSUMED_HP_3: ModbusRegister(
-        address=3578, name="VD DHW TOTAL", unit="kWh", min=0.0, max=999.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_TOTAL_LOW_CONSUMED_HP_3
-    ),
-    WpmEnergyDataRegisters.VD_DHW_TOTAL_HI_CONSUMED_HP_3: ModbusRegister(
-        address=3579, name="VD DHW TOTAL", unit="MWh", min=0.0, max=65535.0, data_type=6, key=WpmEnergyDataRegisters.VD_DHW_TOTAL_HI_CONSUMED_HP_3
-    ),
-    WpmEnergyDataRegisters.VD_1_HEATING_HP_3: ModbusRegister(address=3580, name="VD 1 HEATING", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_1_HEATING_HP_3),
-    WpmEnergyDataRegisters.VD_2_HEATING_HP_3: ModbusRegister(address=3581, name="VD 2 HEATING", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_2_HEATING_HP_3),
-    WpmEnergyDataRegisters.VD_1_2_HEATING_HP_3: ModbusRegister(address=3582, name="VD 1_2 HEATING", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_1_2_HEATING_HP_3),
-    WpmEnergyDataRegisters.VD_1_DHW_HP_3: ModbusRegister(address=3583, name="VD 1 DHW", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_1_DHW_HP_3),
-    WpmEnergyDataRegisters.VD_2_DHW_HP_3: ModbusRegister(address=3584, name="VD 2 DHW", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_2_DHW_HP_3),
-    WpmEnergyDataRegisters.VD_1_2_DHW_HP_3: ModbusRegister(address=3585, name="VD 1_2 DHW", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_1_2_DHW_HP_3),
-    WpmEnergyDataRegisters.VD_COOLING_HP_3: ModbusRegister(address=3586, name="VD COOLING", unit="h", min=None, max=None, data_type=6, key=WpmEnergyDataRegisters.VD_COOLING_HP_3),
-}
-
-WPM_POWER_CONSUMPTION_REGISTERS: dict[IsgRegisters, ModbusRegister] = {
-    WpmPowerConsumptionRegisters.HEATING_24H: ModbusRegister(address=3708, name="HEATING 24H", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmPowerConsumptionRegisters.HEATING_24H),
-    WpmPowerConsumptionRegisters.HEATING_12M_FRACTION: ModbusRegister(
-        address=3710, name="HEATING 12M FRACTION", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmPowerConsumptionRegisters.HEATING_12M_FRACTION
-    ),
-    WpmPowerConsumptionRegisters.HEATING_12M_WHOLE: ModbusRegister(
-        address=3711, name="HEATING 12M WHOLE", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmPowerConsumptionRegisters.HEATING_12M_WHOLE
-    ),
-    WpmPowerConsumptionRegisters.COOLING_24H_FRACTION: ModbusRegister(
-        address=3714, name="COOLING 24H FRACTION", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmPowerConsumptionRegisters.COOLING_24H_FRACTION
-    ),
-    WpmPowerConsumptionRegisters.COOLING_24H_WHOLE: ModbusRegister(
-        address=3715, name="COOLING 24H WHOLE", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmPowerConsumptionRegisters.COOLING_24H_WHOLE
-    ),
-    WpmPowerConsumptionRegisters.COOLING_12M: ModbusRegister(address=3716, name="COOLING 12M", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmPowerConsumptionRegisters.COOLING_12M),
-    WpmPowerConsumptionRegisters.DHW_24H_FRACTION: ModbusRegister(
-        address=3720, name="DHW 24H FRACTION", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmPowerConsumptionRegisters.DHW_24H_FRACTION
-    ),
-    WpmPowerConsumptionRegisters.DHW_24H_WHOLE: ModbusRegister(address=3721, name="DHW 24H WHOLE", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmPowerConsumptionRegisters.DHW_24H_WHOLE),
-    WpmPowerConsumptionRegisters.DHW_12M_FRACTION: ModbusRegister(
-        address=3722, name="DHW 12M FRACTION", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmPowerConsumptionRegisters.DHW_12M_FRACTION
-    ),
-    WpmPowerConsumptionRegisters.DHW_12M_WHOLE: ModbusRegister(address=3723, name="DHW 12M WHOLE", unit="kWh", min=0.0, max=65535.0, data_type=6, key=WpmPowerConsumptionRegisters.DHW_12M_WHOLE),
-}
-
-
-class WpmStiebelEltronAPI(StiebelEltronAPI):
-    def __init__(self, host: str, port: int = 502, device_id: int = 1) -> None:
-        super().__init__(
+    def __init__(self, unit: ModbusUnit) -> None:
+        self.system_values = WpmSystemValues(unit)
+        self.system_parameters = WpmSystemParameters(unit)
+        self.system_state = WpmSystemState(unit)
+        self.energy_data = WpmEnergyData(unit)
+        self.power_consumption = WpmPowerConsumption(unit)
+        self.energy_management_settings = EnergyManagementSettings(unit)
+        self.energy_management_settings.register_ranges = WPM_HOLDING_RANGES
+        self.energy_system_information = EnergySystemInformation(unit)
+        self.energy_system_information.register_ranges = WPM_INPUT_RANGES
+        self._group = ComponentGroup(
+            unit,
             [
-                ModbusRegisterBlock(base_address=500, count=110, name="System Values", registers=WPM_SYSTEM_VALUES_REGISTERS, register_type=RegisterType.INPUT_REGISTER),
-                ModbusRegisterBlock(base_address=1500, count=52, name="System Parameters", registers=WPM_SYSTEM_PARAMETERS_REGISTERS, register_type=RegisterType.HOLDING_REGISTER),
-                ModbusRegisterBlock(base_address=2500, count=47, name="System State", registers=WPM_SYSTEM_STATE_REGISTERS, register_type=RegisterType.INPUT_REGISTER),
-                ModbusRegisterBlock(base_address=3500, count=86, name="Energy Data", registers=WPM_ENERGY_DATA_REGISTERS, register_type=RegisterType.INPUT_REGISTER),
-                ModbusRegisterBlock(base_address=3707, count=16, name="Power Consumption", registers=WPM_POWER_CONSUMPTION_REGISTERS, register_type=RegisterType.INPUT_REGISTER),
-                ModbusRegisterBlock(base_address=4000, count=3, name="Energy Management Settings", registers=ENERGY_MANAGEMENT_SETTINGS_REGISTERS, register_type=RegisterType.HOLDING_REGISTER),
-                ModbusRegisterBlock(base_address=5000, count=2, name="Energy System Information", registers=ENERGY_SYSTEM_INFORMATION_REGISTERS, register_type=RegisterType.INPUT_REGISTER),
+                self.system_values,
+                self.system_parameters,
+                self.system_state,
+                self.energy_data,
+                self.power_consumption,
+                self.energy_management_settings,
+                self.energy_system_information,
             ],
-            host,
-            port,
-            device_id,
         )
 
     async def async_update(self) -> None:
-        """Request current values from heat pump."""
-        await super().async_update()
-        for registerblock in self._register_blocks:
-            if registerblock.name == ENERGY_DATA_BLOCK_NAME:
-                registers = [r.value for r in WpmEnergyDataRegisters]
-                registers.sort()
-                for register in registers:
-                    if register > VIRTUAL_REGISTER_OFFSET:
-                        if register > VIRTUAL_TOTAL_AND_DAY_REGISTER_OFFSET:
-                            total_key = WpmEnergyDataRegisters(register - VIRTUAL_TOTAL_AND_DAY_REGISTER_OFFSET + VIRTUAL_REGISTER_OFFSET)
-                            day_key = WpmEnergyDataRegisters(register - VIRTUAL_TOTAL_AND_DAY_REGISTER_OFFSET - 1)
-                            total_value = self._data.get(total_key)
-                            day_value = self._data.get(day_key)
-                            if total_value is not None and day_value is not None:
-                                prev_value = self._previous_data.get(WpmEnergyDataRegisters(register))
-                                if prev_value is not None:
-                                    self._data[WpmEnergyDataRegisters(register)] = max(total_value + day_value, prev_value)
-                                else:
-                                    self._data[WpmEnergyDataRegisters(register)] = total_value + day_value
-                        else:
-                            low_key = WpmEnergyDataRegisters(register - VIRTUAL_REGISTER_OFFSET)
-                            high_key = WpmEnergyDataRegisters(register - VIRTUAL_REGISTER_OFFSET + 1)
-                            high_value = self._data.get(high_key)
-                            low_value = self._data.get(low_key)
-                            if high_value is not None and low_value is not None:
-                                self._data[WpmEnergyDataRegisters(register)] = high_value * 1000 + low_value
+        """Read every component in one pooled set of block reads."""
+        await self._group.async_update()

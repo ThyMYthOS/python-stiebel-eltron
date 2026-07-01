@@ -6,9 +6,24 @@ from pymodbus.pdu.register_message import (
 )
 from pytest_mock import MockerFixture
 
-from pystiebeleltron import ControllerModel, StiebelEltronModbusError, get_controller_model
+from pystiebeleltron import ControllerModel, ModbusRegister, StiebelEltronModbusError, get_controller_model
 from pystiebeleltron.lwz import LwzEnergyDataRegisters, LwzStiebelEltronAPI, LwzSystemValuesRegisters, OperatingMode
 from pystiebeleltron.wpm import WpmEnergyDataRegisters, WpmPowerConsumptionRegisters, WpmStiebelEltronAPI, WpmSystemValuesRegisters
+
+
+@pytest.mark.asyncio()
+async def test_scaled_register_decode_is_precise() -> None:
+    """Scaled registers decode without binary-float artefacts (e.g. 7.1, not 7.1000000000000005)."""
+    api = WpmStiebelEltronAPI("localhost")
+
+    def descriptor(data_type: int) -> ModbusRegister:
+        return ModbusRegister(
+            address=1, name="x", unit="", min=None, max=None, data_type=data_type, key=WpmSystemValuesRegisters.ACTUAL_TEMPERATURE_FEK
+        )
+
+    # data_type 2 is scaled by 0.1, data_type 7 by 0.01.
+    assert api.convert_value_from_modbus(71, descriptor(2)) == 7.1
+    assert api.convert_value_from_modbus(32765, descriptor(7)) == 327.65
 
 
 async def read_registers(client: object, address: int, *, count: int = 1, device_id: int = 0, no_response_expected: bool = False) -> ReadInputRegistersResponse:

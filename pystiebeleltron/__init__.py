@@ -242,7 +242,7 @@ class StiebelEltronAPI:
             if isinstance(value, int):
                 if value == -32768:
                     return None
-                return float(value) * 0.1
+                return value / 10
         elif register_description.data_type == 6:
             value = self._client.convert_from_registers([register], self._client.DATATYPE.UINT16)
             if isinstance(value, int):
@@ -254,7 +254,7 @@ class StiebelEltronAPI:
             if isinstance(value, int):
                 if value == -32768:
                     return None
-                return value * 0.01
+                return value / 100
         elif register_description.data_type == 8:
             value = self._client.convert_from_registers([register], self._client.DATATYPE.UINT16)
             if isinstance(value, int):

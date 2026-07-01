@@ -23,7 +23,7 @@ async def test_scaled_register_decode_is_precise() -> None:
 
     # data_type 2 is scaled by 0.1, data_type 7 by 0.01.
     assert api.convert_value_from_modbus(71, descriptor(2)) == 7.1
-    assert api.convert_value_from_modbus(7, descriptor(7)) == 0.07
+    assert api.convert_value_from_modbus(32765, descriptor(7)) == 327.65
 
 
 async def read_registers(client: object, address: int, *, count: int = 1, device_id: int = 0, no_response_expected: bool = False) -> ReadInputRegistersResponse:

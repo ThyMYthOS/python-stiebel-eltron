@@ -24,7 +24,7 @@ import time
 from typing import cast
 
 from modbus_connection import ModbusConnection, ModbusError, ModbusUnit
-from modbus_connection.model import Component, RegisterField
+from modbus_connection.model import Component, RegisterField, RepeatingGroupField
 
 from pystiebeleltron import StiebelEltronModbusError, get_controller_model
 from pystiebeleltron.lwz import LwzStiebelEltronAPI
@@ -110,20 +110,28 @@ def _format(value: object) -> str:
     return "—" if value is None else str(value)
 
 
-def _values(component: Component) -> list[tuple[str, str, str]]:
-    """Public (name, value, unit) rows for a sub-system, alphabetically."""
+def _values(component: Component, prefix: str = "") -> list[tuple[str, str, str]]:
+    """Public (name, value, unit) rows for a sub-system, alphabetically.
+
+    Repeated sub-units (``repeating_group``) expand into one indexed row set per
+    instance, e.g. ``heat_pumps[0].return_temperature``.
+    """
     rows: list[tuple[str, str, str]] = []
     cls = type(component)
     for name in dir(component):
         if name.startswith("_"):
             continue
         static = inspect.getattr_static(cls, name, None)
+        if isinstance(static, RepeatingGroupField):
+            for index, instance in enumerate(getattr(component, name)):
+                rows += _values(instance, f"{prefix}{name}[{index}].")
+            continue
         # Keep register fields and derived @property values; skip everything else
         # (methods, the register_space marker, the ComponentGroup helpers).
         if not isinstance(static, (RegisterField, property)):
             continue
         unit = static.unit or "" if isinstance(static, RegisterField) else ""
-        rows.append((name, _format(getattr(component, name)), unit))
+        rows.append((f"{prefix}{name}", _format(getattr(component, name)), unit))
     return rows
 
 

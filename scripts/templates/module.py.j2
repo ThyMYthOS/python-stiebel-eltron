@@ -24,6 +24,18 @@ class OperatingMode(Enum):
 
 
 {% endif %}
+{% for sub in sub_components %}
+class {{ sub.class_name }}(Component):
+    """One repeated sub-unit; instance i is read at ``base_offset = i * stride``."""
+
+    register_space = "{{ sub.register_space }}"
+
+{% for field in sub.fields %}
+    {{ field }}
+{% endfor %}
+
+
+{% endfor %}
 {% for component in components %}
 class {{ component.class_name }}(Component):
     register_space = "{{ component.register_space }}"
@@ -31,6 +43,9 @@ class {{ component.class_name }}(Component):
 
 {% for field in component.fields %}
     {{ field }}
+{% endfor %}
+{% for repeat in component.repeats %}
+    {{ repeat }}
 {% endfor %}
 {% if component.compressor_starts %}
 

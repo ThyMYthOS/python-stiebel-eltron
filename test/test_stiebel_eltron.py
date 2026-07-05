@@ -37,6 +37,34 @@ async def test_wpm(mock_modbus_unit: MockModbusUnit) -> None:
 
 
 @pytest.mark.asyncio()
+async def test_wpm_repeating_groups(mock_modbus_unit: MockModbusUnit) -> None:
+    """Repeated sub-units read as typed lists, each instance at its strided address."""
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    _seed(mock_modbus_unit, api.system_values)
+
+    await api.async_update()
+
+    heat_pumps = api.system_values.heat_pumps
+    assert len(heat_pumps) == 6
+    # return_temperature is at wire address 541 (raw 41) for HP1, +7 per instance.
+    assert heat_pumps[0].return_temperature == 4.1
+    assert heat_pumps[5].return_temperature == 7.6
+    assert heat_pumps[0].low_pressure == 0.44  # 0.01-scaled
+
+    room_temperatures = api.system_values.room_temperatures
+    assert len(room_temperatures) == 5
+    # actual_temperature is at wire address 583 (raw 83) for HC1, +4 per instance.
+    assert room_temperatures[0].actual_temperature == 8.3
+    assert room_temperatures[1].actual_temperature == 8.7
+
+    cooling = api.system_values.room_temperatures_cooling
+    assert len(cooling) == 5
+    # set_temperature is at wire address 603 (raw 103) for COOLING1, +1 per instance.
+    assert cooling[0].set_temperature == 10.3
+    assert cooling[4].set_temperature == 10.7
+
+
+@pytest.mark.asyncio()
 async def test_write_out_of_range_rejected(mock_modbus_unit: MockModbusUnit) -> None:
     """A write validator rejects values outside the register's documented range."""
     api = WpmStiebelEltronAPI(mock_modbus_unit)

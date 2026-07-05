@@ -3,12 +3,45 @@
 from __future__ import annotations
 
 from modbus_connection import ModbusUnit
-from modbus_connection.model import Component, ComponentGroup, gauge, integer
+from modbus_connection.model import Component, ComponentGroup, gauge, integer, repeating_group
 
 from . import UNAVAILABLE, EnergyManagementSettings, EnergySystemInformation, in_range, scaled_sum
 
 WPM_HOLDING_RANGES = ((1500, 1551), (4000, 4002))
 WPM_INPUT_RANGES = ((500, 609), (2500, 2546), (3500, 3585), (3707, 3722), (5000, 5001))
+
+
+class WpmHeatPumpModule(Component):
+    """One repeated sub-unit; instance i is read at ``base_offset = i * stride``."""
+
+    register_space = "input"
+
+    return_temperature = gauge(541, 0.1, nan=UNAVAILABLE, unit="°C")
+    flow_temperature = gauge(542, 0.1, nan=UNAVAILABLE, unit="°C")
+    hot_gas_temperature = gauge(543, 0.1, nan=UNAVAILABLE, unit="°C")
+    low_pressure = gauge(544, 0.01, nan=UNAVAILABLE, unit="bar")
+    mean_pressure = gauge(545, 0.01, nan=UNAVAILABLE, unit="bar")
+    high_pressure = gauge(546, 0.01, nan=UNAVAILABLE, unit="bar")
+    wp_water_flow_rate = gauge(547, 0.1, nan=UNAVAILABLE, unit="l/min")
+
+
+class WpmRoomTemperature(Component):
+    """One repeated sub-unit; instance i is read at ``base_offset = i * stride``."""
+
+    register_space = "input"
+
+    actual_temperature = gauge(583, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature = gauge(584, 0.1, nan=UNAVAILABLE, unit="°C")
+    relative_humidity = gauge(585, 0.1, nan=UNAVAILABLE, unit="%")
+    dew_point_temperature = gauge(586, 0.1, nan=UNAVAILABLE, unit="°C")
+
+
+class WpmRoomTemperatureCooling(Component):
+    """One repeated sub-unit; instance i is read at ``base_offset = i * stride``."""
+
+    register_space = "input"
+
+    set_temperature = gauge(603, 0.1, nan=UNAVAILABLE, unit="°C")
 
 
 class WpmSystemValues(Component):
@@ -56,75 +89,11 @@ class WpmSystemValues(Component):
     hot_gas_temperature = gauge(538, 0.1, nan=UNAVAILABLE, unit="°C")
     high_pressure = gauge(539, 0.1, nan=UNAVAILABLE, unit="bar")
     low_pressure = gauge(540, 0.1, nan=UNAVAILABLE, unit="bar")
-    return_temperature_hp1 = gauge(541, 0.1, nan=UNAVAILABLE, unit="°C")
-    flow_temperature_hp1 = gauge(542, 0.1, nan=UNAVAILABLE, unit="°C")
-    hot_gas_temperature_hp1 = gauge(543, 0.1, nan=UNAVAILABLE, unit="°C")
-    low_pressure_hp1 = gauge(544, 0.01, nan=UNAVAILABLE, unit="bar")
-    mean_pressure_hp1 = gauge(545, 0.01, nan=UNAVAILABLE, unit="bar")
-    high_pressure_hp1 = gauge(546, 0.01, nan=UNAVAILABLE, unit="bar")
-    wp_water_flow_rate_hp1 = gauge(547, 0.1, nan=UNAVAILABLE, unit="l/min")
-    return_temperature_hp2 = gauge(548, 0.1, nan=UNAVAILABLE, unit="°C")
-    flow_temperature_hp2 = gauge(549, 0.1, nan=UNAVAILABLE, unit="°C")
-    hot_gas_temperature_hp2 = gauge(550, 0.1, nan=UNAVAILABLE, unit="°C")
-    low_pressure_hp2 = gauge(551, 0.01, nan=UNAVAILABLE, unit="bar")
-    mean_pressure_hp2 = gauge(552, 0.01, nan=UNAVAILABLE, unit="bar")
-    high_pressure_hp2 = gauge(553, 0.01, nan=UNAVAILABLE, unit="bar")
-    wp_water_flow_rate_hp2 = gauge(554, 0.1, nan=UNAVAILABLE, unit="l/min")
-    return_temperature_hp3 = gauge(555, 0.1, nan=UNAVAILABLE, unit="°C")
-    flow_temperature_hp3 = gauge(556, 0.1, nan=UNAVAILABLE, unit="°C")
-    hot_gas_temperature_hp3 = gauge(557, 0.1, nan=UNAVAILABLE, unit="°C")
-    low_pressure_hp3 = gauge(558, 0.01, nan=UNAVAILABLE, unit="bar")
-    mean_pressure_hp3 = gauge(559, 0.01, nan=UNAVAILABLE, unit="bar")
-    high_pressure_hp3 = gauge(560, 0.01, nan=UNAVAILABLE, unit="bar")
-    wp_water_flow_rate_hp3 = gauge(561, 0.1, nan=UNAVAILABLE, unit="l/min")
-    return_temperature_hp4 = gauge(562, 0.1, nan=UNAVAILABLE, unit="°C")
-    flow_temperature_hp4 = gauge(563, 0.1, nan=UNAVAILABLE, unit="°C")
-    hot_gas_temperature_hp4 = gauge(564, 0.1, nan=UNAVAILABLE, unit="°C")
-    low_pressure_hp4 = gauge(565, 0.01, nan=UNAVAILABLE, unit="bar")
-    mean_pressure_hp4 = gauge(566, 0.01, nan=UNAVAILABLE, unit="bar")
-    high_pressure_hp4 = gauge(567, 0.01, nan=UNAVAILABLE, unit="bar")
-    wp_water_flow_rate_hp4 = gauge(568, 0.1, nan=UNAVAILABLE, unit="l/min")
-    return_temperature_hp5 = gauge(569, 0.1, nan=UNAVAILABLE, unit="°C")
-    flow_temperature_hp5 = gauge(570, 0.1, nan=UNAVAILABLE, unit="°C")
-    hot_gas_temperature_hp5 = gauge(571, 0.1, nan=UNAVAILABLE, unit="°C")
-    low_pressure_hp5 = gauge(572, 0.01, nan=UNAVAILABLE, unit="bar")
-    mean_pressure_hp5 = gauge(573, 0.01, nan=UNAVAILABLE, unit="bar")
-    high_pressure_hp5 = gauge(574, 0.01, nan=UNAVAILABLE, unit="bar")
-    wp_water_rate_hp5 = gauge(575, 0.1, nan=UNAVAILABLE, unit="l/min")
-    return_temperature_hp6 = gauge(576, 0.1, nan=UNAVAILABLE, unit="°C")
-    flow_temperature_hp6 = gauge(577, 0.1, nan=UNAVAILABLE, unit="°C")
-    hot_gas_hp6 = gauge(578, 0.1, nan=UNAVAILABLE, unit="°C")
-    low_pressure_hp6 = gauge(579, 0.01, nan=UNAVAILABLE, unit="bar")
-    mean_pressure_hp6 = gauge(580, 0.01, nan=UNAVAILABLE, unit="bar")
-    high_pressure_hp6 = gauge(581, 0.01, nan=UNAVAILABLE, unit="bar")
-    wp_water_flow_rate_hp6 = gauge(582, 0.1, nan=UNAVAILABLE, unit="l/min")
-    actual_temperature_room_temp_hc1 = gauge(583, 0.1, nan=UNAVAILABLE, unit="°C")
-    set_temperature_room_temp_hc1 = gauge(584, 0.1, nan=UNAVAILABLE, unit="°C")
-    relative_humidity_room_temp_hc1 = gauge(585, 0.1, nan=UNAVAILABLE, unit="%")
-    dew_point_temperature_room_temp_hc1 = gauge(586, 0.1, nan=UNAVAILABLE, unit="°C")
-    actual_temperature_room_temp_hc2 = gauge(587, 0.1, nan=UNAVAILABLE, unit="°C")
-    set_temperature_room_temp_hc2 = gauge(588, 0.1, nan=UNAVAILABLE, unit="°C")
-    relative_humidity_room_temp_hc2 = gauge(589, 0.1, nan=UNAVAILABLE, unit="%")
-    dew_point_temperature_room_temp_hc2 = gauge(590, 0.1, nan=UNAVAILABLE, unit="°C")
-    actual_temperature_room_temp_hc3 = gauge(591, 0.1, nan=UNAVAILABLE, unit="°C")
-    set_temperature_room_temp_hc3 = gauge(592, 0.1, nan=UNAVAILABLE, unit="°C")
-    relative_humidity_room_temp_hc3 = gauge(593, 0.1, nan=UNAVAILABLE, unit="%")
-    dew_point_temperature_room_temp_hc3 = gauge(594, 0.1, nan=UNAVAILABLE, unit="°C")
-    actual_temperature_room_temp_hc4 = gauge(595, 0.1, nan=UNAVAILABLE, unit="°C")
-    set_temperature_room_temp_hc4 = gauge(596, 0.1, nan=UNAVAILABLE, unit="°C")
-    relative_humidity_room_temp_hc4 = gauge(597, 0.1, nan=UNAVAILABLE, unit="%")
-    dew_point_temperature_room_temp_hc4 = gauge(598, 0.1, nan=UNAVAILABLE, unit="°C")
-    actual_temperature_room_temp_hc5 = gauge(599, 0.1, nan=UNAVAILABLE, unit="°C")
-    set_temperature_room_temp_hc5 = gauge(600, 0.1, nan=UNAVAILABLE, unit="°C")
-    relative_humidity_room_temp_hc5 = gauge(601, 0.1, nan=UNAVAILABLE, unit="%")
-    dew_point_temperature_room_temp_hc5 = gauge(602, 0.1, nan=UNAVAILABLE, unit="°C")
-    set_temperature_room_temp_cooling1 = gauge(603, 0.1, nan=UNAVAILABLE, unit="°C")
-    set_temperature_room_temp_cooling2 = gauge(604, 0.1, nan=UNAVAILABLE, unit="°C")
-    set_temperature_room_temp_cooling3 = gauge(605, 0.1, nan=UNAVAILABLE, unit="°C")
-    set_temperature_room_temp_cooling4 = gauge(606, 0.1, nan=UNAVAILABLE, unit="°C")
-    set_temperature_room_temp_cooling5 = gauge(607, 0.1, nan=UNAVAILABLE, unit="°C")
     actual_temperature_hk_3 = gauge(608, 0.1, nan=UNAVAILABLE, unit="°C")
     set_temperature_hk_3 = gauge(609, 0.1, nan=UNAVAILABLE, unit="°C")
+    heat_pumps = repeating_group(6, WpmHeatPumpModule, stride=7)
+    room_temperatures = repeating_group(5, WpmRoomTemperature, stride=4)
+    room_temperatures_cooling = repeating_group(5, WpmRoomTemperatureCooling, stride=1)
 
 
 class WpmSystemParameters(Component):

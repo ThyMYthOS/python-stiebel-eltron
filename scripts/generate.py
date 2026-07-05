@@ -2,14 +2,16 @@
 
 Each register block in ``api/*.csv`` becomes a ``modbus_connection.model``
 ``Component`` of typed fields; a controller groups its components behind one
-``ComponentGroup``. The module text is rendered from
-``scripts/templates/module.py.j2``. Run from the repo root:
-``python scripts/generate.py``.
+``ComponentGroup``. Contiguous repeated sub-units (a WPM's heat-pump modules and
+per-circuit room temperatures) are emitted as ``repeating_group`` sub-components.
+The module text is rendered from ``scripts/templates/module.py.j2``. Run from the
+repo root: ``python scripts/generate.py``.
 """
 
 from __future__ import annotations
 
 import csv
+import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -41,6 +43,20 @@ LWZ_COLUMNS = Columns(name_col=1, min_col=5, max_col=6, data_type_col=7, unit_co
 
 
 @dataclass
+class Repeat:
+    """A contiguous run of identical sub-units sharing a numbered suffix.
+
+    Rows whose suffix is ``prefix`` followed by an index (``HP1`` .. ``HP6``) become
+    one ``component_class`` sub-component, exposed on the parent as a list attribute.
+    """
+
+    prefix: str  # suffix stem before the index, e.g. "HP" or "ROOM TEMP HC"
+    attr: str  # the parent list attribute, e.g. "heat_pumps"
+    class_suffix: str  # the sub-component class suffix, e.g. "HeatPumpModule"
+    stride: int  # registers per instance (the address step between instances)
+
+
+@dataclass
 class Block:
     """One register block: a CSV file mapped to a Component."""
 
@@ -48,6 +64,7 @@ class Block:
     path: str  # relative to api/
     space: str  # "input" or "holding"
     energy: bool = False  # apply the LOW/HI + day-and-total energy handling
+    repeats: list[Repeat] = field(default_factory=list)  # sub-units to fold out
 
 
 @dataclass
@@ -69,7 +86,16 @@ WPM = Controller(
     type="Wpm",
     columns=WPM_COLUMNS,
     blocks=[
-        Block("System Values", "wpm_system_values.csv", "input"),
+        Block(
+            "System Values",
+            "wpm_system_values.csv",
+            "input",
+            repeats=[
+                Repeat("HP", "heat_pumps", "HeatPumpModule", stride=7),
+                Repeat("ROOM TEMP HC", "room_temperatures", "RoomTemperature", stride=4),
+                Repeat("ROOM TEMP COOLING", "room_temperatures_cooling", "RoomTemperatureCooling", stride=1),
+            ],
+        ),
         Block("System Parameters", "wpm_system_parameters.csv", "holding"),
         Block("System State", "wpm_system_state.csv", "input"),
         Block("Energy Data", "wpm_energy_data.csv", "input", energy=True),
@@ -146,8 +172,17 @@ def _field_factory(row: list[str], cols: Columns, *, writable: bool) -> str:
 
 
 @dataclass
+class SubComponent:
+    """A repeated sub-unit rendered as its own Component class."""
+
+    class_name: str
+    register_space: str
+    fields: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Component:
-    """A rendered component: field/property source lines plus energy metadata."""
+    """A rendered component: field/repeat/property source plus energy metadata."""
 
     class_name: str
     member: str  # the API attribute holding this component
@@ -156,6 +191,7 @@ class Component:
     low: int = 0  # first wire address the block covers
     high: int = 0  # last wire address the block covers
     fields: list[str] = field(default_factory=list)  # "attr = factory(...)"
+    repeats: list[str] = field(default_factory=list)  # "attr = repeating_group(...)"
     compressor_starts: bool = False
     day_and_total: list[tuple[str, str, str]] = field(default_factory=list)
 
@@ -171,7 +207,43 @@ def _span(rows: list[list[str]]) -> tuple[int, int]:
     return min(addresses), max(addresses)
 
 
-def _plain_component(block: Block, rows: list[list[str]], controller: Controller) -> Component:
+def _match_repeat(suffix: str, repeats: list[Repeat]) -> tuple[Repeat, int] | None:
+    """Return the repeat a row's suffix belongs to (with its index), if any."""
+    suffix = suffix.strip()
+    for repeat in repeats:
+        match = re.fullmatch(re.escape(repeat.prefix) + r"\s*(\d+)", suffix)
+        if match:
+            return repeat, int(match.group(1))
+    return None
+
+
+def _repeating_sub_component(repeat: Repeat, by_index: dict[int, list[list[str]]], controller: Controller, space: str) -> tuple[SubComponent, str]:
+    """Build the sub-component class and the parent's ``repeating_group`` line."""
+    indices = sorted(by_index)
+    if indices != list(range(indices[0], indices[0] + len(indices))):
+        raise ValueError(f"{repeat.prefix!r} instances are not consecutive: {indices}")
+    instance_zero = sorted(by_index[indices[0]], key=lambda row: int(row[0]))
+    base = int(instance_zero[0][0]) - 1
+    # Every later instance must sit a whole ``stride`` past the first.
+    for offset, index in enumerate(indices):
+        start = min(int(row[0]) - 1 for row in by_index[index])
+        if start != base + offset * repeat.stride:
+            raise ValueError(f"{repeat.prefix}{index} starts at {start}, expected stride {repeat.stride}")
+
+    sub_class = f"{controller.type}{repeat.class_suffix}"
+    sub = SubComponent(sub_class, space)
+    seen: set[str] = set()
+    for row in instance_zero:
+        attribute = attr(row[controller.columns.name_col])
+        if attribute in seen:
+            raise ValueError(f"duplicate attribute {attribute!r} in {sub_class}")
+        seen.add(attribute)
+        sub.fields.append(f"{attribute} = {_field_factory(row, controller.columns, writable=False)}")
+    line = f"{repeat.attr} = repeating_group({len(indices)}, {sub_class}, stride={repeat.stride})"
+    return sub, line
+
+
+def _plain_component(block: Block, rows: list[list[str]], controller: Controller) -> tuple[Component, list[SubComponent]]:
     cols = controller.columns
     low, high = _span(rows)
     component = Component(
@@ -181,8 +253,14 @@ def _plain_component(block: Block, rows: list[list[str]], controller: Controller
         low=low,
         high=high,
     )
+    groups: dict[str, dict[int, list[list[str]]]] = {repeat.attr: {} for repeat in block.repeats}
     seen: set[str] = set()
     for row in rows:
+        hit = _match_repeat(row[cols.suffix_col], block.repeats)
+        if hit is not None:
+            repeat, index = hit
+            groups[repeat.attr].setdefault(index, []).append(row)
+            continue
         attribute = attr(row[cols.name_col], row[cols.suffix_col])
         if attribute in seen:
             raise ValueError(f"duplicate attribute {attribute!r} in {block.name}")
@@ -190,8 +268,14 @@ def _plain_component(block: Block, rows: list[list[str]], controller: Controller
         writable = "w" in row[cols.writable_col]
         component.fields.append(f"{attribute} = {_field_factory(row, cols, writable=writable)}")
 
+    sub_components: list[SubComponent] = []
+    for repeat in block.repeats:
+        sub, line = _repeating_sub_component(repeat, groups[repeat.attr], controller, block.space)
+        sub_components.append(sub)
+        component.repeats.append(line)
+
     component.compressor_starts = controller.compressor_starts and block.name == "System Values"
-    return component
+    return component, sub_components
 
 
 def _energy_component(block: Block, rows: list[list[str]], controller: Controller) -> Component:
@@ -250,6 +334,8 @@ def _ranges_by_space(components: list[Component]) -> dict[str, tuple[tuple[int, 
 def _imports(controller: Controller, components: list[Component]) -> list[str]:
     """The import lines the rendered module needs, given what it uses."""
     model = ["Component", "ComponentGroup", "gauge", "integer"]
+    if any(component.repeats for component in components):
+        model.append("repeating_group")
     local = ["EnergyManagementSettings", "EnergySystemInformation", "UNAVAILABLE"]
     if any(block.energy for block in controller.blocks):
         local.append("scaled_sum")
@@ -270,12 +356,15 @@ def build(controller: Controller, root: Path) -> dict[str, object]:
     """Assemble the render context for a controller module."""
     api_path = root / "api"
     components: list[Component] = []
+    sub_components: list[SubComponent] = []
     for block in controller.blocks:
         rows = _read_rows(api_path, block)
         if block.energy:
             components.append(_energy_component(block, rows, controller))
         else:
-            components.append(_plain_component(block, rows, controller))
+            component, subs = _plain_component(block, rows, controller)
+            components.append(component)
+            sub_components += subs
 
     ranges = _ranges_by_space(components)
     for component in components:
@@ -286,7 +375,7 @@ def build(controller: Controller, root: Path) -> dict[str, object]:
         "range_lines": [f"{_ranges_const(controller, space)} = {ranges[space]!r}" for space in sorted(ranges)],
         "operating_mode": controller.operating_mode,
         "lwz_helpers": controller.operating_mode,
-        "sub_components": [],
+        "sub_components": sub_components,
         "components": components,
         "api_class": f"{controller.type}StiebelEltronAPI",
         "members": [(component.member, component.class_name) for component in components],

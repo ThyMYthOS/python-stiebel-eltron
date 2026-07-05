@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import logging
 from enum import Enum
+from typing import Any
 
 from modbus_connection import ModbusError, ModbusUnit
-from modbus_connection.model import Component, RegisterField, integer
+from modbus_connection.model import Component, RegisterField, WriteValidator, integer
 
 __version__ = "0.3.2"
 
@@ -39,6 +40,21 @@ class MagnitudeField(RegisterField[int]):
 def scaled_sum(address: int, magnitudes: tuple[int, ...] = (1, 1000, 1_000_000), *, unit: str | None = None) -> MagnitudeField:
     """Build a :class:`MagnitudeField` using the ISG unavailable sentinel."""
     return MagnitudeField(address, magnitudes, nan=UNAVAILABLE, unit=unit)
+
+
+def in_range(minimum: float, maximum: float) -> WriteValidator:
+    """A write validator rejecting values outside the register's ``[min, max]``.
+
+    Passed as a writable field's ``writable=`` so a write never pushes a value the
+    controller documents as invalid; the accepted value passes through unchanged.
+    """
+
+    def validate(value: Any) -> Any:
+        if not minimum <= value <= maximum:
+            raise ValueError(f"{value} outside the allowed range [{minimum}, {maximum}]")
+        return value
+
+    return validate
 
 
 class StiebelEltronModbusError(Exception):

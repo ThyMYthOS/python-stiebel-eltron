@@ -1,8 +1,10 @@
 """Generate the model-based Stiebel Eltron heat pump modules from the CSV maps.
 
 Each register block in ``api/*.csv`` becomes a ``modbus_connection.model``
-``Component`` of typed fields; a heat pump groups its components behind one
-``ComponentGroup``. Run from the repo root: ``python scripts/generate.py``.
+``Component`` of typed fields; a controller groups its components behind one
+``ComponentGroup``. The module text is rendered from
+``scripts/templates/module.py.j2``. Run from the repo root:
+``python scripts/generate.py``.
 """
 
 from __future__ import annotations
@@ -12,24 +14,30 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from jinja2 import Environment, FileSystemLoader
+
 # Raw register value the ISG returns for an unavailable object (matches
 # pystiebeleltron.UNAVAILABLE); emitted as the field ``nan`` sentinel.
 UNAVAILABLE = 0x8000
 
+TEMPLATES = Path(__file__).parent / "templates"
+
 
 @dataclass
 class Columns:
-    """CSV column indices, which differ between the WPM and LWZ exports."""
+    """Indices of the CSV columns we read, which differ between WPM and LWZ exports."""
 
-    name: int
-    data_type: int
-    unit: int
-    writable: int
-    suffix: int
+    name_col: int
+    min_col: int
+    max_col: int
+    data_type_col: int
+    unit_col: int
+    writable_col: int
+    suffix_col: int
 
 
-WPM_COLUMNS = Columns(name=1, data_type=8, unit=9, writable=10, suffix=11)
-LWZ_COLUMNS = Columns(name=1, data_type=7, unit=8, writable=9, suffix=10)
+WPM_COLUMNS = Columns(name_col=1, min_col=6, max_col=7, data_type_col=8, unit_col=9, writable_col=10, suffix_col=11)
+LWZ_COLUMNS = Columns(name_col=1, min_col=5, max_col=6, data_type_col=7, unit_col=8, writable_col=9, suffix_col=10)
 
 
 @dataclass
@@ -43,18 +51,21 @@ class Block:
 
 
 @dataclass
-class HeatPump:
-    """A heat pump's component layout plus per-type extras."""
+class Controller:
+    """A controller's component layout plus per-type extras.
+
+    ``type`` is the class prefix and module stem ("Wpm" / "Lwz"); an LWZ is a
+    Luft-Wärme-Zentrale (a ventilation/heat central), not only a heat pump.
+    """
 
     type: str  # "Wpm" / "Lwz"
     columns: Columns
     blocks: list[Block]
     operating_mode: bool = False  # emit the OperatingMode enum + helpers (LWZ)
     compressor_starts: bool = False  # emit the combined compressor_starts (LWZ)
-    extra_imports: list[str] = field(default_factory=list)
 
 
-WPM = HeatPump(
+WPM = Controller(
     type="Wpm",
     columns=WPM_COLUMNS,
     blocks=[
@@ -66,7 +77,7 @@ WPM = HeatPump(
     ],
 )
 
-LWZ = HeatPump(
+LWZ = Controller(
     type="Lwz",
     columns=LWZ_COLUMNS,
     blocks=[
@@ -78,6 +89,11 @@ LWZ = HeatPump(
     operating_mode=True,
     compressor_starts=True,
 )
+
+# The two shared components from pystiebeleltron/__init__.py, as (low, high) wire
+# address ranges, so they join their space's device-wide ranges.
+SHARED_INPUT_RANGE = (5000, 5001)  # EnergySystemInformation
+SHARED_HOLDING_RANGE = (4000, 4002)  # EnergyManagementSettings
 
 
 def python_name(name: str, suffix: str = "") -> str:
@@ -101,10 +117,25 @@ def field_attr(block_name: str) -> str:
     return block_name.lower().replace(" ", "_")
 
 
-def _field_line(name: str, data_type: str, wire: int, unit: str, writable: bool) -> str:
-    """Render a field assignment for one register row."""
+def _number(text: str) -> float | int | None:
+    """Parse a CSV min/max cell into a number, or None when blank."""
+    text = text.strip()
+    if not text:
+        return None
+    value = float(text)
+    return int(value) if value.is_integer() else value
+
+
+def _field_factory(row: list[str], cols: Columns, *, writable: bool) -> str:
+    """Render the field factory call for one register row."""
+    name, data_type, unit = row[cols.name_col], row[cols.data_type_col], row[cols.unit_col]
     unit_arg = f', unit="{unit}"' if unit else ""
-    writable_arg = ", writable=True" if writable else ""
+    if writable:
+        low, high = _number(row[cols.min_col]), _number(row[cols.max_col])
+        writable_arg = f", writable=in_range({low}, {high})" if low is not None and high is not None else ", writable=True"
+    else:
+        writable_arg = ""
+    wire = int(row[0]) - 1
     if data_type == "2":
         return f"gauge({wire}, 0.1, nan=UNAVAILABLE{unit_arg}{writable_arg})"
     if data_type == "7":
@@ -114,26 +145,22 @@ def _field_line(name: str, data_type: str, wire: int, unit: str, writable: bool)
     raise ValueError(f"unhandled data type {data_type!r} for {name!r}")
 
 
-# The two shared components from pystiebeleltron/__init__.py, as (low, high) wire
-# address ranges, so they join their space's device-wide ranges.
-SHARED_INPUT_RANGE = (5000, 5001)  # EnergySystemInformation
-SHARED_HOLDING_RANGE = (4000, 4002)  # EnergyManagementSettings
-
-
 @dataclass
 class Component:
     """A rendered component: field/property source lines plus energy metadata."""
 
-    block_name: str  # e.g. "System Values"
-    class_suffix: str  # e.g. "SystemValues"
-    space: str
+    class_name: str
+    member: str  # the API attribute holding this component
+    register_space: str
+    ranges_const: str = ""
     low: int = 0  # first wire address the block covers
     high: int = 0  # last wire address the block covers
     fields: list[str] = field(default_factory=list)  # "attr = factory(...)"
+    compressor_starts: bool = False
     day_and_total: list[tuple[str, str, str]] = field(default_factory=list)
 
 
-def _read_rows(api_path: Path, block: Block, cols: Columns) -> list[list[str]]:
+def _read_rows(api_path: Path, block: Block) -> list[list[str]]:
     with (api_path / block.path).open() as handle:
         return list(csv.reader(handle))[1:]
 
@@ -144,26 +171,40 @@ def _span(rows: list[list[str]]) -> tuple[int, int]:
     return min(addresses), max(addresses)
 
 
-def _plain_component(block: Block, rows: list[list[str]], cols: Columns) -> Component:
+def _plain_component(block: Block, rows: list[list[str]], controller: Controller) -> Component:
+    cols = controller.columns
     low, high = _span(rows)
-    component = Component(block.name, class_name(block.name), block.space, low, high)
+    component = Component(
+        f"{controller.type}{class_name(block.name)}",
+        field_attr(block.name),
+        block.space,
+        low=low,
+        high=high,
+    )
     seen: set[str] = set()
     for row in rows:
-        name, suffix = row[cols.name], row[cols.suffix]
-        wire = int(row[0]) - 1
-        attribute = attr(name, suffix)
+        attribute = attr(row[cols.name_col], row[cols.suffix_col])
         if attribute in seen:
             raise ValueError(f"duplicate attribute {attribute!r} in {block.name}")
         seen.add(attribute)
-        factory = _field_line(name, row[cols.data_type], wire, row[cols.unit], "w" in row[cols.writable])
-        component.fields.append(f"{attribute} = {factory}")
+        writable = "w" in row[cols.writable_col]
+        component.fields.append(f"{attribute} = {_field_factory(row, cols, writable=writable)}")
+
+    component.compressor_starts = controller.compressor_starts and block.name == "System Values"
     return component
 
 
-def _energy_component(block: Block, rows: list[list[str]], cols: Columns) -> Component:
-    """Energy block: LOW/HI pairs combine in a @property; DAY rows gain a running total."""
+def _energy_component(block: Block, rows: list[list[str]], controller: Controller) -> Component:
+    """Energy block: LOW/HI pairs combine in a scaled_sum; DAY rows gain a running total."""
+    cols = controller.columns
     low, high = _span(rows)
-    component = Component(block.name, class_name(block.name), block.space, low, high)
+    component = Component(
+        f"{controller.type}{class_name(block.name)}",
+        field_attr(block.name),
+        block.space,
+        low=low,
+        high=high,
+    )
     seen: set[str] = set()
 
     def add(attribute: str, source: str) -> None:
@@ -173,27 +214,26 @@ def _energy_component(block: Block, rows: list[list[str]], cols: Columns) -> Com
         component.fields.append(f"{attribute} = {source}")
 
     for index, row in enumerate(rows):
-        name, suffix = row[cols.name], row[cols.suffix]
-        wire, unit = int(row[0]) - 1, row[cols.unit]
+        name, suffix = row[cols.name_col], row[cols.suffix_col]
+        wire, unit = int(row[0]) - 1, row[cols.unit_col]
         if suffix[:2] == "HI":
             continue  # consumed by the preceding LOW row's scaled_sum
         if suffix[:3] == "LOW":
             # kWh (LOW) + MWh (HI) summed into a single counter, in kWh.
             add(attr(name, suffix[3:].strip()), f'scaled_sum({wire}, (1, 1000), unit="{unit}")')
             continue
-        attribute = attr(name, suffix)
-        add(attribute, _field_line(name, row[cols.data_type], wire, unit, False))
+        add(attr(name, suffix), _field_factory(row, cols, writable=False))
         if name[-3:] == "DAY":
             following = rows[index + 1]
-            total = attr(following[cols.name], following[cols.suffix][3:].strip())
+            total = attr(following[cols.name_col], following[cols.suffix_col][3:].strip())
             running = attr(name + "_AND_TOTAL", suffix)
-            component.day_and_total.append((attribute, total, running))
+            component.day_and_total.append((attr(name, suffix), total, running))
     return component
 
 
-def _ranges_const(heatpump: HeatPump, space: str) -> str:
-    """The module-level range-constant name for a heat pump's register space."""
-    return f"{heatpump.type.upper()}_{space.upper()}_RANGES"
+def _ranges_const(controller: Controller, space: str) -> str:
+    """The module-level range-constant name for a controller's register space."""
+    return f"{controller.type.upper()}_{space.upper()}_RANGES"
 
 
 def _ranges_by_space(components: list[Component]) -> dict[str, tuple[tuple[int, int], ...]]:
@@ -201,209 +241,74 @@ def _ranges_by_space(components: list[Component]) -> dict[str, tuple[tuple[int, 
     shared = {"input": SHARED_INPUT_RANGE, "holding": SHARED_HOLDING_RANGE}
     spans: dict[str, set[tuple[int, int]]] = {}
     for component in components:
-        spans.setdefault(component.space, set()).add((component.low, component.high))
+        spans.setdefault(component.register_space, set()).add((component.low, component.high))
     for space, ranges in spans.items():
         ranges.add(shared[space])
     return {space: tuple(sorted(ranges)) for space, ranges in spans.items()}
 
 
-def _render_component(component: Component, heatpump: HeatPump) -> str:
-    lines = [
-        f"class {heatpump.type}{component.class_suffix}(Component):",
-        f'    register_space = "{component.space}"',
-        f"    register_ranges = {_ranges_const(heatpump, component.space)}",
-        "",
-    ]
-    lines += [f"    {line}" for line in component.fields]
+def _imports(controller: Controller, components: list[Component]) -> list[str]:
+    """The import lines the rendered module needs, given what it uses."""
+    model = ["Component", "ComponentGroup", "gauge", "integer"]
+    local = ["EnergyManagementSettings", "EnergySystemInformation", "UNAVAILABLE"]
+    if any(block.energy for block in controller.blocks):
+        local.append("scaled_sum")
+    if any("in_range(" in line for component in components for line in component.fields):
+        local.append("in_range")
 
-    if heatpump.compressor_starts and component.class_suffix == "SystemValues":
-        lines += [
-            "",
-            "    @property",
-            "    def compressor_starts(self) -> int | None:",
-            '        """Total compressor starts, combined from the HI/LOW registers."""',
-            "        high = self.compressor_starts_hi",
-            "        if high is None:",
-            "            return None",
-            "        low = self.compressor_starts_low",
-            "        return high * 1000 + (low or 0)",
-        ]
-
-    if component.day_and_total:
-        pairs = ",\n".join(f"        ({day!r}, {total!r}, {running!r})" for day, total, running in component.day_and_total)
-        lines += [
-            "",
-            "    _DAY_AND_TOTAL = (",
-            pairs + ",",
-            "    )",
-            "",
-            "    def __init__(self, unit: ModbusUnit, index: int = 1) -> None:",
-            "        super().__init__(unit, index)",
-            "        self._running_totals: dict[str, int] = {}",
-            "",
-            "    def notify(self) -> None:",
-            '        """Refresh the monotonic day-and-total counters, then notify listeners."""',
-            "        for day_attr, total_attr, key in self._DAY_AND_TOTAL:",
-            "            day = getattr(self, day_attr)",
-            "            total = getattr(self, total_attr)",
-            "            if day is not None and total is not None:",
-            "                combined = day + total",
-            "                previous = self._running_totals.get(key)",
-            "                self._running_totals[key] = combined if previous is None else max(combined, previous)",
-            "        super().notify()",
-        ]
-        for _day, _total, running in component.day_and_total:
-            lines += [
-                "",
-                "    @property",
-                f"    def {running}(self) -> int | None:",
-                f"        return self._running_totals.get({running!r})",
-            ]
-    return "\n".join(lines)
+    lines = []
+    if controller.operating_mode:
+        lines += ["from enum import Enum", ""]
+    lines.append("from modbus_connection import ModbusUnit")
+    lines.append(f"from modbus_connection.model import {', '.join(sorted(model))}")
+    lines.append("")
+    lines.append(f"from . import {', '.join(sorted(local))}")
+    return lines
 
 
-def _render_api(heatpump: HeatPump, components: list[Component]) -> str:
-    lines = [f"class {heatpump.type}StiebelEltronAPI:", '    """Stiebel Eltron heat pump API over a modbus_connection ModbusUnit."""', "", "    def __init__(self, unit: ModbusUnit) -> None:"]
-    members: list[str] = []
-    for component in components:
-        member = field_attr(component.block_name)
-        members.append(member)
-        lines.append(f"        self.{member} = {heatpump.type}{component.class_suffix}(unit)")
-    holding, inputs = _ranges_const(heatpump, "holding"), _ranges_const(heatpump, "input")
-    lines.append("        self.energy_management_settings = EnergyManagementSettings(unit)")
-    lines.append(f"        self.energy_management_settings.register_ranges = {holding}")
-    lines.append("        self.energy_system_information = EnergySystemInformation(unit)")
-    lines.append(f"        self.energy_system_information.register_ranges = {inputs}")
-    members += ["energy_management_settings", "energy_system_information"]
-    lines.append("        self._group = ComponentGroup(")
-    lines.append("            unit,")
-    lines.append("            [")
-    lines += [f"                self.{member}," for member in members]
-    lines.append("            ],")
-    lines.append("        )")
-    lines += [
-        "",
-        "    async def async_update(self) -> None:",
-        '        """Read every component in one pooled set of block reads."""',
-        "        await self._group.async_update()",
-    ]
-    if heatpump.operating_mode:
-        lines += _LWZ_HELPERS.splitlines()
-    return "\n".join(lines)
-
-
-# Convenience accessors carried over from the hand-written LWZ API.
-_LWZ_HELPERS = '''
-    def get_current_temp(self) -> float | None:
-        """Get the current room temperature."""
-        return self.system_values.actual_room_t_hc1
-
-    def get_target_temp(self) -> float | None:
-        """Get the target room temperature."""
-        return self.system_parameters.room_temperature_day_hk1
-
-    async def set_target_temp(self, temp: float) -> None:
-        """Set the target room temperature (day)(HC1)."""
-        await self.system_parameters.write("room_temperature_day_hk1", temp)
-
-    def get_current_humidity(self) -> float | None:
-        """Get the current room humidity."""
-        return self.system_values.relative_humidity_hc1
-
-    def get_operation(self) -> OperatingMode:
-        """Return the current mode of operation."""
-        op_mode = self.system_parameters.operating_mode
-        if op_mode is None:
-            return OperatingMode.EMERGENCY_OPERATION
-        return OperatingMode(int(op_mode))
-
-    async def set_operation(self, mode: OperatingMode) -> None:
-        """Set the operation mode."""
-        await self.system_parameters.write("operating_mode", mode.value)
-
-    def get_heating_status(self) -> bool:
-        """Return heater status."""
-        value = self.system_state.operating_status
-        if value is None:
-            return False
-        return bool(int(value) & (1 << 2))
-
-    def get_cooling_status(self) -> bool:
-        """Cooling status."""
-        value = self.system_state.operating_status
-        if value is None:
-            return False
-        return bool(int(value) & (1 << 3))
-
-    def get_filter_alarm_status(self) -> bool:
-        """Return filter alarm."""
-        value = self.system_state.operating_status
-        if value is None:
-            return False
-        filter_mask = (1 << 8) | (1 << 12) | (1 << 13)
-        return bool(int(value) & filter_mask)'''
-
-
-_OPERATING_MODE = '''class OperatingMode(Enum):
-    """Enum for the operation mode of the heat pump."""
-
-    AUTOMATIC = 11  # AUTOMATIK
-    STANDBY = 1  # BEREITSCHAFT
-    DAY_MODE = 3  # TAGBETRIEB
-    SETBACK_MODE = 4  # ABSENKBETRIEB
-    DHW = 5  # WARMWASSER
-    MANUAL_MODE = 14  # HANDBETRIEB
-    EMERGENCY_OPERATION = 0  # NOTBETRIEB'''
-
-
-def generate(heatpump: HeatPump, root: Path) -> None:
-    """Render and write a heat pump module."""
+def build(controller: Controller, root: Path) -> dict[str, object]:
+    """Assemble the render context for a controller module."""
     api_path = root / "api"
     components: list[Component] = []
-    for block in heatpump.blocks:
-        rows = _read_rows(api_path, block, heatpump.columns)
+    for block in controller.blocks:
+        rows = _read_rows(api_path, block)
         if block.energy:
-            component = _energy_component(block, rows, heatpump.columns)
+            components.append(_energy_component(block, rows, controller))
         else:
-            component = _plain_component(block, rows, heatpump.columns)
-        components.append(component)
-
-    header = [
-        '"""Modbus api for stiebel eltron heat pumps. This file is generated. Do not modify it manually."""',
-        "",
-        "from __future__ import annotations",
-        "",
-    ]
-    if heatpump.operating_mode:
-        header.append("from enum import Enum")
-        header.append("")
-    header += [
-        "from modbus_connection import ModbusUnit",
-        "from modbus_connection.model import Component, ComponentGroup, gauge, integer",
-        "",
-        "from . import UNAVAILABLE, EnergyManagementSettings, EnergySystemInformation, scaled_sum",
-    ]
+            components.append(_plain_component(block, rows, controller))
 
     ranges = _ranges_by_space(components)
-    range_lines = [f"{_ranges_const(heatpump, space)} = {ranges[space]!r}" for space in sorted(ranges)]
+    for component in components:
+        component.ranges_const = _ranges_const(controller, component.register_space)
 
-    sections = ["\n".join(header), "\n".join(range_lines)]
-    if heatpump.operating_mode:
-        sections.append(_OPERATING_MODE)
-    sections += [_render_component(component, heatpump) for component in components]
-    sections.append(_render_api(heatpump, components))
+    return {
+        "imports": _imports(controller, components),
+        "range_lines": [f"{_ranges_const(controller, space)} = {ranges[space]!r}" for space in sorted(ranges)],
+        "operating_mode": controller.operating_mode,
+        "lwz_helpers": controller.operating_mode,
+        "sub_components": [],
+        "components": components,
+        "api_class": f"{controller.type}StiebelEltronAPI",
+        "members": [(component.member, component.class_name) for component in components],
+        "holding_ranges_const": _ranges_const(controller, "holding"),
+        "input_ranges_const": _ranges_const(controller, "input"),
+    }
 
-    output = "\n\n\n".join(sections) + "\n"
-    (root / f"pystiebeleltron/{heatpump.type.lower()}.py").write_text(output)
+
+def generate(controller: Controller, root: Path, env: Environment) -> None:
+    """Render and write a controller module."""
+    output = env.get_template("module.py.j2").render(**build(controller, root))
+    (root / f"pystiebeleltron/{controller.type.lower()}.py").write_text(output)
 
 
 def main() -> None:
-    """Generate every heat pump module, then format it with ruff."""
+    """Generate every controller module, then format it with ruff."""
     root = Path.cwd()
+    env = Environment(loader=FileSystemLoader(TEMPLATES), trim_blocks=True, lstrip_blocks=True, keep_trailing_newline=True)
     paths = []
-    for heatpump in (WPM, LWZ):
-        generate(heatpump, root)
-        paths.append(str(root / f"pystiebeleltron/{heatpump.type.lower()}.py"))
+    for controller in (WPM, LWZ):
+        generate(controller, root, env)
+        paths.append(str(root / f"pystiebeleltron/{controller.type.lower()}.py"))
     subprocess.run(["ruff", "format", *paths], check=True)
     subprocess.run(["ruff", "check", "--fix", "--quiet", *paths], check=True)
     print("Done!")

@@ -7,7 +7,7 @@ from enum import Enum
 from modbus_connection import ModbusUnit
 from modbus_connection.model import Component, ComponentGroup, gauge, integer
 
-from . import UNAVAILABLE, EnergyManagementSettings, EnergySystemInformation, scaled_sum
+from . import UNAVAILABLE, EnergyManagementSettings, EnergySystemInformation, in_range, scaled_sum
 
 LWZ_HOLDING_RANGES = ((1000, 1026), (4000, 4002))
 LWZ_INPUT_RANGES = ((0, 33), (2000, 2004), (3000, 3031), (5000, 5001))
@@ -78,33 +78,33 @@ class LwzSystemParameters(Component):
     register_space = "holding"
     register_ranges = LWZ_HOLDING_RANGES
 
-    operating_mode = integer(1000, signed=False, nan=UNAVAILABLE, writable=True)
-    room_temperature_day_hk1 = gauge(1001, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    room_temperature_night_hk1 = gauge(1002, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    manual_hc_set_hk1 = gauge(1003, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    room_temperature_day_hk2 = gauge(1004, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    room_temperature_night_hk2 = gauge(1005, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    manual_hc_set_hk2 = gauge(1006, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    gradient_hk1 = gauge(1007, 0.01, nan=UNAVAILABLE, writable=True)
-    low_end_hk1 = gauge(1008, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    gradient_hk2 = gauge(1009, 0.01, nan=UNAVAILABLE, writable=True)
-    low_end_hk2 = gauge(1010, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    dhw_set_day = gauge(1011, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    dhw_set_night = gauge(1012, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    dhw_set_manual = gauge(1013, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    mwm_set_day = integer(1014, signed=False, nan=UNAVAILABLE, unit="l", writable=True)
-    mwm_set_night = integer(1015, signed=False, nan=UNAVAILABLE, unit="l", writable=True)
-    mwm_set_manual = integer(1016, signed=False, nan=UNAVAILABLE, unit="l", writable=True)
-    day_stage = integer(1017, signed=False, nan=UNAVAILABLE, writable=True)
-    night_stage = integer(1018, signed=False, nan=UNAVAILABLE, writable=True)
-    party_stage = integer(1019, signed=False, nan=UNAVAILABLE, writable=True)
-    manual_stage = integer(1020, signed=False, nan=UNAVAILABLE, writable=True)
-    room_temperature_day_hk1_cooling = gauge(1021, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    room_temperature_night_hk1_cooling = gauge(1022, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    room_temperature_day_hk2_cooling = gauge(1023, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    room_temperature_night_hk2_cooling = gauge(1024, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    reset = integer(1025, signed=False, nan=UNAVAILABLE, writable=True)
-    restart_isg = integer(1026, signed=False, nan=UNAVAILABLE, writable=True)
+    operating_mode = integer(1000, signed=False, nan=UNAVAILABLE, writable=in_range(0, 14))
+    room_temperature_day_hk1 = gauge(1001, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 30))
+    room_temperature_night_hk1 = gauge(1002, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 30))
+    manual_hc_set_hk1 = gauge(1003, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 65))
+    room_temperature_day_hk2 = gauge(1004, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 30))
+    room_temperature_night_hk2 = gauge(1005, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 30))
+    manual_hc_set_hk2 = gauge(1006, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 65))
+    gradient_hk1 = gauge(1007, 0.01, nan=UNAVAILABLE, writable=in_range(0, 5))
+    low_end_hk1 = gauge(1008, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(0, 20))
+    gradient_hk2 = gauge(1009, 0.01, nan=UNAVAILABLE, writable=in_range(0, 5))
+    low_end_hk2 = gauge(1010, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(0, 20))
+    dhw_set_day = gauge(1011, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 55))
+    dhw_set_night = gauge(1012, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 55))
+    dhw_set_manual = gauge(1013, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 65))
+    mwm_set_day = integer(1014, signed=False, nan=UNAVAILABLE, unit="l", writable=in_range(50, 288))
+    mwm_set_night = integer(1015, signed=False, nan=UNAVAILABLE, unit="l", writable=in_range(50, 288))
+    mwm_set_manual = integer(1016, signed=False, nan=UNAVAILABLE, unit="l", writable=in_range(50, 288))
+    day_stage = integer(1017, signed=False, nan=UNAVAILABLE, writable=in_range(0, 3))
+    night_stage = integer(1018, signed=False, nan=UNAVAILABLE, writable=in_range(0, 3))
+    party_stage = integer(1019, signed=False, nan=UNAVAILABLE, writable=in_range(0, 3))
+    manual_stage = integer(1020, signed=False, nan=UNAVAILABLE, writable=in_range(0, 3))
+    room_temperature_day_hk1_cooling = gauge(1021, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 30))
+    room_temperature_night_hk1_cooling = gauge(1022, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 30))
+    room_temperature_day_hk2_cooling = gauge(1023, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 30))
+    room_temperature_night_hk2_cooling = gauge(1024, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 30))
+    reset = integer(1025, signed=False, nan=UNAVAILABLE, writable=in_range(0, 1))
+    restart_isg = integer(1026, signed=False, nan=UNAVAILABLE, writable=in_range(0, 2))
 
 
 class LwzSystemState(Component):

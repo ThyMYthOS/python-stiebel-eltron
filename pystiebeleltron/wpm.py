@@ -5,7 +5,7 @@ from __future__ import annotations
 from modbus_connection import ModbusUnit
 from modbus_connection.model import Component, ComponentGroup, gauge, integer
 
-from . import UNAVAILABLE, EnergyManagementSettings, EnergySystemInformation, scaled_sum
+from . import UNAVAILABLE, EnergyManagementSettings, EnergySystemInformation, in_range, scaled_sum
 
 WPM_HOLDING_RANGES = ((1500, 1551), (4000, 4002))
 WPM_INPUT_RANGES = ((500, 609), (2500, 2546), (3500, 3585), (3707, 3722), (5000, 5001))
@@ -131,30 +131,30 @@ class WpmSystemParameters(Component):
     register_space = "holding"
     register_ranges = WPM_HOLDING_RANGES
 
-    operating_mode = integer(1500, signed=False, nan=UNAVAILABLE, writable=True)
-    comfort_temperature_hk_1 = gauge(1501, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    eco_temperature_hk_1 = gauge(1502, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    heating_curve_rise_hk_1 = gauge(1503, 0.01, nan=UNAVAILABLE, writable=True)
-    comfort_temperature_hk_2 = gauge(1504, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    eco_temperature_hk_2 = gauge(1505, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    heating_curve_rise_hk_2 = gauge(1506, 0.01, nan=UNAVAILABLE, writable=True)
-    fixed_value_operation = gauge(1507, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    dual_mode_temp_hzg = gauge(1508, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    comfort_temperature = gauge(1509, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    eco_temperature = gauge(1510, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    dhw_stages = integer(1511, signed=False, nan=UNAVAILABLE, writable=True)
-    dual_mode_temp_ww = gauge(1512, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    set_flow_temperature_area = gauge(1513, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    flow_temp_hysteresis_area = gauge(1514, 0.1, nan=UNAVAILABLE, unit="K", writable=True)
-    set_room_temperature_area = gauge(1515, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    set_flow_temperature_fan = gauge(1516, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    flow_temp_hysteresis_fan = gauge(1517, 0.1, nan=UNAVAILABLE, unit="K", writable=True)
-    set_room_temperature_fan = gauge(1518, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    reset = integer(1519, signed=False, nan=UNAVAILABLE, writable=True)
-    restart_isg = integer(1520, signed=False, nan=UNAVAILABLE, writable=True)
-    comfort_temperature_hk_3 = gauge(1549, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    eco_temperature_hk_3 = gauge(1550, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    heating_curve_rise_hk_3 = gauge(1551, 0.01, nan=UNAVAILABLE, writable=True)
+    operating_mode = integer(1500, signed=False, nan=UNAVAILABLE, writable=in_range(0, 5))
+    comfort_temperature_hk_1 = gauge(1501, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(5, 30))
+    eco_temperature_hk_1 = gauge(1502, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(5, 30))
+    heating_curve_rise_hk_1 = gauge(1503, 0.01, nan=UNAVAILABLE, writable=in_range(0, 3))
+    comfort_temperature_hk_2 = gauge(1504, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(5, 30))
+    eco_temperature_hk_2 = gauge(1505, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(5, 30))
+    heating_curve_rise_hk_2 = gauge(1506, 0.01, nan=UNAVAILABLE, writable=in_range(0, 3))
+    fixed_value_operation = gauge(1507, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(20, 70))
+    dual_mode_temp_hzg = gauge(1508, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-40, 40))
+    comfort_temperature = gauge(1509, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 60))
+    eco_temperature = gauge(1510, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 60))
+    dhw_stages = integer(1511, signed=False, nan=UNAVAILABLE, writable=in_range(0, 6))
+    dual_mode_temp_ww = gauge(1512, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-40, 40))
+    set_flow_temperature_area = gauge(1513, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(7, 25))
+    flow_temp_hysteresis_area = gauge(1514, 0.1, nan=UNAVAILABLE, unit="K", writable=in_range(1, 5))
+    set_room_temperature_area = gauge(1515, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(20, 30))
+    set_flow_temperature_fan = gauge(1516, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(7, 25))
+    flow_temp_hysteresis_fan = gauge(1517, 0.1, nan=UNAVAILABLE, unit="K", writable=in_range(1, 5))
+    set_room_temperature_fan = gauge(1518, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(20, 30))
+    reset = integer(1519, signed=False, nan=UNAVAILABLE, writable=in_range(1, 3))
+    restart_isg = integer(1520, signed=False, nan=UNAVAILABLE, writable=in_range(0, 2))
+    comfort_temperature_hk_3 = gauge(1549, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(5, 30))
+    eco_temperature_hk_3 = gauge(1550, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(5, 30))
+    heating_curve_rise_hk_3 = gauge(1551, 0.01, nan=UNAVAILABLE, writable=in_range(0, 3))
 
 
 class WpmSystemState(Component):

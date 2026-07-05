@@ -37,6 +37,21 @@ async def test_wpm(mock_modbus_unit: MockModbusUnit) -> None:
 
 
 @pytest.mark.asyncio()
+async def test_write_out_of_range_rejected(mock_modbus_unit: MockModbusUnit) -> None:
+    """A write validator rejects values outside the register's documented range."""
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+
+    # comfort_temperature_hk_1 is a 0.1-scaled holding register with range [5, 30].
+    await api.system_parameters.write("comfort_temperature_hk_1", 22)
+    assert mock_modbus_unit.holding[1501] == 220
+
+    with pytest.raises(ValueError, match="outside the allowed range"):
+        await api.system_parameters.write("comfort_temperature_hk_1", 40)
+    # The rejected write must not have reached the device.
+    assert mock_modbus_unit.holding[1501] == 220
+
+
+@pytest.mark.asyncio()
 async def test_wpm_power_consumption_registers(mock_modbus_unit: MockModbusUnit) -> None:
     api = WpmStiebelEltronAPI(mock_modbus_unit)
     _seed(mock_modbus_unit, api.power_consumption)

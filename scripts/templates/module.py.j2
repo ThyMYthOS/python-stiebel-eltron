@@ -1,0 +1,153 @@
+"""Modbus api for stiebel eltron heat pumps. This file is generated. Do not modify it manually."""
+
+from __future__ import annotations
+
+{% for line in imports %}
+{{ line }}
+{% endfor %}
+
+{% for line in range_lines %}
+{{ line }}
+{% endfor %}
+
+{% if operating_mode %}
+class OperatingMode(Enum):
+    """Enum for the operation mode of the heat pump."""
+
+    AUTOMATIC = 11  # AUTOMATIK
+    STANDBY = 1  # BEREITSCHAFT
+    DAY_MODE = 3  # TAGBETRIEB
+    SETBACK_MODE = 4  # ABSENKBETRIEB
+    DHW = 5  # WARMWASSER
+    MANUAL_MODE = 14  # HANDBETRIEB
+    EMERGENCY_OPERATION = 0  # NOTBETRIEB
+
+
+{% endif %}
+{% for component in components %}
+class {{ component.class_name }}(Component):
+    register_space = "{{ component.register_space }}"
+    register_ranges = {{ component.ranges_const }}
+
+{% for field in component.fields %}
+    {{ field }}
+{% endfor %}
+{% if component.compressor_starts %}
+
+    @property
+    def compressor_starts(self) -> int | None:
+        """Total compressor starts, combined from the HI/LOW registers."""
+        high = self.compressor_starts_hi
+        if high is None:
+            return None
+        low = self.compressor_starts_low
+        return high * 1000 + (low or 0)
+{% endif %}
+{% if component.day_and_total %}
+
+    _DAY_AND_TOTAL = (
+{% for day, total, running in component.day_and_total %}
+        ("{{ day }}", "{{ total }}", "{{ running }}"),
+{% endfor %}
+    )
+
+    def __init__(self, unit: ModbusUnit, index: int = 1) -> None:
+        super().__init__(unit, index)
+        self._running_totals: dict[str, int] = {}
+
+    def notify(self) -> None:
+        """Refresh the monotonic day-and-total counters, then notify listeners."""
+        for day_attr, total_attr, key in self._DAY_AND_TOTAL:
+            day = getattr(self, day_attr)
+            total = getattr(self, total_attr)
+            if day is not None and total is not None:
+                combined = day + total
+                previous = self._running_totals.get(key)
+                self._running_totals[key] = combined if previous is None else max(combined, previous)
+        super().notify()
+{% for day, total, running in component.day_and_total %}
+
+    @property
+    def {{ running }}(self) -> int | None:
+        return self._running_totals.get("{{ running }}")
+{% endfor %}
+{% endif %}
+
+
+{% endfor %}
+class {{ api_class }}:
+    """Stiebel Eltron heat pump API over a modbus_connection ModbusUnit."""
+
+    def __init__(self, unit: ModbusUnit) -> None:
+{% for member, class_name in members %}
+        self.{{ member }} = {{ class_name }}(unit)
+{% endfor %}
+        self.energy_management_settings = EnergyManagementSettings(unit)
+        self.energy_management_settings.register_ranges = {{ holding_ranges_const }}
+        self.energy_system_information = EnergySystemInformation(unit)
+        self.energy_system_information.register_ranges = {{ input_ranges_const }}
+        self._group = ComponentGroup(
+            unit,
+            [
+{% for member, class_name in members %}
+                self.{{ member }},
+{% endfor %}
+                self.energy_management_settings,
+                self.energy_system_information,
+            ],
+        )
+
+    async def async_update(self) -> None:
+        """Read every component in one pooled set of block reads."""
+        await self._group.async_update()
+{% if lwz_helpers %}
+
+    def get_current_temp(self) -> float | None:
+        """Get the current room temperature."""
+        return self.system_values.actual_room_t_hc1
+
+    def get_target_temp(self) -> float | None:
+        """Get the target room temperature."""
+        return self.system_parameters.room_temperature_day_hk1
+
+    async def set_target_temp(self, temp: float) -> None:
+        """Set the target room temperature (day)(HC1)."""
+        await self.system_parameters.write("room_temperature_day_hk1", temp)
+
+    def get_current_humidity(self) -> float | None:
+        """Get the current room humidity."""
+        return self.system_values.relative_humidity_hc1
+
+    def get_operation(self) -> OperatingMode:
+        """Return the current mode of operation."""
+        op_mode = self.system_parameters.operating_mode
+        if op_mode is None:
+            return OperatingMode.EMERGENCY_OPERATION
+        return OperatingMode(int(op_mode))
+
+    async def set_operation(self, mode: OperatingMode) -> None:
+        """Set the operation mode."""
+        await self.system_parameters.write("operating_mode", mode.value)
+
+    def get_heating_status(self) -> bool:
+        """Return heater status."""
+        value = self.system_state.operating_status
+        if value is None:
+            return False
+        return bool(int(value) & (1 << 2))
+
+    def get_cooling_status(self) -> bool:
+        """Cooling status."""
+        value = self.system_state.operating_status
+        if value is None:
+            return False
+        return bool(int(value) & (1 << 3))
+
+    def get_filter_alarm_status(self) -> bool:
+        """Return filter alarm."""
+        value = self.system_state.operating_status
+        if value is None:
+            return False
+        filter_mask = (1 << 8) | (1 << 12) | (1 << 13)
+        return bool(int(value) & filter_mask)
+{% endif %}

@@ -18,10 +18,6 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-# Raw register value the ISG returns for an unavailable object (matches
-# pystiebeleltron.UNAVAILABLE); emitted as the field ``nan`` sentinel.
-UNAVAILABLE = 0x8000
-
 TEMPLATES = Path(__file__).parent / "templates"
 
 

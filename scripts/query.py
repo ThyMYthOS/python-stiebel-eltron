@@ -34,7 +34,8 @@ Api = WpmStiebelEltronAPI | LwzStiebelEltronAPI
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    summary = __doc__.splitlines()[0] if __doc__ else "Query a Stiebel Eltron heat pump over Modbus."
+    parser = argparse.ArgumentParser(description=summary)
     sub = parser.add_subparsers(dest="transport", required=True)
 
     # Shared options available on each transport (so `--unit` can follow the host).

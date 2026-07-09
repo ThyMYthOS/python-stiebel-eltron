@@ -66,12 +66,7 @@ class StiebelEltronModbusError(Exception):
 
 
 class UnknownControllerModelError(Exception):
-    """The controller reported a model id we don't recognize.
-
-    Unlike :class:`StiebelEltronModbusError` this is not a transient comms
-    failure: the read succeeded but returned an id absent from
-    :class:`ControllerModel`, so retrying won't help.
-    """
+    """The controller reported a model id we don't recognize."""
 
     def __init__(self, model_id: int) -> None:
         """Initialize the error with the unrecognized ``model_id``."""

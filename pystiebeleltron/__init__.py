@@ -65,6 +65,20 @@ class StiebelEltronModbusError(Exception):
         super().__init__("Data error on the modbus")
 
 
+class UnknownControllerModelError(Exception):
+    """The controller reported a model id we don't recognize.
+
+    Unlike :class:`StiebelEltronModbusError` this is not a transient comms
+    failure: the read succeeded but returned an id absent from
+    :class:`ControllerModel`, so retrying won't help.
+    """
+
+    def __init__(self, model_id: int) -> None:
+        """Initialize the error with the unrecognized ``model_id``."""
+        self.model_id = model_id
+        super().__init__(f"Unknown controller model id: {model_id}")
+
+
 class ControllerModel(Enum):
     """Controller model."""
 
@@ -85,9 +99,13 @@ async def get_controller_model(unit: ModbusUnit) -> ControllerModel:
     """
     try:
         registers = await unit.read_input_registers(5001, 1)
-        return ControllerModel(registers[0])
-    except (ModbusError, IndexError, ValueError) as err:
+        model_id = registers[0]
+    except (ModbusError, IndexError) as err:
         raise StiebelEltronModbusError from err
+    try:
+        return ControllerModel(model_id)
+    except ValueError as err:
+        raise UnknownControllerModelError(model_id) from err
 
 
 class EnergyManagementSettings(Component):

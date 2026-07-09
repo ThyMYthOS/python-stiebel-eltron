@@ -4,7 +4,12 @@ import pytest
 from modbus_connection.mock import MockModbusConnection, MockModbusUnit
 from modbus_connection.model import Component
 
-from pystiebeleltron import ControllerModel, StiebelEltronModbusError, get_controller_model
+from pystiebeleltron import (
+    ControllerModel,
+    StiebelEltronModbusError,
+    UnknownControllerModelError,
+    get_controller_model,
+)
 from pystiebeleltron.lwz import LwzStiebelEltronAPI, OperatingMode
 from pystiebeleltron.wpm import WpmStiebelEltronAPI
 
@@ -159,10 +164,12 @@ async def test_get_controller_model_error_response(mock_modbus_connection: MockM
 
 @pytest.mark.asyncio()
 async def test_get_controller_model_unknown_id(mock_modbus_unit: MockModbusUnit) -> None:
-    """An unrecognized model id surfaces as StiebelEltronModbusError, not ValueError."""
+    """An unrecognized model id surfaces as UnknownControllerModelError, not a comms error."""
     mock_modbus_unit.input[5001] = 999
-    with pytest.raises(StiebelEltronModbusError):
+    with pytest.raises(UnknownControllerModelError) as exc_info:
         await get_controller_model(mock_modbus_unit)
+    assert exc_info.value.model_id == 999
+    assert not isinstance(exc_info.value, StiebelEltronModbusError)
 
 
 @pytest.mark.asyncio()

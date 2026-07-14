@@ -17,7 +17,7 @@ classifiers = [
 ]
 requires-python = ">=3.12,<4"
 dependencies = [
-    "modbus-connection[pymodbus] (>=3.6.0)",
+    "modbus-connection[pymodbus] (>=3.7.0)",
     "pymodbus (>=3.10.0,<4)",
 ]
 

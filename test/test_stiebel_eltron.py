@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from modbus_connection import ModbusError, ModbusExceptionError
 from modbus_connection.mock import MockModbusConnection, MockModbusUnit
 from modbus_connection.model import Component
 
@@ -183,3 +184,26 @@ async def test_energy_counter_unavailable(mock_modbus_unit: MockModbusUnit) -> N
 
     assert api.energy_data.heat_meter_htg_ttl is None
     assert api.energy_data.heat_meter_htg_day_and_total is None
+
+
+@pytest.mark.asyncio()
+async def test_async_update_surfaces_refused_block(mock_modbus_unit: MockModbusUnit) -> None:
+    """A device that refuses a register block (e.g. an uninstalled module) errors out.
+
+    ``async_update`` pools reads into per-space blocks; if the controller answers
+    one with a Modbus exception, that surfaces as a ``ModbusError`` rather than
+    quietly leaving those fields at their previous values.
+    """
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    _seed(mock_modbus_unit, api.system_values)
+    # 502 falls inside the first input block; illegal-data-address (2) mimics a
+    # controller that doesn't serve that block.
+    mock_modbus_unit.fail_read(502, ModbusExceptionError(2), register_type="input")
+
+    with pytest.raises(ModbusError):
+        await api.async_update()
+
+    # Clearing the failure lets the same update succeed.
+    mock_modbus_unit.fail_read(502, None, register_type="input")
+    await api.async_update()
+    assert api.system_values.actual_temperature_fek == 0.2

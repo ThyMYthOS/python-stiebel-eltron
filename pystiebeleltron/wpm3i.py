@@ -24,6 +24,7 @@ class Wpm3iSystemValues(Component):
     outside_temperature = gauge(506, 0.1, nan=UNAVAILABLE, unit="°C")
     actual_temperature_hk_1 = gauge(507, 0.1, nan=UNAVAILABLE, unit="°C")
     set_temperature_hk_1_wpm3i = gauge(508, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_hk_1 = gauge(509, 0.1, nan=UNAVAILABLE, unit="°C")
     actual_temperature_hk_2 = gauge(510, 0.1, nan=UNAVAILABLE, unit="°C")
     set_temperature_hk_2 = gauge(511, 0.1, nan=UNAVAILABLE, unit="°C")
     actual_flow_temperature_wp = gauge(512, 0.1, nan=UNAVAILABLE, unit="°C")

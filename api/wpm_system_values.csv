@@ -7,8 +7,8 @@ Modbus address,Object designation ,WPMsystem,WPM 3,WPM 3i,Comments,Min. value,Ma
 506,DEW POINT TEMPERATURE,,x,x,,-40,30,2,°C,r,
 507,OUTSIDE TEMPERATURE,x,x,x,,-60,80,2,°C,r,
 508,ACTUAL TEMPERATURE HK 1,x,x,x,,0,40,2,°C,r,
-509,SET TEMPERATURE HK 1,,,x,,0,65,2,°C,r,WPM3I
-510,SET TEMPERATURE HK 1,x,x,,,0,40,2,°C,r,
+509,SET TEMPERATURE HK 1,,,x,"Kept for the manual, but a WPM 3i leaves this unavailable and answers HK 1 on 510",0,65,2,°C,r,WPM3I
+510,SET TEMPERATURE HK 1,x,x,x,"A WPM 3i answers HK 1 here, not on 509, even though the manual lists it for WPMsystem and WPM 3 only",0,40,2,°C,r,
 511,ACTUAL TEMPERATURE HK 2,x,x,x,,0,90,2,°C,r,
 512,SET TEMPERATURE HK 2,x,x,x,,0,65,2,°C,r,
 513,ACTUAL FLOW TEMPERATURE WP,x,x,x,"MFG, if available",,,2,°C,r,

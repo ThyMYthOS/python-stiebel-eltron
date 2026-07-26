@@ -293,6 +293,60 @@ async def test_a_refused_optional_block_is_not_read_again(mock_modbus_unit: Mock
 
 
 @pytest.mark.asyncio()
+async def test_a_failed_poll_notifies_nobody(mock_modbus_unit: MockModbusUnit) -> None:
+    """A poll that raises must not have told listeners the values are fresh.
+
+    The required components are read before the optional ones, so a later
+    optional block answering with anything but illegal data address would
+    otherwise fire their listeners and then raise, leaving whoever listens
+    acting on half a poll. A single pooled read never did that.
+    """
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    _seed(mock_modbus_unit, api.system_values, api.extended_energy_system_information)
+    notified = 0
+
+    def count() -> None:
+        nonlocal notified
+        notified += 1
+
+    api.system_values.add_update_listener(count)
+    mock_modbus_unit.fail_read(5219, ModbusExceptionError(6), register_type="input")
+
+    with pytest.raises(ModbusError):
+        await api.async_update()
+
+    assert notified == 0
+
+    mock_modbus_unit.fail_read(5219, None, register_type="input")
+    await api.async_update()
+
+    assert notified == 1
+
+
+@pytest.mark.asyncio()
+async def test_a_refused_block_still_notifies_the_rest(mock_modbus_unit: MockModbusUnit) -> None:
+    """A block the controller does not serve is not a failed poll.
+
+    Deferring the notification must not swallow it on the one path that is
+    expected to happen on every machine without the optional registers.
+    """
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    _seed(mock_modbus_unit, api.system_values)
+    notified = 0
+
+    def count() -> None:
+        nonlocal notified
+        notified += 1
+
+    api.system_values.add_update_listener(count)
+    mock_modbus_unit.fail_read(5219, ModbusExceptionError(2), register_type="input")
+
+    await api.async_update()
+
+    assert notified == 1
+
+
+@pytest.mark.asyncio()
 async def test_a_controller_refusing_everything_still_errors(mock_modbus_unit: MockModbusUnit) -> None:
     """Tolerating optional blocks must not make a mute controller look healthy."""
     api = WpmStiebelEltronAPI(mock_modbus_unit)

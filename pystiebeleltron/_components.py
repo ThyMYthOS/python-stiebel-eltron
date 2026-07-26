@@ -30,9 +30,16 @@ class ControllerComponents:
     set of block reads and still fail the poll when they fail, because then
     something is genuinely wrong. An optional component is read on its own, and
     the first time the controller refuses it, it is dropped for the life of this
-    object - its fields keep reading as ``None``, the same as a value the
-    controller reports as unavailable, and no later poll wastes a round trip on
-    it.
+    object, so no later poll wastes a round trip on it.
+
+    A machine that does not have the block refuses it on the very first read,
+    before any value was stored, so its fields read ``None`` from then on, the
+    same as a value the controller reports as unavailable. A block that answered
+    once and is refused later - a module switched off, new firmware, a different
+    device on that address - keeps the values of its last successful read
+    instead, until the object is rebuilt. Clearing them would take a public way
+    to invalidate a ``Component``'s cache, which ``modbus_connection`` does not
+    expose.
 
     An optional component costs one extra read per poll while the controller
     does serve it. That is the price of being able to tell "this machine does
@@ -47,8 +54,11 @@ class ControllerComponents:
         optional: Iterable[Component] = (),
     ) -> None:
         """Pool ``required`` into one read; read each of ``optional`` on its own."""
-        self._group = ComponentGroup(unit, required)
-        self._optional = list(optional)
+        self._required = list(required)
+        self._group = ComponentGroup(unit, self._required)
+        # A group of one, rather than the component itself: ``Component`` always
+        # notifies when it updates, a group can be told not to.
+        self._optional = [(component, ComponentGroup(unit, [component])) for component in optional]
 
     async def async_update(self) -> None:
         """Read the required components, then the optional ones still in play.
@@ -58,17 +68,30 @@ class ControllerComponents:
         controller says it does not have the block. Any other answer means the
         registers are there and the read went wrong, so it fails the poll and
         the block is read again next time.
+
+        Nothing is notified until every read that could still fail the poll has
+        succeeded. Reading in sequence would otherwise let a poll tell listeners
+        the required values are fresh and then raise over a later optional
+        block, leaving them acting on half a poll - which one pooled read never
+        did.
         """
-        await self._group.async_update()
-        for component in list(self._optional):
+        await self._group.async_update(notify=False)
+        updated = []
+        for entry in list(self._optional):
+            component, group = entry
             try:
-                await component.async_update()
+                await group.async_update(notify=False)
             except BlockReadError as err:
                 if err.exception_code != _ILLEGAL_DATA_ADDRESS:
                     raise
-                self._optional.remove(component)
+                self._optional.remove(entry)
                 _LOGGER.info(
                     "The controller does not serve the registers of %s, so they stay unavailable and are not read again: %s",
                     type(component).__name__,
                     err,
                 )
+            else:
+                updated.append(component)
+
+        for component in (*self._required, *updated):
+            component.notify()

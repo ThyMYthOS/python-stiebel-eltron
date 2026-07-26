@@ -243,6 +243,28 @@ async def test_lwz_without_the_extended_energy_registers(mock_modbus_unit: MockM
 
 
 @pytest.mark.asyncio()
+async def test_a_busy_controller_does_not_lose_an_optional_block(mock_modbus_unit: MockModbusUnit) -> None:
+    """Only illegal data address means "not built in"; other codes are failures.
+
+    A controller that answers a block with device busy or device failure still
+    has those registers, so dropping the component would lose its values for
+    good over a passing complaint. Such an answer fails the poll instead, and
+    the block is read again once the controller answers properly.
+    """
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    _seed(mock_modbus_unit, api.system_values, api.extended_energy_system_information)
+    mock_modbus_unit.fail_read(5219, ModbusExceptionError(6), register_type="input")
+
+    with pytest.raises(ModbusError):
+        await api.async_update()
+
+    mock_modbus_unit.fail_read(5219, None, register_type="input")
+    await api.async_update()
+
+    assert api.extended_energy_system_information.sg_ready_inputs_active == 0
+
+
+@pytest.mark.asyncio()
 async def test_a_refused_optional_block_is_not_read_again(mock_modbus_unit: MockModbusUnit) -> None:
     """Once a controller has refused an optional block, later polls skip it.
 

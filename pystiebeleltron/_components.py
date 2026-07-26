@@ -10,6 +10,11 @@ from modbus_connection.model import Component, ComponentGroup
 
 _LOGGER = logging.getLogger(__package__)
 
+# The Modbus exception code for illegal data address: the controller has no such
+# register. It is the only answer that means "not built in" - device failure or
+# device busy say the registers are there and the read went wrong.
+_ILLEGAL_DATA_ADDRESS = 2
+
 
 class ControllerComponents:
     """The components of one controller, refreshed in one poll.
@@ -48,15 +53,19 @@ class ControllerComponents:
     async def async_update(self) -> None:
         """Read the required components, then the optional ones still in play.
 
-        Raises whatever the pooled read raises. A ``BlockReadError`` from an
-        optional component is not an error of the poll: it is how a controller
-        says it does not have that block.
+        Raises whatever the pooled read raises. An optional block answered with
+        illegal data address is not an error of the poll: that is how a
+        controller says it does not have the block. Any other answer means the
+        registers are there and the read went wrong, so it fails the poll and
+        the block is read again next time.
         """
         await self._group.async_update()
         for component in list(self._optional):
             try:
                 await component.async_update()
             except BlockReadError as err:
+                if err.exception_code != _ILLEGAL_DATA_ADDRESS:
+                    raise
                 self._optional.remove(component)
                 _LOGGER.info(
                     "The controller does not serve the registers of %s, so they stay unavailable and are not read again: %s",

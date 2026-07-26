@@ -38,6 +38,16 @@ class {{ sub.class_name }}(Component):
 {% endfor %}
 {% for component in components %}
 class {{ component.class_name }}(Component):
+{% if component.optional %}
+    """Registers not every machine serves, read on their own.
+
+    A controller without them answers the block with illegal data address, which
+    would fail a pooled read for everything else too, so
+    :class:`~pystiebeleltron._components.ControllerComponents` reads this block
+    separately and drops it once the controller has refused it.
+    """
+
+{% endif %}
     register_space = "{{ component.register_space }}"
     register_ranges = {{ component.ranges_const }}
 
@@ -97,17 +107,24 @@ class {{ api_class }}:
 {% for member, class_name in members %}
         self.{{ member }} = {{ class_name }}(unit)
 {% endfor %}
-        self._group = ComponentGroup(
+        self._group = ControllerComponents(
             unit,
-            [
-{% for member, class_name in members %}
+            required=[
+{% for member in required_members %}
                 self.{{ member }},
 {% endfor %}
             ],
+{% if optional_members %}
+            optional=[
+{% for member in optional_members %}
+                self.{{ member }},
+{% endfor %}
+            ],
+{% endif %}
         )
 
     async def async_update(self) -> None:
-        """Read every component in one pooled set of block reads."""
+        """Read every component the controller serves, in one poll."""
         await self._group.async_update()
 {% if lwz_helpers %}
 

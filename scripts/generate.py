@@ -61,6 +61,10 @@ class Block:
     space: str  # "input" or "holding"
     energy: bool = False  # apply the LOW/HI + day-and-total energy handling
     repeats: list[Repeat] = field(default_factory=list)  # sub-units to fold out
+    # A block real machines are known to refuse: read on its own and dropped
+    # when the controller answers it with illegal data address, rather than
+    # failing the whole poll. See ControllerComponents.
+    optional: bool = False
 
 
 @dataclass
@@ -97,6 +101,10 @@ WPM = Controller(
         Block("Energy Data", "wpm_energy_data.csv", "input", energy=True),
         Block("Energy Management Settings", "wpm_energy_management_settings.csv", "holding"),
         Block("Energy System Information", "wpm_energy_system_information.csv", "input"),
+        Block("Extended System Parameters", "wpm_extended_system_parameters.csv", "holding", optional=True),
+        Block("Extended Energy Data", "wpm_extended_energy_data.csv", "input", energy=True, optional=True),
+        Block("Extended Energy Management Settings", "wpm_extended_energy_management_settings.csv", "holding", optional=True),
+        Block("Extended Energy System Information", "wpm_extended_energy_system_information.csv", "input", optional=True),
     ],
 )
 
@@ -123,6 +131,9 @@ LWZ = Controller(
         Block("Energy Data", "lwz_energy_data.csv", "input", energy=True),
         Block("Energy Management Settings", "lwz_energy_management_settings.csv", "holding"),
         Block("Energy System Information", "lwz_energy_system_information.csv", "input"),
+        Block("Extended Energy Data", "lwz_extended_energy_data.csv", "input", energy=True, optional=True),
+        Block("Extended Energy Management Settings", "lwz_extended_energy_management_settings.csv", "holding", optional=True),
+        Block("Extended Energy System Information", "lwz_extended_energy_system_information.csv", "input", optional=True),
     ],
     operating_mode=True,
     compressor_starts=True,
@@ -208,6 +219,7 @@ class Component:
     repeats: list[str] = field(default_factory=list)  # "attr = repeating_group(...)"
     compressor_starts: bool = False
     day_and_total: list[tuple[str, str, str]] = field(default_factory=list)
+    optional: bool = False  # read on its own, and dropped when the controller refuses it
 
 
 def _read_rows(api_path: Path, block: Block) -> list[list[str]]:
@@ -344,7 +356,7 @@ def _ranges_by_space(components: list[Component]) -> dict[str, tuple[tuple[int, 
 
 def _imports(controller: Controller, components: list[Component]) -> list[str]:
     """The import lines the rendered module needs, given what it uses."""
-    model = ["Component", "ComponentGroup", "gauge", "integer"]
+    model = ["Component", "gauge", "integer"]
     if any(component.repeats for component in components):
         model.append("repeating_group")
     local = ["UNAVAILABLE"]
@@ -360,6 +372,7 @@ def _imports(controller: Controller, components: list[Component]) -> list[str]:
     lines.append(f"from modbus_connection.model import {', '.join(sorted(model))}")
     lines.append("")
     lines.append(f"from . import {', '.join(sorted(local))}")
+    lines.append("from ._components import ControllerComponents")
     return lines
 
 
@@ -379,12 +392,15 @@ def build(controller: Controller, root: Path) -> dict[str, object]:
     for block in controller.blocks:
         rows = _read_rows(api_path, block)
         rows = _filter_rows(rows, filter_column)
+        if not rows:
+            continue
         if block.energy:
-            components.append(_energy_component(block, rows, controller))
+            component = _energy_component(block, rows, controller)
         else:
             component, subs = _plain_component(block, rows, controller)
-            components.append(component)
             sub_components += subs
+        component.optional = block.optional
+        components.append(component)
 
     ranges = _ranges_by_space(components)
     for component in components:
@@ -399,6 +415,8 @@ def build(controller: Controller, root: Path) -> dict[str, object]:
         "components": components,
         "api_class": f"{controller.type}StiebelEltronAPI",
         "members": [(component.member, component.class_name) for component in components],
+        "required_members": [component.member for component in components if not component.optional],
+        "optional_members": [component.member for component in components if component.optional],
         "holding_ranges_const": _ranges_const(controller, "holding"),
         "input_ranges_const": _ranges_const(controller, "input"),
     }

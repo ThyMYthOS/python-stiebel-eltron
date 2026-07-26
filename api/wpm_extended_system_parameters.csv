@@ -1,0 +1,10 @@
+Modbus address,Object designation ,WPMsystem,WPM 3,WPM 3i,Comments,Min. value,Max. value,Data type,Unit,Write/ read (w/r),Suffix
+1704,SET FLOW TEMPERATURE CC 1,x,,,Flow temperature cooling circuit 1,,,2,°C,r/w,HK 1
+1705,SET FLOW TEMPERATURE CC 2,x,,,Flow temperature cooling circuit 2,,,2,°C,r/w,HK 2
+1706,SET FLOW TEMPERATURE CC 3,x,,,Flow temperature cooling circuit 3,,,2,°C,r/w,HK 3
+1707,SET FLOW TEMPERATURE CC 4,x,,,Flow temperature cooling circuit 4,,,2,°C,r/w,HK 4
+1708,SET FLOW TEMPERATURE CC 5,x,,,Flow temperature cooling circuit 5,,,2,°C,r/w,HK 5
+1709,SET FLOW TEMPERATURE FAN COOLING,x,,,Set flow temperature fan cooling,,,2,°C,r/w,
+1750,SUMMER MODE AUTO-,x,,,Summer mode auto,,,6,,,
+1751,OUTSIDE TEMPERATURE SUMMER MODE,x,,,Summer mode outside switching temperature,,,2,°C,,
+1752,SUMMER MODE BUILDING HEAT BUFFER,x,,,Summer mode building attenuation,,,2,°C,,

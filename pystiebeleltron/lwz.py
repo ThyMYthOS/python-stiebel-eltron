@@ -5,12 +5,13 @@ from __future__ import annotations
 from enum import Enum
 
 from modbus_connection import ModbusUnit
-from modbus_connection.model import Component, ComponentGroup, gauge, integer
+from modbus_connection.model import Component, gauge, integer
 
 from . import UNAVAILABLE, in_range, scaled_sum
+from ._components import ControllerComponents
 
-LWZ_HOLDING_RANGES = ((1000, 1026), (4000, 4277))
-LWZ_INPUT_RANGES = ((0, 33), (2000, 2004), (3000, 3697), (5000, 5230))
+LWZ_HOLDING_RANGES = ((1000, 1026), (4000, 4002), (4249, 4277))
+LWZ_INPUT_RANGES = ((0, 33), (2000, 2004), (3000, 3031), (3679, 3697), (5000, 5001), (5219, 5230))
 
 
 class OperatingMode(Enum):
@@ -144,16 +145,6 @@ class LwzEnergyData(Component):
     compressor_dhw = integer(3029, signed=False, nan=UNAVAILABLE, unit="h")
     elec_booster_heating = integer(3030, signed=False, nan=UNAVAILABLE, unit="h")
     elec_booster_dhw = integer(3031, signed=False, nan=UNAVAILABLE, unit="h")
-    inverter_power = gauge(3679, 0.01, nan=UNAVAILABLE, unit="kW")
-    efficiency_heating_1_24_h = integer(3689, signed=False, nan=UNAVAILABLE)
-    efficiency_heating_1_12_m = integer(3690, signed=False, nan=UNAVAILABLE)
-    efficiency_heating_13_24_m = integer(3691, signed=False, nan=UNAVAILABLE)
-    efficiency_cooling_1_24_h = integer(3692, signed=False, nan=UNAVAILABLE)
-    efficiency_cooling_1_12_m = integer(3693, signed=False, nan=UNAVAILABLE)
-    efficiency_cooling_13_24_m = integer(3694, signed=False, nan=UNAVAILABLE)
-    efficiency_dhw_1_24_h = integer(3695, signed=False, nan=UNAVAILABLE)
-    efficiency_dhw_1_12_m = integer(3696, signed=False, nan=UNAVAILABLE)
-    efficiency_dhw_13_24_m = integer(3697, signed=False, nan=UNAVAILABLE)
 
     _DAY_AND_TOTAL = (
         ("heat_meter_htg_day", "heat_meter_htg_ttl", "heat_meter_htg_day_and_total"),
@@ -216,6 +207,52 @@ class LwzEnergyManagementSettings(Component):
     switch_sg_ready_on_and_off = integer(4000, signed=False, nan=UNAVAILABLE, writable=in_range(0, 1))
     sg_ready_input_1 = integer(4001, signed=False, nan=UNAVAILABLE, writable=in_range(0, 1))
     sg_ready_input_2 = integer(4002, signed=False, nan=UNAVAILABLE, writable=in_range(0, 1))
+
+
+class LwzEnergySystemInformation(Component):
+    register_space = "input"
+    register_ranges = LWZ_INPUT_RANGES
+
+    sg_ready_operating_state = integer(5000, signed=False, nan=UNAVAILABLE)
+    controller_identification = integer(5001, signed=False, nan=UNAVAILABLE)
+
+
+class LwzExtendedEnergyData(Component):
+    """Registers not every machine serves, read on their own.
+
+    A controller without them answers the block with illegal data address, which
+    would fail a pooled read for everything else too, so
+    :class:`~pystiebeleltron._components.ControllerComponents` reads this block
+    separately and drops it once the controller has refused it.
+    """
+
+    register_space = "input"
+    register_ranges = LWZ_INPUT_RANGES
+
+    inverter_power = gauge(3679, 0.01, nan=UNAVAILABLE, unit="kW")
+    efficiency_heating_1_24_h = integer(3689, signed=False, nan=UNAVAILABLE)
+    efficiency_heating_1_12_m = integer(3690, signed=False, nan=UNAVAILABLE)
+    efficiency_heating_13_24_m = integer(3691, signed=False, nan=UNAVAILABLE)
+    efficiency_cooling_1_24_h = integer(3692, signed=False, nan=UNAVAILABLE)
+    efficiency_cooling_1_12_m = integer(3693, signed=False, nan=UNAVAILABLE)
+    efficiency_cooling_13_24_m = integer(3694, signed=False, nan=UNAVAILABLE)
+    efficiency_dhw_1_24_h = integer(3695, signed=False, nan=UNAVAILABLE)
+    efficiency_dhw_1_12_m = integer(3696, signed=False, nan=UNAVAILABLE)
+    efficiency_dhw_13_24_m = integer(3697, signed=False, nan=UNAVAILABLE)
+
+
+class LwzExtendedEnergyManagementSettings(Component):
+    """Registers not every machine serves, read on their own.
+
+    A controller without them answers the block with illegal data address, which
+    would fail a pooled read for everything else too, so
+    :class:`~pystiebeleltron._components.ControllerComponents` reads this block
+    separately and drops it once the controller has refused it.
+    """
+
+    register_space = "holding"
+    register_ranges = LWZ_HOLDING_RANGES
+
     sg_ready_enabled = integer(4249, signed=False, nan=UNAVAILABLE, writable=True)
     sg_ready_input = integer(4250, signed=False, nan=UNAVAILABLE, writable=True)
     heating_buffer = integer(4251, signed=False, nan=UNAVAILABLE, writable=True)
@@ -234,12 +271,18 @@ class LwzEnergyManagementSettings(Component):
     load_temperature_dhw_2 = gauge(4277, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
 
 
-class LwzEnergySystemInformation(Component):
+class LwzExtendedEnergySystemInformation(Component):
+    """Registers not every machine serves, read on their own.
+
+    A controller without them answers the block with illegal data address, which
+    would fail a pooled read for everything else too, so
+    :class:`~pystiebeleltron._components.ControllerComponents` reads this block
+    separately and drops it once the controller has refused it.
+    """
+
     register_space = "input"
     register_ranges = LWZ_INPUT_RANGES
 
-    sg_ready_operating_state = integer(5000, signed=False, nan=UNAVAILABLE)
-    controller_identification = integer(5001, signed=False, nan=UNAVAILABLE)
     sg_ready_inputs_active = integer(5219, signed=False, nan=UNAVAILABLE)
     sg_ready_bit_1 = integer(5220, signed=False, nan=UNAVAILABLE)
     sg_ready_bit_2 = integer(5221, signed=False, nan=UNAVAILABLE)
@@ -257,9 +300,12 @@ class LwzStiebelEltronAPI:
         self.energy_data = LwzEnergyData(unit)
         self.energy_management_settings = LwzEnergyManagementSettings(unit)
         self.energy_system_information = LwzEnergySystemInformation(unit)
-        self._group = ComponentGroup(
+        self.extended_energy_data = LwzExtendedEnergyData(unit)
+        self.extended_energy_management_settings = LwzExtendedEnergyManagementSettings(unit)
+        self.extended_energy_system_information = LwzExtendedEnergySystemInformation(unit)
+        self._group = ControllerComponents(
             unit,
-            [
+            required=[
                 self.system_values,
                 self.system_parameters,
                 self.system_state,
@@ -267,10 +313,15 @@ class LwzStiebelEltronAPI:
                 self.energy_management_settings,
                 self.energy_system_information,
             ],
+            optional=[
+                self.extended_energy_data,
+                self.extended_energy_management_settings,
+                self.extended_energy_system_information,
+            ],
         )
 
     async def async_update(self) -> None:
-        """Read every component in one pooled set of block reads."""
+        """Read every component the controller serves, in one poll."""
         await self._group.async_update()
 
     def get_current_temp(self) -> float | None:

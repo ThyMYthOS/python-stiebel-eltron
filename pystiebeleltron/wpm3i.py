@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from modbus_connection import ModbusUnit
-from modbus_connection.model import Component, ComponentGroup, gauge, integer
+from modbus_connection.model import Component, gauge, integer
 
 from . import UNAVAILABLE, in_range, scaled_sum
+from ._components import ControllerComponents
 
 WPM3I_HOLDING_RANGES = ((1500, 1520), (4000, 4002))
 WPM3I_INPUT_RANGES = ((500, 540), (2500, 2506), (3500, 3521), (5000, 5001))
@@ -176,9 +177,9 @@ class Wpm3iStiebelEltronAPI:
         self.energy_data = Wpm3iEnergyData(unit)
         self.energy_management_settings = Wpm3iEnergyManagementSettings(unit)
         self.energy_system_information = Wpm3iEnergySystemInformation(unit)
-        self._group = ComponentGroup(
+        self._group = ControllerComponents(
             unit,
-            [
+            required=[
                 self.system_values,
                 self.system_parameters,
                 self.system_state,
@@ -189,5 +190,5 @@ class Wpm3iStiebelEltronAPI:
         )
 
     async def async_update(self) -> None:
-        """Read every component in one pooled set of block reads."""
+        """Read every component the controller serves, in one poll."""
         await self._group.async_update()

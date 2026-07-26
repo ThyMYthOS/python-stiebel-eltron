@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from modbus_connection import ModbusUnit
-from modbus_connection.model import Component, ComponentGroup, gauge, integer, repeating_group
+from modbus_connection.model import Component, gauge, integer, repeating_group
 
 from . import UNAVAILABLE, in_range, scaled_sum
+from ._components import ControllerComponents
 
-WPM_HOLDING_RANGES = ((1500, 1751), (4000, 4277))
-WPM_INPUT_RANGES = ((500, 609), (2500, 2572), (3500, 3733), (5000, 5230))
+WPM_HOLDING_RANGES = ((1500, 1607), (1703, 1751), (4000, 4002), (4249, 4277))
+WPM_INPUT_RANGES = ((500, 609), (2500, 2572), (3500, 3642), (3643, 3733), (5000, 5001), (5219, 5230))
 
 
 class WpmHeatPumpModule(Component):
@@ -135,15 +136,6 @@ class WpmSystemParameters(Component):
     set_temperature_cc_3_hk_3 = gauge(1605, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
     set_temperature_cc_4_hk_4 = gauge(1606, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
     set_temperature_cc_5_hk_5 = gauge(1607, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    set_flow_temperature_cc_1_hk_1 = gauge(1703, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    set_flow_temperature_cc_2_hk_2 = gauge(1704, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    set_flow_temperature_cc_3_hk_3 = gauge(1705, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    set_flow_temperature_cc_4_hk_4 = gauge(1706, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    set_flow_temperature_cc_5_hk_5 = gauge(1707, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    set_flow_temperature_fan_cooling = gauge(1708, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    summer_mode_auto_ = integer(1749, signed=False, nan=UNAVAILABLE)
-    outside_temperature_summer_mode = gauge(1750, 0.1, nan=UNAVAILABLE, unit="°C")
-    summer_mode_building_heat_buffer = gauge(1751, 0.1, nan=UNAVAILABLE, unit="°C")
 
 
 class WpmSystemState(Component):
@@ -324,51 +316,6 @@ class WpmEnergyData(Component):
     vd_2_dhw_hp_6 = integer(3640, signed=False, nan=UNAVAILABLE, unit="h")
     vd_1_2_dhw_hp_6 = integer(3641, signed=False, nan=UNAVAILABLE, unit="h")
     vd_cooling_hp_6 = integer(3642, signed=False, nan=UNAVAILABLE, unit="h")
-    vd_heating_hp_1 = integer(3643, signed=False, nan=UNAVAILABLE, unit="h")
-    vd_dhw_hp_1 = integer(3644, signed=False, nan=UNAVAILABLE, unit="h")
-    vd_heating_hp_2 = integer(3645, signed=False, nan=UNAVAILABLE, unit="h")
-    vd_dhw_hp_2 = integer(3646, signed=False, nan=UNAVAILABLE, unit="h")
-    vd_heating_hp_3 = integer(3647, signed=False, nan=UNAVAILABLE, unit="h")
-    vd_dhw_hp_3 = integer(3648, signed=False, nan=UNAVAILABLE, unit="h")
-    vd_heating_hp_4 = integer(3649, signed=False, nan=UNAVAILABLE, unit="h")
-    vd_dhw_hp_4 = integer(3650, signed=False, nan=UNAVAILABLE, unit="h")
-    vd_heating_hp_5 = integer(3651, signed=False, nan=UNAVAILABLE, unit="h")
-    vd_dhw_hp_5 = integer(3652, signed=False, nan=UNAVAILABLE, unit="h")
-    vd_heating_hp_6 = integer(3653, signed=False, nan=UNAVAILABLE, unit="h")
-    vd_dhw_hp_6 = integer(3654, signed=False, nan=UNAVAILABLE, unit="h")
-    inverter_power_iws_1 = gauge(3679, 0.1, nan=UNAVAILABLE, unit="kW")
-    inverter_power_iws_2 = gauge(3680, 0.1, nan=UNAVAILABLE, unit="kW")
-    inverter_power_iws_3 = gauge(3681, 0.1, nan=UNAVAILABLE, unit="kW")
-    inverter_power_iws_4 = gauge(3682, 0.1, nan=UNAVAILABLE, unit="kW")
-    inverter_power_iws_5 = gauge(3683, 0.1, nan=UNAVAILABLE, unit="kW")
-    inverter_power_iws_6 = gauge(3684, 0.1, nan=UNAVAILABLE, unit="kW")
-    amount_of_heat_heating_1_24_h = scaled_sum(3689, (1, 1000), unit="Wh")
-    amount_of_heat_heating_1_12 = scaled_sum(3691, (1, 1000), unit="kWh")
-    amount_of_heat_heating_13_24 = scaled_sum(3693, (1, 1000), unit="kWh")
-    amount_of_heat_cooling_1_24_h = scaled_sum(3695, (1, 1000), unit="Wh")
-    amount_of_heat_cooling_1_12_m = scaled_sum(3697, (1, 1000), unit="kWh")
-    amount_of_heat_cooling_13_24 = scaled_sum(3699, (1, 1000), unit="kWh")
-    amount_of_heat_dhw_1_24_h__wh_wh = scaled_sum(3701, (1, 1000), unit="Wh")
-    amount_of_heat_dhw_1_12_m = scaled_sum(3703, (1, 1000), unit="kWh")
-    amount_of_heat_dhw_13_24_m = scaled_sum(3705, (1, 1000), unit="kWh")
-    heating_24h = scaled_sum(3707, (1, 1000), unit="kWh")
-    heating_12m = scaled_sum(3709, (1, 1000), unit="kWh")
-    heating_13_24 = scaled_sum(3711, (1, 1000), unit="kWh")
-    cooling_24h = scaled_sum(3713, (1, 1000), unit="kWh")
-    cooling_12m = scaled_sum(3715, (1, 1000), unit="kWh")
-    cooling_13_24 = scaled_sum(3717, (1, 1000), unit="kWh")
-    dhw_24h = scaled_sum(3719, (1, 1000), unit="kWh")
-    dhw_12m = scaled_sum(3721, (1, 1000), unit="kWh")
-    dhw_13_24 = scaled_sum(3723, (1, 1000), unit="kWh")
-    efficiency_heating_1_24_h = integer(3725, signed=False, nan=UNAVAILABLE)
-    efficiency_heating_1_12_m = integer(3726, signed=False, nan=UNAVAILABLE)
-    efficiency_heating_13_24_m = integer(3727, signed=False, nan=UNAVAILABLE)
-    efficiency_cooling_1_24_h = integer(3728, signed=False, nan=UNAVAILABLE)
-    efficiency_cooling_1_12_m = integer(3729, signed=False, nan=UNAVAILABLE)
-    efficiency_cooling_13_24_m = integer(3730, signed=False, nan=UNAVAILABLE)
-    efficiency_dhw_1_24_h = integer(3731, signed=False, nan=UNAVAILABLE)
-    efficiency_dhw_1_12_m = integer(3732, signed=False, nan=UNAVAILABLE)
-    efficiency_dhw_13_24_m = integer(3733, signed=False, nan=UNAVAILABLE)
 
     _DAY_AND_TOTAL = (
         ("vd_heating_day", "vd_heating_total", "vd_heating_day_and_total"),
@@ -536,6 +483,110 @@ class WpmEnergyManagementSettings(Component):
     switch_sg_ready_on_and_off = integer(4000, signed=False, nan=UNAVAILABLE, writable=in_range(0, 1))
     sg_ready_input_1 = integer(4001, signed=False, nan=UNAVAILABLE, writable=in_range(0, 1))
     sg_ready_input_2 = integer(4002, signed=False, nan=UNAVAILABLE, writable=in_range(0, 1))
+
+
+class WpmEnergySystemInformation(Component):
+    register_space = "input"
+    register_ranges = WPM_INPUT_RANGES
+
+    sg_ready_operating_state = integer(5000, signed=False, nan=UNAVAILABLE)
+    controller_identification = integer(5001, signed=False, nan=UNAVAILABLE)
+
+
+class WpmExtendedSystemParameters(Component):
+    """Registers not every machine serves, read on their own.
+
+    A controller without them answers the block with illegal data address, which
+    would fail a pooled read for everything else too, so
+    :class:`~pystiebeleltron._components.ControllerComponents` reads this block
+    separately and drops it once the controller has refused it.
+    """
+
+    register_space = "holding"
+    register_ranges = WPM_HOLDING_RANGES
+
+    set_flow_temperature_cc_1_hk_1 = gauge(1703, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    set_flow_temperature_cc_2_hk_2 = gauge(1704, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    set_flow_temperature_cc_3_hk_3 = gauge(1705, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    set_flow_temperature_cc_4_hk_4 = gauge(1706, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    set_flow_temperature_cc_5_hk_5 = gauge(1707, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    set_flow_temperature_fan_cooling = gauge(1708, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    summer_mode_auto_ = integer(1749, signed=False, nan=UNAVAILABLE)
+    outside_temperature_summer_mode = gauge(1750, 0.1, nan=UNAVAILABLE, unit="°C")
+    summer_mode_building_heat_buffer = gauge(1751, 0.1, nan=UNAVAILABLE, unit="°C")
+
+
+class WpmExtendedEnergyData(Component):
+    """Registers not every machine serves, read on their own.
+
+    A controller without them answers the block with illegal data address, which
+    would fail a pooled read for everything else too, so
+    :class:`~pystiebeleltron._components.ControllerComponents` reads this block
+    separately and drops it once the controller has refused it.
+    """
+
+    register_space = "input"
+    register_ranges = WPM_INPUT_RANGES
+
+    vd_heating_hp_1 = integer(3643, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_dhw_hp_1 = integer(3644, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_heating_hp_2 = integer(3645, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_dhw_hp_2 = integer(3646, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_heating_hp_3 = integer(3647, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_dhw_hp_3 = integer(3648, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_heating_hp_4 = integer(3649, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_dhw_hp_4 = integer(3650, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_heating_hp_5 = integer(3651, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_dhw_hp_5 = integer(3652, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_heating_hp_6 = integer(3653, signed=False, nan=UNAVAILABLE, unit="h")
+    vd_dhw_hp_6 = integer(3654, signed=False, nan=UNAVAILABLE, unit="h")
+    inverter_power_iws_1 = gauge(3679, 0.1, nan=UNAVAILABLE, unit="kW")
+    inverter_power_iws_2 = gauge(3680, 0.1, nan=UNAVAILABLE, unit="kW")
+    inverter_power_iws_3 = gauge(3681, 0.1, nan=UNAVAILABLE, unit="kW")
+    inverter_power_iws_4 = gauge(3682, 0.1, nan=UNAVAILABLE, unit="kW")
+    inverter_power_iws_5 = gauge(3683, 0.1, nan=UNAVAILABLE, unit="kW")
+    inverter_power_iws_6 = gauge(3684, 0.1, nan=UNAVAILABLE, unit="kW")
+    amount_of_heat_heating_1_24_h = scaled_sum(3689, (1, 1000), unit="Wh")
+    amount_of_heat_heating_1_12 = scaled_sum(3691, (1, 1000), unit="kWh")
+    amount_of_heat_heating_13_24 = scaled_sum(3693, (1, 1000), unit="kWh")
+    amount_of_heat_cooling_1_24_h = scaled_sum(3695, (1, 1000), unit="Wh")
+    amount_of_heat_cooling_1_12_m = scaled_sum(3697, (1, 1000), unit="kWh")
+    amount_of_heat_cooling_13_24 = scaled_sum(3699, (1, 1000), unit="kWh")
+    amount_of_heat_dhw_1_24_h__wh_wh = scaled_sum(3701, (1, 1000), unit="Wh")
+    amount_of_heat_dhw_1_12_m = scaled_sum(3703, (1, 1000), unit="kWh")
+    amount_of_heat_dhw_13_24_m = scaled_sum(3705, (1, 1000), unit="kWh")
+    heating_24h = scaled_sum(3707, (1, 1000), unit="kWh")
+    heating_12m = scaled_sum(3709, (1, 1000), unit="kWh")
+    heating_13_24 = scaled_sum(3711, (1, 1000), unit="kWh")
+    cooling_24h = scaled_sum(3713, (1, 1000), unit="kWh")
+    cooling_12m = scaled_sum(3715, (1, 1000), unit="kWh")
+    cooling_13_24 = scaled_sum(3717, (1, 1000), unit="kWh")
+    dhw_24h = scaled_sum(3719, (1, 1000), unit="kWh")
+    dhw_12m = scaled_sum(3721, (1, 1000), unit="kWh")
+    dhw_13_24 = scaled_sum(3723, (1, 1000), unit="kWh")
+    efficiency_heating_1_24_h = integer(3725, signed=False, nan=UNAVAILABLE)
+    efficiency_heating_1_12_m = integer(3726, signed=False, nan=UNAVAILABLE)
+    efficiency_heating_13_24_m = integer(3727, signed=False, nan=UNAVAILABLE)
+    efficiency_cooling_1_24_h = integer(3728, signed=False, nan=UNAVAILABLE)
+    efficiency_cooling_1_12_m = integer(3729, signed=False, nan=UNAVAILABLE)
+    efficiency_cooling_13_24_m = integer(3730, signed=False, nan=UNAVAILABLE)
+    efficiency_dhw_1_24_h = integer(3731, signed=False, nan=UNAVAILABLE)
+    efficiency_dhw_1_12_m = integer(3732, signed=False, nan=UNAVAILABLE)
+    efficiency_dhw_13_24_m = integer(3733, signed=False, nan=UNAVAILABLE)
+
+
+class WpmExtendedEnergyManagementSettings(Component):
+    """Registers not every machine serves, read on their own.
+
+    A controller without them answers the block with illegal data address, which
+    would fail a pooled read for everything else too, so
+    :class:`~pystiebeleltron._components.ControllerComponents` reads this block
+    separately and drops it once the controller has refused it.
+    """
+
+    register_space = "holding"
+    register_ranges = WPM_HOLDING_RANGES
+
     sg_ready_enabled = integer(4249, signed=False, nan=UNAVAILABLE, writable=True)
     sg_ready_input = integer(4250, signed=False, nan=UNAVAILABLE, writable=True)
     heating_buffer = integer(4251, signed=False, nan=UNAVAILABLE, writable=True)
@@ -553,12 +604,18 @@ class WpmEnergyManagementSettings(Component):
     load_temperature_dhw_2 = gauge(4277, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
 
 
-class WpmEnergySystemInformation(Component):
+class WpmExtendedEnergySystemInformation(Component):
+    """Registers not every machine serves, read on their own.
+
+    A controller without them answers the block with illegal data address, which
+    would fail a pooled read for everything else too, so
+    :class:`~pystiebeleltron._components.ControllerComponents` reads this block
+    separately and drops it once the controller has refused it.
+    """
+
     register_space = "input"
     register_ranges = WPM_INPUT_RANGES
 
-    sg_ready_operating_state = integer(5000, signed=False, nan=UNAVAILABLE)
-    controller_identification = integer(5001, signed=False, nan=UNAVAILABLE)
     sg_ready_inputs_active = integer(5219, signed=False, nan=UNAVAILABLE)
     sg_ready_bit_1 = integer(5220, signed=False, nan=UNAVAILABLE)
     sg_ready_bit_2 = integer(5221, signed=False, nan=UNAVAILABLE)
@@ -576,9 +633,13 @@ class WpmStiebelEltronAPI:
         self.energy_data = WpmEnergyData(unit)
         self.energy_management_settings = WpmEnergyManagementSettings(unit)
         self.energy_system_information = WpmEnergySystemInformation(unit)
-        self._group = ComponentGroup(
+        self.extended_system_parameters = WpmExtendedSystemParameters(unit)
+        self.extended_energy_data = WpmExtendedEnergyData(unit)
+        self.extended_energy_management_settings = WpmExtendedEnergyManagementSettings(unit)
+        self.extended_energy_system_information = WpmExtendedEnergySystemInformation(unit)
+        self._group = ControllerComponents(
             unit,
-            [
+            required=[
                 self.system_values,
                 self.system_parameters,
                 self.system_state,
@@ -586,8 +647,14 @@ class WpmStiebelEltronAPI:
                 self.energy_management_settings,
                 self.energy_system_information,
             ],
+            optional=[
+                self.extended_system_parameters,
+                self.extended_energy_data,
+                self.extended_energy_management_settings,
+                self.extended_energy_system_information,
+            ],
         )
 
     async def async_update(self) -> None:
-        """Read every component in one pooled set of block reads."""
+        """Read every component the controller serves, in one poll."""
         await self._group.async_update()

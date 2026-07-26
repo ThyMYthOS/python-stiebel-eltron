@@ -1,8 +1,3 @@
 Modbus address,Object designation,WPMsystem,WPM 3,WPM 3i,Comments,Min. value,Max. value,Data type,Unit,Write/read (w/r),Suffix
 5001,SG READY OPERATING STATE,x,x,x,,1,4,6,,r,
 5002,CONTROLLER IDENTIFICATION,x,x,x,,,,6,,r,
-5220,SG READY INPUTS ACTIVE,x,,,SG Ready inputs active,,,6,,r,
-5221,SG READY BIT 1,x,,,SG Ready bit 1,,,6,,r,
-5222,SG READY BIT 2,x,,,SG Ready bit 2,,,6,,r,
-5230,USER POWER LIMIT,x,,,User power limit,,,6,W,r,
-5231,ELECTRICAL POWER LIMIT REQUESTED,x,,,Electrical power limit,,,6,W,r,

@@ -9,7 +9,7 @@ from . import UNAVAILABLE, in_range, scaled_sum
 from ._components import ControllerComponents
 
 WPM_HOLDING_RANGES = ((1500, 1607), (1703, 1751), (4000, 4002), (4249, 4277))
-WPM_INPUT_RANGES = ((500, 609), (2500, 2572), (3500, 3642), (3643, 3733), (5000, 5001), (5219, 5230))
+WPM_INPUT_RANGES = ((500, 610), (2500, 2572), (3500, 3642), (3643, 3733), (5000, 5001), (5219, 5230))
 
 
 class WpmHeatPumpModule(Component):
@@ -90,8 +90,8 @@ class WpmSystemValues(Component):
     hot_gas_temperature = gauge(538, 0.1, nan=UNAVAILABLE, unit="°C")
     high_pressure = gauge(539, 0.1, nan=UNAVAILABLE, unit="bar")
     low_pressure = gauge(540, 0.1, nan=UNAVAILABLE, unit="bar")
-    actual_temperature_hk_3 = gauge(608, 0.1, nan=UNAVAILABLE, unit="°C")
-    set_temperature_hk_3 = gauge(609, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_temperature_hk_3 = gauge(609, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_hk_3 = gauge(610, 0.1, nan=UNAVAILABLE, unit="°C")
     heat_pumps = repeating_group(6, WpmHeatPumpModule, stride=7)
     room_temperatures = repeating_group(5, WpmRoomTemperature, stride=4)
     room_temperatures_cooling = repeating_group(5, WpmRoomTemperatureCooling, stride=1)

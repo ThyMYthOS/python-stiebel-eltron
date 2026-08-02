@@ -86,6 +86,32 @@ async def test_write_out_of_range_rejected(mock_modbus_unit: MockModbusUnit) -> 
 
 
 @pytest.mark.asyncio()
+async def test_lwz_dhw_setpoint_accepts_the_documented_model_maximum(
+    mock_modbus_unit: MockModbusUnit,
+) -> None:
+    """The LWZ hot water setpoints accept what the larger models document.
+
+    The manual states 55 °C for DHW SET DAY and DHW SET NIGHT without naming a
+    model. The ISG object database gives 65 °C for LWZ 5S Plus, 5S Smart and
+    LWZ INV on the same two registers, so a validator that stops at 55 refuses
+    a value those controllers accept.
+    """
+    api = LwzStiebelEltronAPI(mock_modbus_unit)
+
+    # dhw_set_day is a 0.1-scaled holding register at wire address 1011.
+    await api.system_parameters.write("dhw_set_day", 57)
+    assert mock_modbus_unit.holding[1011] == 570
+
+    await api.system_parameters.write("dhw_set_night", 65)
+    assert mock_modbus_unit.holding[1012] == 650
+
+    # Above the largest documented value the validator still rejects.
+    with pytest.raises(ValueError, match="outside the allowed range"):
+        await api.system_parameters.write("dhw_set_day", 66)
+    assert mock_modbus_unit.holding[1011] == 570
+
+
+@pytest.mark.asyncio()
 async def test_wpm_power_consumption_registers(mock_modbus_unit: MockModbusUnit) -> None:
     api = WpmStiebelEltronAPI(mock_modbus_unit)
     _seed(mock_modbus_unit, api.extended_energy_data)

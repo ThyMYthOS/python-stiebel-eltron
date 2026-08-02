@@ -11,8 +11,8 @@ Address",Object designation,LWZ,LWA,Comments,Min. value,Max. value,Data type,Uni
 1009,LOW END,x,x,Heating curve heating circuit 1,0,20,2,°C,r/w,HK1
 1010,GRADIENT,x,x,Heating curve heating circuit 2,0,5,7,,r/w,HK2
 1011,LOW END,x,x,Heating curve heating circuit 2,0,20,2,°C,r/w,HK2
-1012,DHW SET DAY,x,x,DHW,10,55,2,°C,r/w,
-1013,DHW SET NIGHT,x,x,DHW,10,55,2,°C,r/w,
+1012,DHW SET DAY,x,x,"DHW. The manual states 55 without naming a model; the ISG object database gives 65 for LWZ 5S Plus, 5S Smart and LWZ INV",10,65,2,°C,r/w,
+1013,DHW SET NIGHT,x,x,"DHW. The manual states 55 without naming a model; the ISG object database gives 65 for LWZ 5S Plus, 5S Smart and LWZ INV",10,65,2,°C,r/w,
 1014,DHW SET MANUAL,x,x,DHW,10,65,2,°C,r/w,
 1015,MWM SET DAY,x,,only for LWZ 504,50,288,6,l,r/w,
 1016,MWM SET NIGHT,x,,only for LWZ 504,50,288,6,l,r/w,

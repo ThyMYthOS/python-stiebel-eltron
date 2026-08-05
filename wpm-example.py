@@ -12,8 +12,6 @@ device_id = 1
 
 
 async def main():
-    # Building the connection performs no I/O; the first read establishes the
-    # link, and a later drop is re-established on the next request.
     connection = ModbusConnection(ModbusTcpParams(host=host_ip, port=host_port))
     api = WpmStiebelEltronAPI(connection.for_unit(device_id))
 

@@ -23,7 +23,7 @@ def _seed(unit: MockModbusUnit, *components: Component) -> None:
     field at address ``base + n`` decodes the raw value ``n``.
     """
     for component in components:
-        fields = component._register_fields.values()
+        fields = component.declared_fields.values()
         low = min(field.address for field in fields)
         high = max(field.address + field.count - 1 for field in fields)
         store = unit.input if component.register_space == "input" else unit.holding

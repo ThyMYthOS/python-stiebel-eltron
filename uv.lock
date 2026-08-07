@@ -349,7 +349,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "modbus-connection", extras = ["pymodbus"], specifier = ">=3.7.0" },
+    { name = "modbus-connection", extras = ["pymodbus"], specifier = ">=3.7.0,<4" },
     { name = "pymodbus", specifier = ">=3.10.0,<4" },
 ]
 

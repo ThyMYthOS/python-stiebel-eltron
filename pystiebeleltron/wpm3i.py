@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from modbus_connection import ModbusUnit
-from modbus_connection.model import Component, gauge, integer
+from modbus_connection.model import Component, boolean, gauge, integer
 
 from . import UNAVAILABLE, in_range, scaled_sum
 from ._components import ControllerComponents
@@ -86,7 +86,7 @@ class Wpm3iSystemState(Component):
 
     operating_status = integer(2500, signed=False, nan=UNAVAILABLE)
     power_off = integer(2501, signed=False, nan=UNAVAILABLE)
-    fault_status = integer(2503, signed=False, nan=UNAVAILABLE)
+    fault_status = boolean(2503, nan=UNAVAILABLE)
     bus_status = integer(2504, signed=False, nan=UNAVAILABLE)
     active_error = integer(2506, signed=False, nan=UNAVAILABLE)
 
@@ -155,9 +155,9 @@ class Wpm3iEnergyManagementSettings(Component):
     register_space = "holding"
     register_ranges = WPM3I_HOLDING_RANGES
 
-    switch_sg_ready_on_and_off = integer(4000, signed=False, nan=UNAVAILABLE, writable=in_range(0, 1))
-    sg_ready_input_1 = integer(4001, signed=False, nan=UNAVAILABLE, writable=in_range(0, 1))
-    sg_ready_input_2 = integer(4002, signed=False, nan=UNAVAILABLE, writable=in_range(0, 1))
+    switch_sg_ready_on_and_off = boolean(4000, nan=UNAVAILABLE, writable=True)
+    sg_ready_input_1 = boolean(4001, nan=UNAVAILABLE, writable=True)
+    sg_ready_input_2 = boolean(4002, nan=UNAVAILABLE, writable=True)
 
 
 class Wpm3iEnergySystemInformation(Component):

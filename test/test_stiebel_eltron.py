@@ -6,6 +6,7 @@ from modbus_connection.mock import MockModbusConnection, MockModbusUnit
 from modbus_connection.model import Component
 
 from pystiebeleltron import (
+    UNAVAILABLE,
     ControllerModel,
     StiebelEltronModbusError,
     UnknownControllerModelError,
@@ -83,6 +84,38 @@ async def test_write_out_of_range_rejected(mock_modbus_unit: MockModbusUnit) -> 
         await api.system_parameters.write("comfort_temperature_hk_1", 40)
     # The rejected write must not have reached the device.
     assert mock_modbus_unit.holding[1501] == 220
+
+
+@pytest.mark.asyncio()
+async def test_a_documented_flag_reads_as_a_bool(mock_modbus_unit: MockModbusUnit) -> None:
+    """A register the manual bounds to 0..1 decodes to True/False, not 0/1.
+
+    ``is`` rather than ``==`` because ``False == 0`` - only identity tells the
+    flag apart from the integer it used to be. A code the manual does not
+    define reads as None: a pump reported with an undefined value is unknown,
+    and taking anything non-zero as running would invent a state the
+    controller never reported.
+    """
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+
+    for raw, expected in ((1, True), (0, False), (UNAVAILABLE, None), (2, None)):
+        mock_modbus_unit.input[2508] = raw
+        await api.async_update()
+        assert api.system_state.heating_circuit_pump_1 is expected
+
+
+@pytest.mark.asyncio()
+async def test_a_writable_flag_takes_a_bool_or_the_raw_code(mock_modbus_unit: MockModbusUnit) -> None:
+    """Writing a flag accepts True/False and the 1/0 callers passed before."""
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+
+    for value in (True, 1):
+        await api.energy_management_settings.write("sg_ready_input_1", value)
+        assert mock_modbus_unit.holding[4001] == 1
+
+    for value in (False, 0):
+        await api.energy_management_settings.write("sg_ready_input_1", value)
+        assert mock_modbus_unit.holding[4001] == 0
 
 
 @pytest.mark.asyncio()

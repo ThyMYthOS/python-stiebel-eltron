@@ -181,8 +181,8 @@ def _field_factory(row: list[str], cols: Columns, *, writable: bool) -> str:
     """Render the field factory call for one register row."""
     name, data_type, unit = row[cols.name_col], row[cols.data_type_col], row[cols.unit_col]
     unit_arg = f', unit="{unit}"' if unit else ""
+    low, high = _number(row[cols.min_col]), _number(row[cols.max_col])
     if writable:
-        low, high = _number(row[cols.min_col]), _number(row[cols.max_col])
         writable_arg = f", writable=in_range({low}, {high})" if low is not None and high is not None else ", writable=True"
     else:
         writable_arg = ""
@@ -192,6 +192,11 @@ def _field_factory(row: list[str], cols: Columns, *, writable: bool) -> str:
     if data_type == "7":
         return f"gauge({wire}, 0.01, nan=UNAVAILABLE{unit_arg}{writable_arg})"
     if data_type in ("6", "8"):
+        # A documented 0..1 range is a flag, not a number worth comparing, and
+        # boolean() also turns an out-of-spec code into None rather than a
+        # value that reads as on. It takes no unit, and none of these carry one.
+        if (low, high) == (0, 1):
+            return f"boolean({wire}, nan=UNAVAILABLE{', writable=True' if writable else ''})"
         return f"integer({wire}, signed=False, nan=UNAVAILABLE{unit_arg}{writable_arg})"
     raise ValueError(f"unhandled data type {data_type!r} for {name!r}")
 
@@ -357,6 +362,8 @@ def _ranges_by_space(components: list[Component]) -> dict[str, tuple[tuple[int, 
 def _imports(controller: Controller, components: list[Component]) -> list[str]:
     """The import lines the rendered module needs, given what it uses."""
     model = ["Component", "gauge", "integer"]
+    if any("boolean(" in line for component in components for line in component.fields):
+        model.append("boolean")
     if any(component.repeats for component in components):
         model.append("repeating_group")
     local = ["UNAVAILABLE"]

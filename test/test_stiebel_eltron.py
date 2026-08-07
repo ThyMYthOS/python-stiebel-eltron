@@ -301,21 +301,11 @@ async def test_a_refused_optional_block_is_not_read_again(mock_modbus_unit: Mock
     _seed(mock_modbus_unit, api.system_values)
     mock_modbus_unit.fail_read(5219, ModbusExceptionError(2), register_type="input")
 
-    attempts = 0
-    original = mock_modbus_unit.read_input_registers
-
-    async def counting_read(address: int, count: int) -> list[int]:
-        nonlocal attempts
-        if address <= 5219 <= address + count - 1:
-            attempts += 1
-        return await original(address, count)
-
-    mock_modbus_unit.read_input_registers = counting_read  # type: ignore[method-assign]
-
     await api.async_update()
     await api.async_update()
 
-    assert attempts == 1
+    attempts = [event for event in mock_modbus_unit.read_events if event.register_type == "input" and event.address <= 5219 <= event.address + event.count - 1]
+    assert len(attempts) == 1
 
 
 @pytest.mark.asyncio()

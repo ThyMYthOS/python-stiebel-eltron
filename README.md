@@ -33,15 +33,16 @@ The package is available in the [Python Package Index](https://pypi.python.org/)
 ## Example usage of the module
 The sample below shows how to use this Python module (api for wpm heat pumps).
 
-The API takes an already-connected [`ModbusUnit`](https://github.com/home-assistant-libs/modbus-connection). You own the connection: open it, hand a unit to the API, and close it when done. Each register block is a component exposed on the API, and values are read as typed attributes (`None` when the register is unavailable).
+The API takes a [`ModbusUnit`](https://github.com/home-assistant-libs/modbus-connection). You own the connection: build it, hand a unit to the API, and close it when done. Building it performs no I/O — the first read establishes the link, and a link that drops later is re-established on the next request, over the same unit handle. Each register block is a component exposed on the API, and values are read as typed attributes (`None` when the register is unavailable).
 
 ```python
     import asyncio
-    from modbus_connection.pymodbus import connect_tcp
+    from modbus_connection import ModbusTcpParams
+    from modbus_connection.pymodbus import ModbusConnection
     from pystiebeleltron.wpm import WpmStiebelEltronAPI
 
     async def main():
-      connection = await connect_tcp('IP_ADDRESS_ISG', port=502)
+      connection = ModbusConnection(ModbusTcpParams(host='IP_ADDRESS_ISG', port=502))
       api = WpmStiebelEltronAPI(connection.for_unit(1))
 
       await api.async_update()

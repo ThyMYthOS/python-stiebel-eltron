@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import asyncio
 
-from modbus_connection.pymodbus import connect_tcp
+from modbus_connection import ModbusTcpParams
+from modbus_connection.pymodbus import ModbusConnection
 
 from pystiebeleltron.wpm import WpmStiebelEltronAPI
 
@@ -11,7 +12,7 @@ device_id = 1
 
 
 async def main():
-    connection = await connect_tcp(host_ip, port=host_port)
+    connection = ModbusConnection(ModbusTcpParams(host=host_ip, port=host_port))
     api = WpmStiebelEltronAPI(connection.for_unit(device_id))
 
     await api.async_update()

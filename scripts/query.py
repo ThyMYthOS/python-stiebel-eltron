@@ -18,13 +18,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import inspect
 import sys
 import time
 
 from modbus_connection import ModbusError, ModbusUnit
 from modbus_connection.cli_helper import CountingUnit, add_connection_args, connect_from_args, print_component
-from modbus_connection.model import Component, RepeatingGroupField
+from modbus_connection.model import Component
 
 from pystiebeleltron import StiebelEltronModbusError, UnknownControllerModelError, get_controller_model
 from pystiebeleltron.lwz import LwzStiebelEltronAPI
@@ -65,21 +64,12 @@ async def _build_api(args: argparse.Namespace, unit: ModbusUnit) -> Api:
 
 
 def _print(api: Api) -> None:
-    """Dump every component, with each repeating_group instance as its own table."""
+    """Dump every component; print_component indents the repeating groups itself."""
     for attr, component in vars(api).items():
         if not isinstance(component, Component):
             continue
-        label = attr.replace("_", " ").capitalize()
         print()
-        print_component(component, title=label)
-        cls = type(component)
-        for name in dir(component):
-            if name.startswith("_"):
-                continue
-            if isinstance(inspect.getattr_static(cls, name, None), RepeatingGroupField):
-                for index, instance in enumerate(getattr(component, name)):
-                    print()
-                    print_component(instance, title=f"{label} · {name}[{index}]")
+        print_component(component, title=attr.replace("_", " ").capitalize())
 
 
 async def _run(args: argparse.Namespace) -> int:

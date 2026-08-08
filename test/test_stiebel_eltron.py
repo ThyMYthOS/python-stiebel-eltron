@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from modbus_connection import ModbusError, ModbusExceptionError
+from modbus_connection import IllegalDataAddressError, ModbusError, ServerDeviceBusyError
 from modbus_connection.mock import MockModbusConnection, MockModbusUnit
 from modbus_connection.model import Component
 
@@ -254,7 +254,7 @@ async def test_async_update_surfaces_refused_block(mock_modbus_unit: MockModbusU
     _seed(mock_modbus_unit, api.system_values)
     # 502 falls inside the first input block; illegal-data-address (2) mimics a
     # controller that doesn't serve that block.
-    mock_modbus_unit.fail_read(502, ModbusExceptionError(2), register_type="input")
+    mock_modbus_unit.fail_read(502, IllegalDataAddressError(), register_type="input")
 
     with pytest.raises(ModbusError):
         await api.async_update()
@@ -276,7 +276,7 @@ async def test_wpm_without_the_extended_energy_registers(mock_modbus_unit: MockM
     """
     api = WpmStiebelEltronAPI(mock_modbus_unit)
     _seed(mock_modbus_unit, api.system_values, api.energy_system_information)
-    mock_modbus_unit.fail_read(5219, ModbusExceptionError(2), register_type="input")
+    mock_modbus_unit.fail_read(5219, IllegalDataAddressError(), register_type="input")
 
     await api.async_update()
 
@@ -293,7 +293,7 @@ async def test_lwz_without_the_extended_energy_registers(mock_modbus_unit: MockM
     """
     api = LwzStiebelEltronAPI(mock_modbus_unit)
     _seed(mock_modbus_unit, api.system_values, api.energy_data)
-    mock_modbus_unit.fail_read(3679, ModbusExceptionError(2), register_type="input")
+    mock_modbus_unit.fail_read(3679, IllegalDataAddressError(), register_type="input")
 
     await api.async_update()
 
@@ -312,7 +312,7 @@ async def test_a_busy_controller_does_not_lose_an_optional_block(mock_modbus_uni
     """
     api = WpmStiebelEltronAPI(mock_modbus_unit)
     _seed(mock_modbus_unit, api.system_values, api.extended_energy_system_information)
-    mock_modbus_unit.fail_read(5219, ModbusExceptionError(6), register_type="input")
+    mock_modbus_unit.fail_read(5219, ServerDeviceBusyError(), register_type="input")
 
     with pytest.raises(ModbusError):
         await api.async_update()
@@ -332,7 +332,7 @@ async def test_a_refused_optional_block_is_not_read_again(mock_modbus_unit: Mock
     """
     api = WpmStiebelEltronAPI(mock_modbus_unit)
     _seed(mock_modbus_unit, api.system_values)
-    mock_modbus_unit.fail_read(5219, ModbusExceptionError(2), register_type="input")
+    mock_modbus_unit.fail_read(5219, IllegalDataAddressError(), register_type="input")
 
     await api.async_update()
     await api.async_update()
@@ -359,7 +359,7 @@ async def test_a_failed_poll_notifies_nobody(mock_modbus_unit: MockModbusUnit) -
         notified += 1
 
     api.system_values.add_update_listener(count)
-    mock_modbus_unit.fail_read(5219, ModbusExceptionError(6), register_type="input")
+    mock_modbus_unit.fail_read(5219, ServerDeviceBusyError(), register_type="input")
 
     with pytest.raises(ModbusError):
         await api.async_update()
@@ -388,7 +388,7 @@ async def test_a_refused_block_still_notifies_the_rest(mock_modbus_unit: MockMod
         notified += 1
 
     api.system_values.add_update_listener(count)
-    mock_modbus_unit.fail_read(5219, ModbusExceptionError(2), register_type="input")
+    mock_modbus_unit.fail_read(5219, IllegalDataAddressError(), register_type="input")
 
     await api.async_update()
 
@@ -399,9 +399,7 @@ async def test_a_refused_block_still_notifies_the_rest(mock_modbus_unit: MockMod
 async def test_a_controller_refusing_everything_still_errors(mock_modbus_unit: MockModbusUnit) -> None:
     """Tolerating optional blocks must not make a mute controller look healthy."""
     api = WpmStiebelEltronAPI(mock_modbus_unit)
-    for address in (502, 1500, 3500, 5000, 5219):
-        mock_modbus_unit.fail_read(address, ModbusExceptionError(2), register_type="input")
-        mock_modbus_unit.fail_read(address, ModbusExceptionError(2), register_type="holding")
+    mock_modbus_unit.fail_requests(IllegalDataAddressError())
 
     with pytest.raises(ModbusError):
         await api.async_update()

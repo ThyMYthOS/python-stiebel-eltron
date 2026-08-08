@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from modbus_connection import IllegalDataAddressError, ModbusError, ServerDeviceBusyError
+from modbus_connection import IllegalDataAddressError, ModbusError, ReadBlock, ServerDeviceBusyError
 from modbus_connection.mock import MockModbusConnection, MockModbusUnit
 from modbus_connection.model import Component
 
@@ -314,8 +314,11 @@ async def test_a_busy_controller_does_not_lose_an_optional_block(mock_modbus_uni
     _seed(mock_modbus_unit, api.system_values, api.extended_energy_system_information)
     mock_modbus_unit.fail_read(5219, ServerDeviceBusyError(), register_type="input")
 
-    with pytest.raises(ModbusError):
+    # The busy answer reaches the caller as itself, naming the block it aborted,
+    # rather than as something the tolerance rewrapped on the way out.
+    with pytest.raises(ServerDeviceBusyError) as exc_info:
         await api.async_update()
+    assert exc_info.value.block == ReadBlock("input", 5219, 12)
 
     mock_modbus_unit.fail_read(5219, None, register_type="input")
     await api.async_update()

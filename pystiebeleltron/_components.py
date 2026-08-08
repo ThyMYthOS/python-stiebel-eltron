@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 
-from modbus_connection import BlockReadError, ExceptionCode, ModbusUnit
+from modbus_connection import IllegalDataAddressError, ModbusUnit
 from modbus_connection.model import Component, ComponentGroup
 
 _LOGGER = logging.getLogger(__package__)
@@ -73,12 +73,10 @@ class ControllerComponents:
         for component in list(self._optional):
             try:
                 await component.async_update(notify=False)
-            except BlockReadError as err:
-                # The only answer that means "not built in": device failure and
-                # device busy both say the registers are there and the read
-                # went wrong.
-                if err.exception_code != ExceptionCode.ILLEGAL_DATA_ADDRESS:
-                    raise
+            # The only answer that means "not built in": device failure and
+            # device busy both say the registers are there and the read went
+            # wrong, so they stay uncaught and fail the poll.
+            except IllegalDataAddressError as err:
                 self._optional.remove(component)
                 _LOGGER.info(
                     "The controller does not serve the registers of %s, so they stay unavailable and are not read again: %s",

@@ -354,11 +354,11 @@ def _ranges_const(controller: Controller, space: str) -> str:
 def _coalesce(spans: set[tuple[int, int]]) -> tuple[tuple[int, int], ...]:
     """Join spans that touch or overlap into the readable runs they describe.
 
-    Two blocks with nothing between them (a required block ending at 3642 and
-    the optional one starting at 3643) are one run the device answers, and
-    modbus_connection joins them itself when it resolves a map. Emitting them
-    apart makes the same map compare unequal to its own resolved form, which
-    a ``ComponentGroup`` then reports as members disagreeing on the ranges.
+    The CSVs are split the way the manual documents the registers, not the way
+    the controller serves them: the energy block ending at 3642 and the
+    extended one starting at 3643 have nothing between them, so they are one
+    run. A gap in the emitted map is what stops a read from crossing it, so
+    keeping the documentation's seam would forbid reads the device answers.
     """
     joined: list[tuple[int, int]] = []
     for low, high in sorted(spans):

@@ -12,9 +12,9 @@ from pystiebeleltron import (
     UnknownControllerModelError,
     get_controller_model,
 )
-from pystiebeleltron.lwz import LwzStiebelEltronAPI, OperatingMode
-from pystiebeleltron.wpm import WpmStiebelEltronAPI
-from pystiebeleltron.wpm3i import Wpm3iStiebelEltronAPI
+from pystiebeleltron.lwz import LWZ_HOLDING_RANGES, LWZ_INPUT_RANGES, LwzStiebelEltronAPI, OperatingMode
+from pystiebeleltron.wpm import WPM_HOLDING_RANGES, WPM_INPUT_RANGES, WpmStiebelEltronAPI
+from pystiebeleltron.wpm3i import WPM3I_HOLDING_RANGES, WPM3I_INPUT_RANGES, Wpm3iStiebelEltronAPI
 
 
 def _seed(unit: MockModbusUnit, *components: Component) -> None:
@@ -30,6 +30,24 @@ def _seed(unit: MockModbusUnit, *components: Component) -> None:
         high = max(field.address + field.count - 1 for field in fields)
         store = unit.input if component.register_space == "input" else unit.holding
         store[low] = list(range(high - low + 1))
+
+
+@pytest.mark.parametrize(
+    "ranges",
+    [WPM_HOLDING_RANGES, WPM_INPUT_RANGES, WPM3I_HOLDING_RANGES, WPM3I_INPUT_RANGES, LWZ_HOLDING_RANGES, LWZ_INPUT_RANGES],
+)
+def test_declared_ranges_are_separated_by_a_real_gap(ranges: tuple[tuple[int, int], ...]) -> None:
+    """Consecutive entries must leave at least one address unclaimed between them.
+
+    A gap in the map is what stops a read from crossing it. The manual splits
+    the registers into documentation blocks that sometimes abut - the WPM energy
+    block ends at 3642 and the extended one starts at 3643 - and emitting those
+    as two entries would forbid a single read the controller answers happily.
+    The generator joins them, so every remaining boundary is one the device
+    really has.
+    """
+    for (_, high), (low, _) in zip(ranges, ranges[1:], strict=False):
+        assert low > high + 1, f"({low}, ...) touches (..., {high}); they are one readable run"
 
 
 @pytest.mark.parametrize("api_class", [WpmStiebelEltronAPI, Wpm3iStiebelEltronAPI, LwzStiebelEltronAPI])

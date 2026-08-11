@@ -14,6 +14,7 @@ from pystiebeleltron import (
 )
 from pystiebeleltron.lwz import LwzStiebelEltronAPI, OperatingMode
 from pystiebeleltron.wpm import WpmStiebelEltronAPI
+from pystiebeleltron.wpm3i import Wpm3iStiebelEltronAPI
 
 
 def _seed(unit: MockModbusUnit, *components: Component) -> None:
@@ -29,6 +30,33 @@ def _seed(unit: MockModbusUnit, *components: Component) -> None:
         high = max(field.address + field.count - 1 for field in fields)
         store = unit.input if component.register_space == "input" else unit.holding
         store[low] = list(range(high - low + 1))
+
+
+@pytest.mark.parametrize("api_class", [WpmStiebelEltronAPI, Wpm3iStiebelEltronAPI, LwzStiebelEltronAPI])
+@pytest.mark.asyncio()
+async def test_every_field_sits_inside_a_declared_readable_range(
+    mock_modbus_unit: MockModbusUnit,
+    api_class: type[WpmStiebelEltronAPI | Wpm3iStiebelEltronAPI | LwzStiebelEltronAPI],
+) -> None:
+    """Every controller's layout must plan against the ranges it declares.
+
+    ``register_ranges`` says which addresses the controller answers, and a field
+    the map does not contain cannot be read at all, so the planner refuses to
+    build the plan rather than emitting a block the device would refuse. That
+    fails the first poll of a whole controller family, which is why each of them
+    is polled here and not only the two with value assertions below.
+    """
+    api = api_class(mock_modbus_unit)
+
+    await api.async_update()
+
+    for component in vars(api).values():
+        if not isinstance(component, Component):
+            continue
+        ranges = component.register_ranges or ()
+        for name, resolved in component.resolved_fields.items():
+            last = resolved.address + resolved.count - 1
+            assert any(low <= resolved.address and last <= high for low, high in ranges), f"{type(component).__name__}.{name} reads {resolved.address}-{last}, outside {ranges}"
 
 
 @pytest.mark.asyncio()

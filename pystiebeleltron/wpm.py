@@ -9,7 +9,7 @@ from . import UNAVAILABLE, in_range, scaled_sum
 from ._components import ControllerComponents
 
 WPM_HOLDING_RANGES = ((1500, 1607), (1703, 1751), (4000, 4002), (4249, 4277))
-WPM_INPUT_RANGES = ((500, 610), (2500, 2572), (3500, 3642), (3643, 3733), (5000, 5001), (5219, 5230))
+WPM_INPUT_RANGES = ((500, 610), (2500, 2572), (3500, 3733), (5000, 5001), (5219, 5230))
 
 
 class WpmHeatPumpModule(Component):

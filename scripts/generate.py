@@ -351,12 +351,30 @@ def _ranges_const(controller: Controller, space: str) -> str:
     return f"{controller.type.upper()}_{space.upper()}_RANGES"
 
 
+def _coalesce(spans: set[tuple[int, int]]) -> tuple[tuple[int, int], ...]:
+    """Join spans that touch or overlap into the readable runs they describe.
+
+    Two blocks with nothing between them (a required block ending at 3642 and
+    the optional one starting at 3643) are one run the device answers, and
+    modbus_connection joins them itself when it resolves a map. Emitting them
+    apart makes the same map compare unequal to its own resolved form, which
+    a ``ComponentGroup`` then reports as members disagreeing on the ranges.
+    """
+    joined: list[tuple[int, int]] = []
+    for low, high in sorted(spans):
+        if joined and low <= joined[-1][1] + 1:
+            joined[-1] = (joined[-1][0], max(joined[-1][1], high))
+        else:
+            joined.append((low, high))
+    return tuple(joined)
+
+
 def _ranges_by_space(components: list[Component]) -> dict[str, tuple[tuple[int, int], ...]]:
     """The device-wide readable ranges per space (block spans plus the shared blocks)."""
     spans: dict[str, set[tuple[int, int]]] = {}
     for component in components:
         spans.setdefault(component.register_space, set()).add((component.low, component.high))
-    return {space: tuple(sorted(ranges)) for space, ranges in spans.items()}
+    return {space: _coalesce(ranges) for space, ranges in spans.items()}
 
 
 def _imports(controller: Controller, components: list[Component]) -> list[str]:

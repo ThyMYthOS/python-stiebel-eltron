@@ -8,8 +8,8 @@ from modbus_connection.model import Component, boolean, gauge, integer, repeatin
 from . import UNAVAILABLE, in_range, scaled_sum
 from ._components import ControllerComponents
 
-WPM_HOLDING_RANGES = ((1500, 1607), (1703, 1751), (4000, 4002), (4249, 4277))
-WPM_INPUT_RANGES = ((500, 610), (2500, 2572), (3500, 3733), (5000, 5001), (5219, 5230))
+WPM_HOLDING_RANGES = ((1500, 1520), (1550, 1558), (1603, 1607), (1703, 1708), (1749, 1751), (4000, 4002), (4249, 4251), (4253, 4255), (4257, 4258), (4271, 4277))
+WPM_INPUT_RANGES = ((500, 607), (609, 610), (2500, 2546), (2560, 2565), (2569, 2572), (3500, 3654), (3679, 3684), (3689, 3733), (5000, 5001), (5219, 5221), (5229, 5230))
 
 
 class WpmHeatPumpModule(Component):

@@ -9,7 +9,7 @@ from . import UNAVAILABLE, in_range, scaled_sum
 from ._components import ControllerComponents
 
 WPM3I_HOLDING_RANGES = ((1500, 1520), (4000, 4002))
-WPM3I_INPUT_RANGES = ((500, 540), (2500, 2506), (3500, 3521), (5000, 5001))
+WPM3I_INPUT_RANGES = ((500, 526), (532, 533), (535, 540), (2500, 2501), (2503, 2504), (2506, 2506), (3500, 3521), (5000, 5001))
 
 
 class Wpm3iSystemValues(Component):

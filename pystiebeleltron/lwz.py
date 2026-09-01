@@ -10,8 +10,8 @@ from modbus_connection.model import Component, boolean, gauge, integer
 from . import UNAVAILABLE, in_range, scaled_sum
 from ._components import ControllerComponents
 
-LWZ_HOLDING_RANGES = ((1000, 1026), (4000, 4002), (4249, 4277))
-LWZ_INPUT_RANGES = ((0, 33), (2000, 2004), (3000, 3031), (3679, 3697), (5000, 5001), (5219, 5230))
+LWZ_HOLDING_RANGES = ((1000, 1026), (4000, 4002), (4249, 4251), (4253, 4258), (4271, 4277))
+LWZ_INPUT_RANGES = ((0, 33), (2000, 2004), (3000, 3031), (3679, 3679), (3689, 3697), (5000, 5001), (5219, 5221), (5229, 5230))
 
 
 class OperatingMode(Enum):

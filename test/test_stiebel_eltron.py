@@ -364,7 +364,7 @@ async def test_a_busy_controller_does_not_lose_an_optional_block(mock_modbus_uni
     # rather than as something the tolerance rewrapped on the way out.
     with pytest.raises(ServerDeviceBusyError) as exc_info:
         await api.async_update()
-    assert exc_info.value.block == ReadBlock("input", 5219, 12)
+    assert exc_info.value.block == ReadBlock("input", 5219, 3)
 
     mock_modbus_unit.fail_read(5219, None, register_type="input")
     await api.async_update()

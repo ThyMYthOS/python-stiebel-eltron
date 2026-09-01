@@ -220,6 +220,7 @@ class Component:
     ranges_const: str = ""
     low: int = 0  # first wire address the block covers
     high: int = 0  # last wire address the block covers
+    addresses: set[int] = field(default_factory=set)  # wire addresses defined by the CSV rows
     fields: list[str] = field(default_factory=list)  # "attr = factory(...)"
     repeats: list[str] = field(default_factory=list)  # "attr = repeating_group(...)"
     compressor_starts: bool = False
@@ -236,6 +237,11 @@ def _span(rows: list[list[str]]) -> tuple[int, int]:
     """The block's (low, high) wire address range, covering every row read."""
     addresses = [int(row[0]) - 1 for row in rows]
     return min(addresses), max(addresses)
+
+
+def _addresses(rows: list[list[str]]) -> set[int]:
+    """Return the wire addresses represented by CSV rows, including repeats."""
+    return {int(row[0]) - 1 for row in rows}
 
 
 def _match_repeat(suffix: str, repeats: list[Repeat]) -> tuple[Repeat, int] | None:
@@ -283,6 +289,7 @@ def _plain_component(block: Block, rows: list[list[str]], controller: Controller
         block.space,
         low=low,
         high=high,
+        addresses=_addresses(rows),
     )
     groups: dict[str, dict[int, list[list[str]]]] = {repeat.attr: {} for repeat in block.repeats}
     seen: set[str] = set()
@@ -319,6 +326,7 @@ def _energy_component(block: Block, rows: list[list[str]], controller: Controlle
         block.space,
         low=low,
         high=high,
+        addresses=_addresses(rows),
     )
     seen: set[str] = set()
 
@@ -370,11 +378,11 @@ def _coalesce(spans: set[tuple[int, int]]) -> tuple[tuple[int, int], ...]:
 
 
 def _ranges_by_space(components: list[Component]) -> dict[str, tuple[tuple[int, int], ...]]:
-    """The device-wide readable ranges per space (block spans plus the shared blocks)."""
-    spans: dict[str, set[tuple[int, int]]] = {}
+    """The device-wide readable ranges per space, split at unmapped addresses."""
+    addresses: dict[str, set[int]] = {}
     for component in components:
-        spans.setdefault(component.register_space, set()).add((component.low, component.high))
-    return {space: _coalesce(ranges) for space, ranges in spans.items()}
+        addresses.setdefault(component.register_space, set()).update(component.addresses)
+    return {space: _coalesce({(address, address) for address in space_addresses}) for space, space_addresses in addresses.items()}
 
 
 def _imports(controller: Controller, components: list[Component]) -> list[str]:

@@ -197,7 +197,7 @@ def _number(text: str) -> float | int | None:
     return int(value) if value.is_integer() else value
 
 
-def _field_factory(row: list[str], cols: Columns, *, writable: bool) -> str:
+def _field_factory(row: list[str], cols: Columns, *, writable: bool, nan: str = "UNAVAILABLE") -> str:
     """Render the field factory call for one register row."""
     name, data_type, unit = row[cols.name_col], row[cols.data_type_col], row[cols.unit_col]
     unit_arg = f', unit="{unit}"' if unit else ""
@@ -208,16 +208,16 @@ def _field_factory(row: list[str], cols: Columns, *, writable: bool) -> str:
         writable_arg = ""
     wire = int(row[0]) - 1
     if data_type == "2":
-        return f"gauge({wire}, 0.1, nan=UNAVAILABLE{unit_arg}{writable_arg})"
+        return f"gauge({wire}, 0.1, nan={nan}{unit_arg}{writable_arg})"
     if data_type == "7":
-        return f"gauge({wire}, 0.01, nan=UNAVAILABLE{unit_arg}{writable_arg})"
+        return f"gauge({wire}, 0.01, nan={nan}{unit_arg}{writable_arg})"
     if data_type in ("6", "8"):
         # A documented 0..1 range is a flag, not a number worth comparing, and
         # boolean() also turns an out-of-spec code into None rather than a
         # value that reads as on. It takes no unit, and none of these carry one.
         if (low, high) == (0, 1):
-            return f"boolean({wire}, nan=UNAVAILABLE{', writable=True' if writable else ''})"
-        return f"integer({wire}, signed=False, nan=UNAVAILABLE{unit_arg}{writable_arg})"
+            return f"boolean({wire}, nan={nan}{', writable=True' if writable else ''})"
+        return f"integer({wire}, signed=False, nan={nan}{unit_arg}{writable_arg})"
     raise ValueError(f"unhandled data type {data_type!r} for {name!r}")
 
 
@@ -324,7 +324,20 @@ def _plain_component(block: Block, rows: list[list[str]], controller: Controller
             raise ValueError(f"duplicate attribute {attribute!r} in {block.name}")
         seen.add(attribute)
         writable = "w" in row[cols.writable_col]
-        component.fields.append(f"{attribute} = {_field_factory(row, cols, writable=writable)}")
+        # Issue #64: these WPM3i optional settings use 0x9000 when off.
+        # Four views were measured off; min_source_temperature was measured
+        # at -9 C and identified as switchable by the reported ISG metadata.
+        # Do not extend this to other models merely sharing the CSV rows.
+        # https://github.com/ThyMYthOS/python-stiebel-eltron/issues/64
+        switched_off = controller.type == "Wpm3i" and (block.space, int(row[0]) - 1) in {
+            ("input", 516),  # set_fixed_temperature
+            ("input", 532),  # application_limit_hzg
+            ("input", 533),  # application_limit_ww
+            ("input", 536),  # min_source_temperature
+            ("holding", 1507),  # fixed_value_operation
+        }
+        nan = "(UNAVAILABLE, 0x9000)" if switched_off else "UNAVAILABLE"
+        component.fields.append(f"{attribute} = {_field_factory(row, cols, writable=writable, nan=nan)}")
 
     sub_components: list[SubComponent] = []
     for repeat in block.repeats:

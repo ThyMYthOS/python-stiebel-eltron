@@ -462,3 +462,65 @@ async def test_a_controller_refusing_everything_still_errors(mock_modbus_unit: M
 
     with pytest.raises(ModbusError):
         await api.async_update()
+
+
+@pytest.mark.parametrize(
+    ("component_name", "space", "address", "field_name"),
+    [
+        ("system_values", "input", 516, "set_fixed_temperature"),
+        ("system_values", "input", 532, "application_limit_hzg"),
+        ("system_values", "input", 533, "application_limit_ww"),
+        ("system_values", "input", 536, "min_source_temperature"),
+        ("system_parameters", "holding", 1507, "fixed_value_operation"),
+    ],
+)
+@pytest.mark.parametrize("api_class", [Wpm3iStiebelEltronAPI, WpmStiebelEltronAPI])
+@pytest.mark.asyncio()
+async def test_optional_temperature_off_is_model_specific(
+    mock_modbus_unit: MockModbusUnit,
+    component_name: str,
+    space: str,
+    address: int,
+    field_name: str,
+    api_class: type[Wpm3iStiebelEltronAPI | WpmStiebelEltronAPI],
+) -> None:
+    """Off is not a temperature; the next enabled reading must recover normally.
+
+    Issue #64 measured 0x9000 on four views. The fifth, min_source_temperature,
+    is a presentation-7 setting in the reported metadata, measured enabled at -9 C.
+    """
+    api = api_class(mock_modbus_unit)
+    store = mock_modbus_unit.input if space == "input" else mock_modbus_unit.holding
+    component = getattr(api, component_name)
+    off = None if api_class is Wpm3iStiebelEltronAPI else -2867.2
+    enabled = (250, 25.0) if address in (516, 1507) else (0xFFA6, -9.0)
+    for raw, expected in ((0x9000, off), (0x8000, None), enabled):
+        store[address] = raw
+        await api.async_update()
+        assert getattr(component, field_name) == expected
+
+
+@pytest.mark.parametrize("api_class", [WpmStiebelEltronAPI, Wpm3iStiebelEltronAPI, LwzStiebelEltronAPI])
+@pytest.mark.asyncio()
+async def test_other_temperature_fields_keep_their_sentinels(
+    mock_modbus_unit: MockModbusUnit,
+    api_class: type[WpmStiebelEltronAPI | Wpm3iStiebelEltronAPI | LwzStiebelEltronAPI],
+) -> None:
+    """The off marker must not become a global temperature sentinel."""
+    api = api_class(mock_modbus_unit)
+    address = 6 if api_class is LwzStiebelEltronAPI else 506
+    for raw, expected in ((0x9000, -2867.2), (0x8000, None), (0xFFA6, -9.0)):
+        mock_modbus_unit.input[address] = raw
+        await api.async_update()
+        assert api.system_values.outside_temperature == expected
+
+
+@pytest.mark.asyncio()
+async def test_fixed_temperature_write_validation_unchanged(mock_modbus_unit: MockModbusUnit) -> None:
+    api = Wpm3iStiebelEltronAPI(mock_modbus_unit)
+    await api.system_parameters.write("fixed_value_operation", 25)
+    assert mock_modbus_unit.holding[1507] == 250
+    for value in (0x9000, -2867.2, 19, 71):
+        with pytest.raises(ValueError, match="outside the allowed range"):
+            await api.system_parameters.write("fixed_value_operation", value)
+        assert mock_modbus_unit.holding[1507] == 250

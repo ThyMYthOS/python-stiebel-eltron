@@ -14,6 +14,7 @@ from pystiebeleltron import (
 )
 from pystiebeleltron.lwz import LWZ_HOLDING_RANGES, LWZ_INPUT_RANGES, LwzStiebelEltronAPI, OperatingMode
 from pystiebeleltron.wpm import WPM_HOLDING_RANGES, WPM_INPUT_RANGES, WpmStiebelEltronAPI
+from pystiebeleltron.wpm3 import WPM3_HOLDING_RANGES, WPM3_INPUT_RANGES, Wpm3StiebelEltronAPI
 from pystiebeleltron.wpm3i import WPM3I_HOLDING_RANGES, WPM3I_INPUT_RANGES, Wpm3iStiebelEltronAPI
 
 
@@ -34,7 +35,16 @@ def _seed(unit: MockModbusUnit, *components: Component) -> None:
 
 @pytest.mark.parametrize(
     "ranges",
-    [WPM_HOLDING_RANGES, WPM_INPUT_RANGES, WPM3I_HOLDING_RANGES, WPM3I_INPUT_RANGES, LWZ_HOLDING_RANGES, LWZ_INPUT_RANGES],
+    [
+        WPM_HOLDING_RANGES,
+        WPM_INPUT_RANGES,
+        WPM3_HOLDING_RANGES,
+        WPM3_INPUT_RANGES,
+        WPM3I_HOLDING_RANGES,
+        WPM3I_INPUT_RANGES,
+        LWZ_HOLDING_RANGES,
+        LWZ_INPUT_RANGES,
+    ],
 )
 def test_declared_ranges_are_separated_by_a_real_gap(ranges: tuple[tuple[int, int], ...]) -> None:
     """Consecutive entries must leave at least one address unclaimed between them.
@@ -50,11 +60,11 @@ def test_declared_ranges_are_separated_by_a_real_gap(ranges: tuple[tuple[int, in
         assert low > high + 1, f"({low}, ...) touches (..., {high}); they are one readable run"
 
 
-@pytest.mark.parametrize("api_class", [WpmStiebelEltronAPI, Wpm3iStiebelEltronAPI, LwzStiebelEltronAPI])
+@pytest.mark.parametrize("api_class", [WpmStiebelEltronAPI, Wpm3StiebelEltronAPI, Wpm3iStiebelEltronAPI, LwzStiebelEltronAPI])
 @pytest.mark.asyncio()
 async def test_every_field_sits_inside_a_declared_readable_range(
     mock_modbus_unit: MockModbusUnit,
-    api_class: type[WpmStiebelEltronAPI | Wpm3iStiebelEltronAPI | LwzStiebelEltronAPI],
+    api_class: type[WpmStiebelEltronAPI | Wpm3StiebelEltronAPI | Wpm3iStiebelEltronAPI | LwzStiebelEltronAPI],
 ) -> None:
     """Every controller's layout must plan against the ranges it declares.
 

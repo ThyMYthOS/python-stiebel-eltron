@@ -28,9 +28,10 @@ from modbus_connection.model import Component
 from pystiebeleltron import StiebelEltronModbusError, UnknownControllerModelError, get_controller_model
 from pystiebeleltron.lwz import LwzStiebelEltronAPI
 from pystiebeleltron.wpm import WpmStiebelEltronAPI
+from pystiebeleltron.wpm3 import Wpm3StiebelEltronAPI
 from pystiebeleltron.wpm3i import Wpm3iStiebelEltronAPI
 
-Api = WpmStiebelEltronAPI | Wpm3iStiebelEltronAPI | LwzStiebelEltronAPI
+Api = WpmStiebelEltronAPI | Wpm3StiebelEltronAPI | Wpm3iStiebelEltronAPI | LwzStiebelEltronAPI
 
 # The connections an ISG speaks: native Modbus TCP (socket framing), RTU over a
 # TCP gateway, or a direct serial line — no UDP/TLS.
@@ -43,13 +44,15 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     add_connection_args(parser, connections=_CONNECTIONS)
     parser.set_defaults(baudrate=19200)  # the ISG serial default, not the 9600 fallback
     parser.add_argument("--unit", type=int, default=1, help="Modbus unit/device id (default: 1)")
-    parser.add_argument("--model", choices=("wpm", "wpm3i", "lwz"), help="force the controller family instead of auto-detecting")
+    parser.add_argument("--model", choices=("wpm", "wpm3", "wpm3i", "lwz"), help="force the controller family instead of auto-detecting")
     return parser.parse_args(argv)
 
 
 async def _build_api(args: argparse.Namespace, unit: ModbusUnit) -> Api:
     if args.model == "wpm":
         return WpmStiebelEltronAPI(unit)
+    if args.model == "wpm3":
+        return Wpm3StiebelEltronAPI(unit)
     if args.model == "wpm3i":
         return Wpm3iStiebelEltronAPI(unit)
     if args.model == "lwz":
@@ -60,6 +63,8 @@ async def _build_api(args: argparse.Namespace, unit: ModbusUnit) -> Api:
         return LwzStiebelEltronAPI(unit)
     if model.name.startswith("WPM_3i"):
         return Wpm3iStiebelEltronAPI(unit)
+    if model.name.startswith("WPM_3"):
+        return Wpm3StiebelEltronAPI(unit)
     return WpmStiebelEltronAPI(unit)
 
 

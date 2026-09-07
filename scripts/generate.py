@@ -108,6 +108,26 @@ WPM = Controller(
     ],
 )
 
+WPM3 = Controller(
+    type="Wpm3",
+    columns=WPM_COLUMNS,
+    blocks=[
+        Block(
+            "System Values",
+            "wpm_system_values.csv",
+            "input",
+            repeats=[
+                Repeat("HP", "heat_pumps", "HeatPumpModule", stride=7),
+            ],
+        ),
+        Block("System Parameters", "wpm_system_parameters.csv", "holding"),
+        Block("System State", "wpm_system_state.csv", "input"),
+        Block("Energy Data", "wpm_energy_data.csv", "input", energy=True),
+        Block("Energy Management Settings", "wpm_energy_management_settings.csv", "holding"),
+        Block("Energy System Information", "wpm_energy_system_information.csv", "input"),
+    ],
+)
+
 WPM3i = Controller(
     type="Wpm3i",
     columns=WPM_COLUMNS,
@@ -421,7 +441,11 @@ def build(controller: Controller, root: Path) -> dict[str, object]:
     api_path = root / "api"
     components: list[Component] = []
     sub_components: list[SubComponent] = []
-    filter_column = 4 if controller.type == "Wpm3i" else -1
+    filter_column = -1
+    if controller.type == "Wpm3":
+        filter_column = 3
+    elif controller.type == "Wpm3i":
+        filter_column = 4
     for block in controller.blocks:
         rows = _read_rows(api_path, block)
         rows = _filter_rows(rows, filter_column)
@@ -466,7 +490,7 @@ def main() -> None:
     root = Path.cwd()
     env = Environment(loader=FileSystemLoader(TEMPLATES), trim_blocks=True, lstrip_blocks=True, keep_trailing_newline=True)
     paths = []
-    for controller in (WPM, WPM3i, LWZ):
+    for controller in (WPM, WPM3, WPM3i, LWZ):
         generate(controller, root, env)
         paths.append(str(root / f"pystiebeleltron/{controller.type.lower()}.py"))
     subprocess.run(["ruff", "format", *paths], check=True)

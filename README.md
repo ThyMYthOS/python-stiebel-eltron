@@ -48,10 +48,10 @@ The API takes a [`ModbusUnit`](https://github.com/home-assistant-libs/modbus-con
       await api.async_update()
 
       print(f"outside temperature: {api.system_values.outside_temperature}")
-      print(f"water comfort target temperature: {api.system_parameters.comfort_temperature}")
+      print(f"water comfort target temperature: {api.system_parameters.comfort_temperature_dhw}")
 
       # Writing a register:
-      await api.system_parameters.write("comfort_temperature", 50)
+      await api.system_parameters.write("comfort_temperature_dhw", 50)
 
       await connection.close()
 

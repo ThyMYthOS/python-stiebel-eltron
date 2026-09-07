@@ -268,114 +268,170 @@ class Wpm3EnergyData(Component):
 
     @property
     def vd_heating_day_and_total(self) -> int | None:
+        if self.vd_heating_day is None or self.vd_heating_total is None:
+            return None
         return self._running_totals.get("vd_heating_day_and_total")
 
     @property
     def vd_dhw_day_and_total(self) -> int | None:
+        if self.vd_dhw_day is None or self.vd_dhw_total is None:
+            return None
         return self._running_totals.get("vd_dhw_day_and_total")
 
     @property
     def vd_heating_day_and_total_consumed(self) -> int | None:
+        if self.vd_heating_day_consumed is None or self.vd_heating_total_consumed is None:
+            return None
         return self._running_totals.get("vd_heating_day_and_total_consumed")
 
     @property
     def vd_dhw_day_and_total_consumed(self) -> int | None:
+        if self.vd_dhw_day_consumed is None or self.vd_dhw_total_consumed is None:
+            return None
         return self._running_totals.get("vd_dhw_day_and_total_consumed")
 
     @property
     def vd_heating_day_and_total_hp_1(self) -> int | None:
+        if self.vd_heating_day_hp_1 is None or self.vd_heating_total_hp_1 is None:
+            return None
         return self._running_totals.get("vd_heating_day_and_total_hp_1")
 
     @property
     def vd_dhw_day_and_total_hp_1(self) -> int | None:
+        if self.vd_dhw_day_hp_1 is None or self.vd_dhw_total_hp_1 is None:
+            return None
         return self._running_totals.get("vd_dhw_day_and_total_hp_1")
 
     @property
     def vd_heating_day_and_total_consumed_hp_1(self) -> int | None:
+        if self.vd_heating_day_consumed_hp_1 is None or self.vd_heating_total_consumed_hp_1 is None:
+            return None
         return self._running_totals.get("vd_heating_day_and_total_consumed_hp_1")
 
     @property
     def vd_dhw_day_and_total_consumedhp_1(self) -> int | None:
+        if self.vd_dhw_day_consumedhp_1 is None or self.vd_dhw_total_consumed_hp_1 is None:
+            return None
         return self._running_totals.get("vd_dhw_day_and_total_consumedhp_1")
 
     @property
     def vd_heating_day_and_total_hp_2(self) -> int | None:
+        if self.vd_heating_day_hp_2 is None or self.vd_heating_total_hp_2 is None:
+            return None
         return self._running_totals.get("vd_heating_day_and_total_hp_2")
 
     @property
     def vd_dhw_day_and_total_hp_2(self) -> int | None:
+        if self.vd_dhw_day_hp_2 is None or self.vd_dhw_total_hp_2 is None:
+            return None
         return self._running_totals.get("vd_dhw_day_and_total_hp_2")
 
     @property
     def vd_heating_day_and_total_consumed_hp_2(self) -> int | None:
+        if self.vd_heating_day_consumed_hp_2 is None or self.vd_heating_total_consumed_hp_2 is None:
+            return None
         return self._running_totals.get("vd_heating_day_and_total_consumed_hp_2")
 
     @property
     def vd_dhw_day_and_total_consumed_hp_2(self) -> int | None:
+        if self.vd_dhw_day_consumed_hp_2 is None or self.vd_dhw_total_consumed_hp_2 is None:
+            return None
         return self._running_totals.get("vd_dhw_day_and_total_consumed_hp_2")
 
     @property
     def vd_heating_day_and_total_hp_3(self) -> int | None:
+        if self.vd_heating_day_hp_3 is None or self.vd_heating_total_hp_3 is None:
+            return None
         return self._running_totals.get("vd_heating_day_and_total_hp_3")
 
     @property
     def vd_dhw_day_and_total_hp_3(self) -> int | None:
+        if self.vd_dhw_day_hp_3 is None or self.vd_dhw_total_hp_3 is None:
+            return None
         return self._running_totals.get("vd_dhw_day_and_total_hp_3")
 
     @property
     def vd_heating_day_and_total_consumed_hp_3(self) -> int | None:
+        if self.vd_heating_day_consumed_hp_3 is None or self.vd_heating_total_consumed_hp_3 is None:
+            return None
         return self._running_totals.get("vd_heating_day_and_total_consumed_hp_3")
 
     @property
     def vd_dhw_day_and_total_consumed_hp_3(self) -> int | None:
+        if self.vd_dhw_day_consumed_hp_3 is None or self.vd_dhw_total_consumed_hp_3 is None:
+            return None
         return self._running_totals.get("vd_dhw_day_and_total_consumed_hp_3")
 
     @property
     def vd_heating_day_and_total_hp_4(self) -> int | None:
+        if self.vd_heating_day_hp_4 is None or self.vd_heating_total_hp_4 is None:
+            return None
         return self._running_totals.get("vd_heating_day_and_total_hp_4")
 
     @property
     def vd_dhw_day_and_total_hp_4(self) -> int | None:
+        if self.vd_dhw_day_hp_4 is None or self.vd_dhw_total_hp_4 is None:
+            return None
         return self._running_totals.get("vd_dhw_day_and_total_hp_4")
 
     @property
     def vd_heating_day_and_total_consumed_hp_4(self) -> int | None:
+        if self.vd_heating_day_consumed_hp_4 is None or self.vd_heating_total_consumed_hp_4 is None:
+            return None
         return self._running_totals.get("vd_heating_day_and_total_consumed_hp_4")
 
     @property
     def vd_dhw_day_and_total_consumed_hp_4(self) -> int | None:
+        if self.vd_dhw_day_consumed_hp_4 is None or self.vd_dhw_total_consumed_hp_4 is None:
+            return None
         return self._running_totals.get("vd_dhw_day_and_total_consumed_hp_4")
 
     @property
     def vd_heating_day_and_total_hp_5(self) -> int | None:
+        if self.vd_heating_day_hp_5 is None or self.vd_heating_total_hp_5 is None:
+            return None
         return self._running_totals.get("vd_heating_day_and_total_hp_5")
 
     @property
     def vd_dhw_day_and_total_hp_5(self) -> int | None:
+        if self.vd_dhw_day_hp_5 is None or self.vd_dhw_total_hp_5 is None:
+            return None
         return self._running_totals.get("vd_dhw_day_and_total_hp_5")
 
     @property
     def vd_heating_day_and_total_consumed_hp_5(self) -> int | None:
+        if self.vd_heating_day_consumed_hp_5 is None or self.vd_heating_total_consumed_hp_5 is None:
+            return None
         return self._running_totals.get("vd_heating_day_and_total_consumed_hp_5")
 
     @property
     def vd_dhw_day_and_total_consumed_hp_5(self) -> int | None:
+        if self.vd_dhw_day_consumed_hp_5 is None or self.vd_dhw_total_consumed_hp_5 is None:
+            return None
         return self._running_totals.get("vd_dhw_day_and_total_consumed_hp_5")
 
     @property
     def vd_heating_day_and_total_hp_6(self) -> int | None:
+        if self.vd_heating_day_hp_6 is None or self.vd_heating_total_hp_6 is None:
+            return None
         return self._running_totals.get("vd_heating_day_and_total_hp_6")
 
     @property
     def vd_dhw_day_and_total_hp_6(self) -> int | None:
+        if self.vd_dhw_day_hp_6 is None or self.vd_dhw_total_hp_6 is None:
+            return None
         return self._running_totals.get("vd_dhw_day_and_total_hp_6")
 
     @property
     def vd_heating_day_and_total_consumed_hp_6(self) -> int | None:
+        if self.vd_heating_day_consumed_hp_6 is None or self.vd_heating_total_consumed_hp_6 is None:
+            return None
         return self._running_totals.get("vd_heating_day_and_total_consumed_hp_6")
 
     @property
     def vd_dhw_day_and_total_consumed_hp_6(self) -> int | None:
+        if self.vd_dhw_day_consumed_hp_6 is None or self.vd_dhw_total_consumed_hp_6 is None:
+            return None
         return self._running_totals.get("vd_dhw_day_and_total_consumed_hp_6")
 
 

@@ -63,10 +63,10 @@ class {{ component.class_name }}(Component):
     def compressor_starts(self) -> int | None:
         """Total compressor starts, combined from the HI/LOW registers."""
         high = self.compressor_starts_hi
-        if high is None:
-            return None
         low = self.compressor_starts_low
-        return high * 1000 + (low or 0)
+        if high is None or low is None:
+            return None
+        return high * 1000 + low
 {% endif %}
 {% if component.day_and_total %}
 
@@ -94,6 +94,8 @@ class {{ component.class_name }}(Component):
 
     @property
     def {{ running }}(self) -> int | None:
+        if self.{{ day }} is None or self.{{ total }} is None:
+            return None
         return self._running_totals.get("{{ running }}")
 {% endfor %}
 {% endif %}

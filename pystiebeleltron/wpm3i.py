@@ -136,18 +136,26 @@ class Wpm3iEnergyData(Component):
 
     @property
     def vd_heating_day_and_total(self) -> int | None:
+        if self.vd_heating_day is None or self.vd_heating_total is None:
+            return None
         return self._running_totals.get("vd_heating_day_and_total")
 
     @property
     def vd_dhw_day_and_total(self) -> int | None:
+        if self.vd_dhw_day is None or self.vd_dhw_total is None:
+            return None
         return self._running_totals.get("vd_dhw_day_and_total")
 
     @property
     def vd_heating_day_and_total_consumed(self) -> int | None:
+        if self.vd_heating_day_consumed is None or self.vd_heating_total_consumed is None:
+            return None
         return self._running_totals.get("vd_heating_day_and_total_consumed")
 
     @property
     def vd_dhw_day_and_total_consumed(self) -> int | None:
+        if self.vd_dhw_day_consumed is None or self.vd_dhw_total_consumed is None:
+            return None
         return self._running_totals.get("vd_dhw_day_and_total_consumed")
 
 

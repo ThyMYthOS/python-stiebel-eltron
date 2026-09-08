@@ -69,10 +69,10 @@ class LwzSystemValues(Component):
     def compressor_starts(self) -> int | None:
         """Total compressor starts, combined from the HI/LOW registers."""
         high = self.compressor_starts_hi
-        if high is None:
-            return None
         low = self.compressor_starts_low
-        return high * 1000 + (low or 0)
+        if high is None or low is None:
+            return None
+        return high * 1000 + low
 
 
 class LwzSystemParameters(Component):
@@ -173,30 +173,44 @@ class LwzEnergyData(Component):
 
     @property
     def heat_meter_htg_day_and_total(self) -> int | None:
+        if self.heat_meter_htg_day is None or self.heat_meter_htg_ttl is None:
+            return None
         return self._running_totals.get("heat_meter_htg_day_and_total")
 
     @property
     def heat_meter_dhw_day_and_total(self) -> int | None:
+        if self.heat_meter_dhw_day is None or self.heat_meter_dhw_ttl is None:
+            return None
         return self._running_totals.get("heat_meter_dhw_day_and_total")
 
     @property
     def heat_m_recovery_day_and_total(self) -> int | None:
+        if self.heat_m_recovery_day is None or self.heat_m_recovery_ttl is None:
+            return None
         return self._running_totals.get("heat_m_recovery_day_and_total")
 
     @property
     def hm_solar_htg_day_and_total(self) -> int | None:
+        if self.hm_solar_htg_day is None or self.hm_solar_htg_total is None:
+            return None
         return self._running_totals.get("hm_solar_htg_day_and_total")
 
     @property
     def hm_solar_dhw_day_and_total(self) -> int | None:
+        if self.hm_solar_dhw_day is None or self.hm_solar_dwh_total is None:
+            return None
         return self._running_totals.get("hm_solar_dhw_day_and_total")
 
     @property
     def pwr_con_htg_day_and_total(self) -> int | None:
+        if self.pwr_con_htg_day is None or self.pwr_con_htg_ttl is None:
+            return None
         return self._running_totals.get("pwr_con_htg_day_and_total")
 
     @property
     def pwr_con_dhw_day_and_total(self) -> int | None:
+        if self.pwr_con_dhw_day is None or self.pwr_con_dhw_ttl is None:
+            return None
         return self._running_totals.get("pwr_con_dhw_day_and_total")
 
 

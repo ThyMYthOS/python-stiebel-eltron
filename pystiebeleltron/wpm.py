@@ -195,10 +195,6 @@ class WpmSystemState(Component):
     source_pump_4 = integer(2563, signed=False, nan=UNAVAILABLE)
     source_pump_5 = integer(2564, signed=False, nan=UNAVAILABLE)
     source_pump_6 = integer(2565, signed=False, nan=UNAVAILABLE)
-    extension_version = integer(2569, signed=False, nan=UNAVAILABLE)
-    major_version = integer(2570, signed=False, nan=UNAVAILABLE)
-    minor_version = integer(2571, signed=False, nan=UNAVAILABLE)
-    revision = integer(2572, signed=False, nan=UNAVAILABLE)
 
 
 class WpmEnergyData(Component):
@@ -493,6 +489,24 @@ class WpmEnergySystemInformation(Component):
     controller_identification = integer(5001, signed=False, nan=UNAVAILABLE)
 
 
+class WpmExtendedSystemState(Component):
+    """Registers not every machine serves, read on their own.
+
+    A controller without them answers the block with illegal data address, which
+    would fail a pooled read for everything else too, so
+    :class:`~pystiebeleltron._components.ControllerComponents` reads this block
+    separately and drops it once the controller has refused it.
+    """
+
+    register_space = "input"
+    register_ranges = WPM_INPUT_RANGES
+
+    extension_version = integer(2569, signed=False, nan=UNAVAILABLE)
+    major_version = integer(2570, signed=False, nan=UNAVAILABLE)
+    minor_version = integer(2571, signed=False, nan=UNAVAILABLE)
+    revision = integer(2572, signed=False, nan=UNAVAILABLE)
+
+
 class WpmExtendedSystemParameters(Component):
     """Registers not every machine serves, read on their own.
 
@@ -633,6 +647,7 @@ class WpmStiebelEltronAPI:
         self.energy_data = WpmEnergyData(unit)
         self.energy_management_settings = WpmEnergyManagementSettings(unit)
         self.energy_system_information = WpmEnergySystemInformation(unit)
+        self.extended_system_state = WpmExtendedSystemState(unit)
         self.extended_system_parameters = WpmExtendedSystemParameters(unit)
         self.extended_energy_data = WpmExtendedEnergyData(unit)
         self.extended_energy_management_settings = WpmExtendedEnergyManagementSettings(unit)
@@ -648,6 +663,7 @@ class WpmStiebelEltronAPI:
                 self.energy_system_information,
             ],
             optional=[
+                self.extended_system_state,
                 self.extended_system_parameters,
                 self.extended_energy_data,
                 self.extended_energy_management_settings,

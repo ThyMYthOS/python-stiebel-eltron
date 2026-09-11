@@ -1,0 +1,5 @@
+Modbus address,Object designation ,WPMsystem,WPM 3,WPM 3i,Comments,Min. value,Max. value,Data type,Unit,Write/ read (w/r),Suffix
+2570,EXTENSION VERSION,x,,,Version ISG,,,6,,r,
+2571,MAJOR VERSION,x,,,Version ISG,,,6,,r,
+2572,MINOR VERSION,x,,,Version ISG,,,6,,r,
+2573,REVISION,x,,,Version ISG,,,6,,r,

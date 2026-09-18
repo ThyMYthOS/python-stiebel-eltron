@@ -27,7 +27,7 @@ You need to have [Python](https://www.python.org) installed.
 The package is available in the [Python Package Index](https://pypi.python.org/).
 
 ```bash
-    $ pip install pystiebeleltron
+    $ pip install "pystiebeleltron[tmodbus]"
 ```
 
 ## Example usage of the module
@@ -38,7 +38,7 @@ The API takes a [`ModbusUnit`](https://github.com/home-assistant-libs/modbus-con
 ```python
     import asyncio
     from modbus_connection import ModbusTcpParams
-    from modbus_connection.pymodbus import ModbusConnection
+    from modbus_connection.tmodbus import ModbusConnection
     from pystiebeleltron.wpm import WpmStiebelEltronAPI
 
     async def main():

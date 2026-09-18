@@ -2,7 +2,7 @@
 import asyncio
 
 from modbus_connection import ModbusTcpParams
-from modbus_connection.pymodbus import ModbusConnection
+from modbus_connection.tmodbus import ModbusConnection
 
 from pystiebeleltron.wpm import WpmStiebelEltronAPI
 

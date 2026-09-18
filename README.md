@@ -26,9 +26,16 @@ You need to have [Python](https://www.python.org) installed.
 ## Installation
 The package is available in the [Python Package Index](https://pypi.python.org/).
 
+Base install:
+
 ```bash
     $ pip install pystiebeleltron
-    $ pip install "pystiebeleltron[tmodbus]"  # if you want the bundled tmodbus backend for the examples below
+```
+
+Install with the optional `tmodbus` backend used in the example below:
+
+```bash
+    $ pip install "pystiebeleltron[tmodbus]"
 ```
 
 ## Example usage of the module

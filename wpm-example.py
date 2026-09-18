@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""Example that uses the optional tmodbus backend.
+
+Install with: ``pip install "pystiebeleltron[tmodbus]"``.
+"""
+
 import asyncio
 
 from modbus_connection import ModbusTcpParams

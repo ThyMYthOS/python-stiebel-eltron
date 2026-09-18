@@ -27,11 +27,12 @@ You need to have [Python](https://www.python.org) installed.
 The package is available in the [Python Package Index](https://pypi.python.org/).
 
 ```bash
-    $ pip install "pystiebeleltron[tmodbus]"
+    $ pip install pystiebeleltron
+    $ pip install "pystiebeleltron[tmodbus]"  # if you want the bundled tmodbus backend for the examples below
 ```
 
 ## Example usage of the module
-The sample below shows how to use this Python module (api for wpm heat pumps).
+The sample below shows how to use this Python module (api for wpm heat pumps). It uses the optional `tmodbus` backend, so install `pystiebeleltron[tmodbus]` first.
 
 The API takes a [`ModbusUnit`](https://github.com/home-assistant-libs/modbus-connection). You own the connection: build it, hand a unit to the API, and close it when done. Building it performs no I/O — the first read establishes the link, and a link that drops later is re-established on the next request, over the same unit handle. Each register block is a component exposed on the API, and values are read as typed attributes (`None` when the register is unavailable).
 

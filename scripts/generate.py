@@ -160,6 +160,12 @@ LWZ = Controller(
     compressor_starts=True,
 )
 
+WPMG = Controller(
+    type="WpmG",
+    columns=WPM_COLUMNS,
+    blocks=[Block("System Values", "wpmg_system_values.csv", "input")],
+)
+
 # The two shared components from pystiebeleltron/__init__.py, as (low, high) wire
 # address ranges, so they join their space's device-wide ranges.
 SHARED_INPUT_RANGE = (5000, 5230)  # EnergySystemInformation
@@ -504,7 +510,7 @@ def main() -> None:
     root = Path.cwd()
     env = Environment(loader=FileSystemLoader(TEMPLATES), trim_blocks=True, lstrip_blocks=True, keep_trailing_newline=True)
     paths = []
-    for controller in (WPM, WPM3, WPM3i, LWZ):
+    for controller in (WPM, WPM3, WPM3i, LWZ, WPMG):
         generate(controller, root, env)
         paths.append(str(root / f"pystiebeleltron/{controller.type.lower()}.py"))
     subprocess.run(["ruff", "format", *paths], check=True)

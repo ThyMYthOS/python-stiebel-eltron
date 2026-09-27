@@ -1,0 +1,7 @@
+Modbus address,Object designation,WPMsystem,WPM 3,WPM 3i,Comments,Min. value,Max. value,Data type,Unit,Write/ read (w/r),Suffix
+6021,BRINE INLET TEMPERATURE,,,,ISG WPM G primary FC04 reference 36021; unavailable 0x8000,,,7,°C,r,
+6022,BRINE OUTLET TEMPERATURE,,,,ISG WPM G primary FC04 reference 36022; unavailable 0x8000,,,7,°C,r,
+6024,CONDENSER INLET TEMPERATURE,,,,ISG WPM G primary FC04 reference 36024; unavailable 0x8000,,,7,°C,r,
+6025,CONDENSER OUTLET TEMPERATURE,,,,ISG WPM G primary FC04 reference 36025; unavailable 0x8000,,,7,°C,r,
+6100,OUTSIDE TEMPERATURE AVERAGED,,,,ISG WPM G primary FC04 reference 36100; unavailable 0x8000,,,7,°C,r,
+6101,DHW TEMPERATURE WEIGHTED,,,,ISG WPM G primary FC04 reference 36101; unavailable 0x8000,,,7,°C,r,

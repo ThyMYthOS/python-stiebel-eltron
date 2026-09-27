@@ -55,3 +55,20 @@ The WPM example also demonstrates writing and restoring the DHW comfort temperat
 ## License
 
 ``python-stiebel-eltron`` is licensed under MIT, for more details check LICENSE.
+
+### Experimental ISG WPM G
+
+`pystiebeleltron.wpmg.WpmGStiebelEltronAPI(unit)` exposes six read-only
+primary-pump temperatures under `api.system_values`. Call `await api.async_update()`
+to read them. This API requires an explicitly selected ISG-backed WPM G; it does
+not extend `get_controller_model()` and does not support a direct Genesis endpoint.
+
+The FC04 wire addresses are 6020, 6021, 6023, 6024, 6099 and 6100 (ISG chapter 9
+references 36021, 36022, 36024, 36025, 36100 and 36101). Signed values use a 0.01 °C
+scale and `0x8000` means unavailable. Only the three adjacent pairs are polled.
+No holding registers, secondary units or write operations are provided.
+
+The initial capture and display comparisons are documented in
+[the WPM G alpha notes](https://github.com/Optic00/stiebel_eltron_isg_component/blob/2026.9-wpmg-alpha2/docs/wpmg-alpha-test.md).
+The condenser inlet/outlet labels still require confirmation against the device's
+flow/return labels. Successful reads alone do not establish automatic detection.

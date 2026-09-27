@@ -58,17 +58,36 @@ The WPM example also demonstrates writing and restoring the DHW comfort temperat
 
 ### Experimental ISG WPM G
 
-`pystiebeleltron.wpmg.WpmGStiebelEltronAPI(unit)` exposes six read-only
-primary-pump temperatures under `api.system_values`. Call `await api.async_update()`
-to read them. This API requires an explicitly selected ISG-backed WPM G; it does
-not extend `get_controller_model()` and does not support a direct Genesis endpoint.
+`pystiebeleltron.wpmg.WpmGStiebelEltronAPI(unit)` exposes 149 read-only primary
+fields under `system_values`, `system_state` and `alarms`: 55 numeric values and
+94 boolean status/alarm values. Call `await api.async_update()` to read them.
+Select this API explicitly for an ISG-backed WPM G. It does not extend
+`get_controller_model()` or support a direct Genesis endpoint.
 
-The FC04 wire addresses are 6020, 6021, 6023, 6024, 6099 and 6100 (ISG chapter 9
-references 36021, 36022, 36024, 36025, 36100 and 36101). Signed values use a 0.01 °C
-scale and `0x8000` means unavailable. Only the three adjacent pairs are polled.
-No holding registers, secondary units or write operations are provided.
+The mapping follows chapter 9 of the
+[ISG Modbus manual](https://www.stiebel-eltron.com.au/download/1685919441_321798-44755-9770_ISG%20Modbus_en.pdf).
+The CSV sources retain the printed primary addresses; wire addresses subtract
+one. Scales and signed types follow the documented register format. `0x8000`
+means unavailable; booleans accept only 0 and 1. Adjacent declared addresses are
+read in FC04 blocks, without polling gaps or providing writes.
 
-The initial capture and display comparisons are documented in
-[the WPM G alpha notes](https://github.com/Optic00/stiebel_eltron_isg_component/blob/2026.9-wpmg-alpha2/docs/wpmg-alpha-test.md).
-The condenser inlet/outlet labels still require confirmation against the device's
-flow/return labels. Successful reads alone do not establish automatic detection.
+Code 2 block rejections are split within a bounded exploration budget. Rejected
+single words decode as unavailable, while valid neighbours continue updating.
+They are re-probed after five minutes; `retry_failed_registers()` makes them
+eligible on the next poll. Learned splits support gateways with shorter block
+limits. Transport, busy, protocol errors and the 20-second poll timeout still
+propagate. The `polling_report` property exposes raw words, current failure
+reasons and bounded per-address history without connection identifiers.
+At most 149 normal requests and 32 exploratory requests occur in one poll;
+a healthy device needs eleven. The state belongs to this API instance only.
+
+Fourteen addresses remain excluded: room temperature (36000), counters
+(36035–36036, 36050–36055, 36121), comfort (36122), dew point (36123), and
+compressor stages/speed (37701–37702). The capture and manual disagree on scaling,
+word ordering or boolean meaning; no substitute interpretation is assumed.
+
+A diagnostic capture returned all 163 documented primary input registers on one
+installation. This supports the read path, not every physical value or state
+transition. The original six temperature attributes retain their names; the
+condenser inlet/outlet correspondence to display labels still needs confirmation.
+Secondary units and holding registers are outside this API.

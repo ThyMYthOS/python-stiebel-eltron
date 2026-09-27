@@ -163,7 +163,11 @@ LWZ = Controller(
 WPMG = Controller(
     type="WpmG",
     columns=WPM_COLUMNS,
-    blocks=[Block("System Values", "wpmg_system_values.csv", "input")],
+    blocks=[
+        Block("System Values", "wpmg_system_values.csv", "input"),
+        Block("System State", "wpmg_system_state.csv", "input"),
+        Block("Alarms", "wpmg_alarms.csv", "input"),
+    ],
 )
 
 # The two shared components from pystiebeleltron/__init__.py, as (low, high) wire
@@ -446,6 +450,8 @@ def _imports(controller: Controller, components: list[Component]) -> list[str]:
     lines.append("")
     lines.append(f"from . import {', '.join(sorted(local))}")
     lines.append("from ._components import ControllerComponents")
+    if controller.type == "WpmG":
+        lines += ["from asyncio import timeout", "from typing import Any, cast", "from ._wpmg_reader import WpmGReader"]
     return lines
 
 
@@ -485,6 +491,7 @@ def build(controller: Controller, root: Path) -> dict[str, object]:
 
     return {
         "imports": _imports(controller, components),
+        "wpmg": controller.type == "WpmG",
         "range_lines": [f"{_ranges_const(controller, space)} = {ranges[space]!r}" for space in sorted(ranges)],
         "operating_mode": controller.operating_mode,
         "lwz_helpers": controller.operating_mode,

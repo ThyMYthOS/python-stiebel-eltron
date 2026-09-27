@@ -188,3 +188,29 @@ async def test_real_poll_deadline_keeps_failed_request_context() -> None:
             await api.async_update()
     assert api.polling_report["error_type"] == "TimeoutError"
     assert api.polling_report["failed_request"] == {"wire_address": 6000, "count": 34, "error_type": "CancelledError", "exception_code": None}
+
+
+@pytest.mark.parametrize("manual_retry", [False, True])
+@pytest.mark.asyncio()
+async def test_recovered_blocks_return_to_eleven_reads(manual_retry) -> None:
+    refusing = True
+
+    async def read(address, count):
+        if refusing:
+            raise IllegalDataAddressError()
+        return [1234] * count
+
+    api = WpmGStiebelEltronAPI(SimpleNamespace(read_input_registers=read))
+    with patch("pystiebeleltron._wpmg_reader.monotonic", return_value=100):
+        for _ in range(12):
+            await api.async_update()
+    refusing = False
+    if manual_retry:
+        api.retry_failed_registers()
+    with patch("pystiebeleltron._wpmg_reader.monotonic", return_value=101 if manual_retry else 401):
+        await api.async_update()
+    assert api.polling_report["requests"] == 11
+    assert api.polling_report["split_blocks"] == []
+    assert api.polling_report["duration_seconds"] >= 0
+    assert api.system_values.brine_inlet_temperature == 12.34
+    assert not any("exception_code" in row for row in api.polling_report["registers"])

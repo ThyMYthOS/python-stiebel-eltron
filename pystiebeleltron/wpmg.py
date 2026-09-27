@@ -220,17 +220,17 @@ class WpmGStiebelEltronAPI:
         for name, field in self.system_values.resolved_fields.items():
             if (row := rows.get(field.address)) is not None:
                 row["field"] = "system_values." + name
-                if row["status"] == "ok" and getattr(self.system_values, name) is None:
+                if report["status"] in {"completed", "partial"} and row["status"] == "ok" and getattr(self.system_values, name) is None:
                     row["status"] = "invalid_value"
         for name, field in self.system_state.resolved_fields.items():
             if (row := rows.get(field.address)) is not None:
                 row["field"] = "system_state." + name
-                if row["status"] == "ok" and getattr(self.system_state, name) is None:
+                if report["status"] in {"completed", "partial"} and row["status"] == "ok" and getattr(self.system_state, name) is None:
                     row["status"] = "invalid_value"
         for name, field in self.alarms.resolved_fields.items():
             if (row := rows.get(field.address)) is not None:
                 row["field"] = "alarms." + name
-                if row["status"] == "ok" and getattr(self.alarms, name) is None:
+                if report["status"] in {"completed", "partial"} and row["status"] == "ok" and getattr(self.alarms, name) is None:
                     row["status"] = "invalid_value"
         if report["status"] == "completed" and any(row["status"] == "invalid_value" for row in rows.values()):
             report["status"] = "partial"

@@ -27,7 +27,7 @@ class WpmGReader:
     def __init__(self, unit: ModbusUnit, ranges: tuple[tuple[int, int], ...]) -> None:
         self._unit = unit
         self._retry_at: dict[int, float] = {}
-        self._split_blocks: set[tuple[int, int]] = set()
+        self._split_blocks: dict[tuple[int, int], float] = {}
         self._registers: dict[int, dict[str, Any]] = {}
         self._extra_reads = 0
         self._requests = 0
@@ -41,6 +41,7 @@ class WpmGReader:
         return self._unit.connected
 
     def start_poll(self) -> None:
+        self._started = monotonic()
         self._extra_reads = self.MAX_EXTRA_READS
         self._requests = 0
         self._poll = {"status": "running", "started_utc": datetime.now(UTC).isoformat()}
@@ -53,6 +54,7 @@ class WpmGReader:
             status="error" if error else "completed",
             finished_utc=datetime.now(UTC).isoformat(),
             requests=self._requests,
+            duration_seconds=round(monotonic() - self._started, 3),
         )
         if error is not None:
             self._poll["error_type"] = type(error).__name__
@@ -62,6 +64,7 @@ class WpmGReader:
     def retry_failed_registers(self) -> None:
         """Allow immediate re-probing on the next regular poll."""
         self._retry_at.clear()
+        self._split_blocks.clear()
 
     @property
     def report(self) -> dict[str, Any]:
@@ -89,6 +92,8 @@ class WpmGReader:
         row.update(status="device_unavailable" if status == "ok" and raw == UNAVAILABLE else status, raw_u16=raw)
         if status == "ok":
             row["last_success_utc"] = now
+            row.pop("error_type", None)
+            row.pop("exception_code", None)
         elif status == "unsupported":
             row.setdefault("first_failure_utc", now)
             row.update(last_failure_utc=now, failure_count=row["failure_count"] + 1, error_type="IllegalDataAddressError", exception_code=2)
@@ -111,7 +116,7 @@ class WpmGReader:
         # discovery on later polls instead of exhausting the budget in the same
         # parent blocks forever. At most one normal request per declared word,
         # plus MAX_EXTRA_READS exploratory requests, can reach the device.
-        if (address, count) in self._split_blocks:
+        if self._split_blocks.get((address, count), 0) > monotonic():
             midpoint = count // 2
             left = await self._read(address, midpoint, extra=False)
             right = await self._read(address + midpoint, count - midpoint, extra=False)
@@ -135,7 +140,7 @@ class WpmGReader:
                 self._retry_at[address] = monotonic() + self.RETRY_SECONDS
                 self._record(address, "unsupported")
                 return [UNAVAILABLE]
-            self._split_blocks.add((address, count))
+            self._split_blocks[address, count] = monotonic() + self.RETRY_SECONDS
             midpoint = count // 2
             left = await self._read(address, midpoint, extra=True)
             right = await self._read(address + midpoint, count - midpoint, extra=True)
@@ -143,6 +148,9 @@ class WpmGReader:
         except (Exception, CancelledError) as error:
             self._poll["failed_request"] = {"wire_address": address, "count": count, "error_type": type(error).__name__, "exception_code": getattr(error, "exception_code", None)}
             raise
+        for block in list(self._split_blocks):
+            if address <= block[0] and block[0] + block[1] <= address + count:
+                del self._split_blocks[block]
         for offset, word in enumerate(words):
             self._retry_at.pop(address + offset, None)
             self._record(address + offset, "ok", word)

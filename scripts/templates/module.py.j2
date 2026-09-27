@@ -151,7 +151,7 @@ class {{ api_class }}:
         for name, field in self.{{ member }}.resolved_fields.items():
             if (row := rows.get(field.address)) is not None:
                 row["field"] = "{{ member }}." + name
-                if row["status"] == "ok" and getattr(self.{{ member }}, name) is None:
+                if report["status"] in {"completed", "partial"} and row["status"] == "ok" and getattr(self.{{ member }}, name) is None:
                     row["status"] = "invalid_value"
 {% endfor %}
         if report["status"] == "completed" and any(row["status"] == "invalid_value" for row in rows.values()):

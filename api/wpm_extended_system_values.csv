@@ -1,0 +1,3 @@
+Modbus address,Object designation ,WPMsystem,WPM 3,WPM 3i,Comments,Min. value,Max. value,Data type,Unit,Write/ read (w/r),Suffix
+610,ACTUAL TEMPERATURE HK 3,x,,,"Documented as ISTTEMPERATUR HK 3 in manual revision A 321798-47824-0146; older revisions inspected ended the table at 608",0,90,2,°C,r,
+611,SET TEMPERATURE HK 3,x,,,"Documented as SOLLTEMPERATUR HK 3 in manual revision A 321798-47824-0146; older revisions inspected ended the table at 608",0,65,2,°C,r,

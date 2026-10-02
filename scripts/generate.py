@@ -101,6 +101,7 @@ WPM = Controller(
         Block("Energy Data", "wpm_energy_data.csv", "input", energy=True),
         Block("Energy Management Settings", "wpm_energy_management_settings.csv", "holding"),
         Block("Energy System Information", "wpm_energy_system_information.csv", "input"),
+        Block("Extended System Values", "wpm_extended_system_values.csv", "input", optional=True),
         Block("Extended System State", "wpm_extended_system_state.csv", "input", optional=True),
         Block("Extended System Parameters", "wpm_extended_system_parameters.csv", "holding", optional=True),
         Block("Extended Energy Data", "wpm_extended_energy_data.csv", "input", energy=True, optional=True),
@@ -432,6 +433,8 @@ def _ranges_by_space(components: list[Component]) -> dict[str, tuple[tuple[int, 
 def _imports(controller: Controller, components: list[Component]) -> list[str]:
     """The import lines the rendered module needs, given what it uses."""
     model = ["Component", "gauge", "integer"]
+    if controller.type != "WpmG":
+        model.append("Raw")
     if any("boolean(" in line for component in components for line in component.fields):
         model.append("boolean")
     if any(component.repeats for component in components):

@@ -4,11 +4,26 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
+from typing import Mapping
 
 from modbus_connection import IllegalDataAddressError, ModbusUnit
-from modbus_connection.model import Component, ComponentGroup
+from modbus_connection.model import Component, ComponentGroup, Raw
 
 _LOGGER = logging.getLogger(__package__)
+
+
+def _merge_raw(
+    into: Raw,
+    more: Mapping[str, Mapping[int, int | bool]],
+) -> None:
+    """Merge a raw ``{space: {address: value}}`` map into an accumulator in place."""
+    for space, values in more.items():
+        into.setdefault(space, {}).update(values)
+
+
+def _sorted_raw(raw: Raw) -> Raw:
+    """The same raw map with every space's addresses ascending."""
+    return {space: dict(sorted(values.items())) for space, values in raw.items()}
 
 
 class ControllerComponents:
@@ -88,3 +103,30 @@ class ControllerComponents:
 
         for component in (*self._required, *updated):
             component.notify()
+
+    async def async_read_raw(self) -> Raw:
+        """Read every component the controller serves, in one poll."""
+        #        return await self._group.async_read_raw()
+        raw: Raw = await self._group.async_read_raw(notify=False)
+
+        updated = []
+        for component in list(self._optional):
+            try:
+                _merge_raw(raw, await component.async_read_raw(notify=False))
+            # The only answer that means "not built in": device failure and
+            # device busy both say the registers are there and the read went
+            # wrong, so they stay uncaught and fail the poll.
+            except IllegalDataAddressError as err:
+                self._optional.remove(component)
+                _LOGGER.info(
+                    "The controller does not serve the registers of %s, so they stay unavailable and are not read again: %s",
+                    type(component).__name__,
+                    err,
+                )
+            else:
+                updated.append(component)
+
+        for component in (*self._required, *updated):
+            component.notify()
+
+        return _sorted_raw(raw)

@@ -401,8 +401,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "modbus-connection", specifier = ">=4.5.1,<5" },
-    { name = "modbus-connection", extras = ["tmodbus"], marker = "extra == 'tmodbus'", specifier = ">=4.5.1,<5" },
+    { name = "modbus-connection", specifier = ">=4.12.1,<5" },
+    { name = "modbus-connection", extras = ["tmodbus"], marker = "extra == 'tmodbus'", specifier = ">=4.12.1,<5" },
 ]
 provides-extras = ["tmodbus"]
 

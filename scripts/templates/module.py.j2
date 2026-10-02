@@ -128,6 +128,11 @@ class {{ api_class }}:
     async def async_update(self) -> None:
         """Read every component the controller serves, in one poll."""
         await self._group.async_update()
+
+    async def async_read_raw(self) -> Raw:
+        """Read every component the controller serves, in one poll."""
+        return await self._group.async_read_raw()
+
 {% if lwz_helpers %}
 
     def get_current_temp(self) -> float | None:

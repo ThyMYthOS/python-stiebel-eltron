@@ -239,6 +239,38 @@ async def test_lwz(mock_modbus_unit: MockModbusUnit) -> None:
 
 
 @pytest.mark.asyncio()
+async def test_lwz_async_read_raw(mock_modbus_unit: MockModbusUnit) -> None:
+    """Raw reads merge both register spaces and skip unavailable optional blocks."""
+    api = LwzStiebelEltronAPI(mock_modbus_unit)
+    mock_modbus_unit.input[0] = [215]
+    mock_modbus_unit.holding[1001] = 215
+    mock_modbus_unit.fail_read(3679, IllegalDataAddressError(), register_type="input")
+
+    raw = await api.async_read_raw()
+
+    assert raw["input"][0] == 215
+    assert raw["holding"][1001] == 215
+    assert 3679 not in raw["input"]
+
+
+@pytest.mark.parametrize("api_class", [WpmStiebelEltronAPI, Wpm3StiebelEltronAPI, Wpm3iStiebelEltronAPI])
+@pytest.mark.asyncio()
+async def test_async_read_raw(
+    mock_modbus_unit: MockModbusUnit,
+    api_class: type[WpmStiebelEltronAPI | Wpm3StiebelEltronAPI | Wpm3iStiebelEltronAPI],
+) -> None:
+    """Each WPM API returns raw values from both input and holding registers."""
+    api = api_class(mock_modbus_unit)
+    mock_modbus_unit.input[502] = 215
+    mock_modbus_unit.holding[1501] = 215
+
+    raw = await api.async_read_raw()
+
+    assert raw["input"][502] == 215
+    assert raw["holding"][1501] == 215
+
+
+@pytest.mark.asyncio()
 async def test_write_register(mock_modbus_unit: MockModbusUnit) -> None:
     api = LwzStiebelEltronAPI(mock_modbus_unit)
 

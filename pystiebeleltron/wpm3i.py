@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from modbus_connection import ModbusUnit
-from modbus_connection.model import Component, boolean, gauge, integer
+from modbus_connection.model import Component, Raw, boolean, gauge, integer
 
 from . import UNAVAILABLE, in_range, scaled_sum
 from ._components import ControllerComponents
@@ -201,3 +201,7 @@ class Wpm3iStiebelEltronAPI:
     async def async_update(self) -> None:
         """Read every component the controller serves, in one poll."""
         await self._group.async_update()
+
+    async def async_read_raw(self) -> Raw:
+        """Read every component the controller serves, in one poll."""
+        return await self._group.async_read_raw()

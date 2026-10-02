@@ -421,7 +421,7 @@ def _ranges_by_space(components: list[Component]) -> dict[str, tuple[tuple[int, 
 
 def _imports(controller: Controller, components: list[Component]) -> list[str]:
     """The import lines the rendered module needs, given what it uses."""
-    model = ["Component", "gauge", "integer"]
+    model = ["Component", "gauge", "integer", "Raw"]
     if any("boolean(" in line for component in components for line in component.fields):
         model.append("boolean")
     if any(component.repeats for component in components):

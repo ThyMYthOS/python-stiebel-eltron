@@ -18,12 +18,12 @@ classifiers = [
 ]
 requires-python = ">=3.12,<4"
 dependencies = [
-    "modbus-connection (>=4.5.1,<5)",
+    "modbus-connection (>=4.12.1,<5)",
 ]
 
 [project.optional-dependencies]
 tmodbus = [
-    "modbus-connection[tmodbus] (>=4.5.1,<5)",
+    "modbus-connection[tmodbus] (>=4.12.1,<5)",
 ]
 
 [build-system]

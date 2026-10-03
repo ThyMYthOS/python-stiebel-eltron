@@ -161,6 +161,16 @@ LWZ = Controller(
     compressor_starts=True,
 )
 
+WPMG = Controller(
+    type="WpmG",
+    columns=WPM_COLUMNS,
+    blocks=[
+        Block("System Values", "wpmg_system_values.csv", "input"),
+        Block("System State", "wpmg_system_state.csv", "input"),
+        Block("Alarms", "wpmg_alarms.csv", "input"),
+    ],
+)
+
 # The two shared components from pystiebeleltron/__init__.py, as (low, high) wire
 # address ranges, so they join their space's device-wide ranges.
 SHARED_INPUT_RANGE = (5000, 5230)  # EnergySystemInformation
@@ -422,7 +432,9 @@ def _ranges_by_space(components: list[Component]) -> dict[str, tuple[tuple[int, 
 
 def _imports(controller: Controller, components: list[Component]) -> list[str]:
     """The import lines the rendered module needs, given what it uses."""
-    model = ["Component", "gauge", "integer", "Raw"]
+    model = ["Component", "gauge", "integer"]
+    if controller.type != "WpmG":
+        model.append("Raw")
     if any("boolean(" in line for component in components for line in component.fields):
         model.append("boolean")
     if any(component.repeats for component in components):
@@ -441,6 +453,8 @@ def _imports(controller: Controller, components: list[Component]) -> list[str]:
     lines.append("")
     lines.append(f"from . import {', '.join(sorted(local))}")
     lines.append("from ._components import ControllerComponents")
+    if controller.type == "WpmG":
+        lines += ["from asyncio import timeout", "from typing import Any, cast", "from ._wpmg_reader import WpmGReader"]
     return lines
 
 
@@ -480,6 +494,7 @@ def build(controller: Controller, root: Path) -> dict[str, object]:
 
     return {
         "imports": _imports(controller, components),
+        "wpmg": controller.type == "WpmG",
         "range_lines": [f"{_ranges_const(controller, space)} = {ranges[space]!r}" for space in sorted(ranges)],
         "operating_mode": controller.operating_mode,
         "lwz_helpers": controller.operating_mode,
@@ -505,7 +520,7 @@ def main() -> None:
     root = Path.cwd()
     env = Environment(loader=FileSystemLoader(TEMPLATES), trim_blocks=True, lstrip_blocks=True, keep_trailing_newline=True)
     paths = []
-    for controller in (WPM, WPM3, WPM3i, LWZ):
+    for controller in (WPM, WPM3, WPM3i, LWZ, WPMG):
         generate(controller, root, env)
         paths.append(str(root / f"pystiebeleltron/{controller.type.lower()}.py"))
     subprocess.run(["ruff", "format", *paths], check=True)

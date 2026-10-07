@@ -392,7 +392,9 @@ async def test_wpm_without_extended_system_values(mock_modbus_unit: MockModbusUn
         assert api.extended_system_values.set_temperature_hk_3 is None
 
     attempts = [event for event in mock_modbus_unit.read_events if event.register_type == "input" and event.address <= 609 < event.address + event.count]
-    assert len(attempts) == 1
+    assert len(attempts) == 2  # Original refusal plus one bounded retry, never repeated on the next poll.
+    assert attempts[1].address == 500
+    assert attempts[1].count == 111
     assert attempts[0].address == 609
     assert attempts[0].count == 2
 
@@ -524,7 +526,9 @@ async def test_wpm_without_version_registers(mock_modbus_unit: MockModbusUnit) -
         assert api.extended_system_state.revision is None
 
     attempts = [event for event in mock_modbus_unit.read_events if event.register_type == "input" and event.address <= 2569 < event.address + event.count]
-    assert len(attempts) == 1
+    assert len(attempts) == 2  # The retry is also refused when any overlapping read is rejected.
+    assert attempts[1].address == 2560
+    assert attempts[1].count == 13
     assert attempts[0].address == 2569
     assert attempts[0].count == 4
 

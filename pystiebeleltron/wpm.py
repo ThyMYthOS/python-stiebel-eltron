@@ -731,7 +731,7 @@ class WpmStiebelEltronAPI:
         self.extended_energy_system_information = WpmExtendedEnergySystemInformation(unit)
         self._group = ControllerComponents(
             unit,
-            retry_input_start=True,
+            retry_register_start=True,
             required=[
                 self.system_values,
                 self.system_parameters,

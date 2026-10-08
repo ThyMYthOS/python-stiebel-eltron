@@ -9,7 +9,7 @@ from modbus_connection import IllegalDataAddressError, ModbusError, ServerDevice
 from modbus_connection.mock import MockModbusConnection, MockModbusUnit
 
 from pystiebeleltron import UNAVAILABLE
-from pystiebeleltron._read_retry import InputStartRetry
+from pystiebeleltron._read_retry import ReadStartRetry
 from pystiebeleltron.lwz import LwzStiebelEltronAPI
 from pystiebeleltron.wpm import WpmStiebelEltronAPI
 from pystiebeleltron.wpm3 import Wpm3StiebelEltronAPI
@@ -109,7 +109,7 @@ async def test_lwz_does_not_enable_start_retry() -> None:
     api = LwzStiebelEltronAPI(unit)
     with pytest.raises(IllegalDataAddressError):
         await api.async_update()
-    assert api._group._input_retry is None
+    assert api._group._read_retry is None
     assert input_requests(unit).count((5000, 2)) == 1
 
 
@@ -142,7 +142,7 @@ async def test_retry_does_not_hide_busy_or_transport_errors() -> None:
 async def test_retry_cannot_exceed_125_words(address: int, count: int) -> None:
     unit = StartRejectingUnit()
     unit.rejected_starts = {address}
-    retry = InputStartRetry(unit)
+    retry = ReadStartRetry(unit)
     await retry.read_input_registers(100, 1)
     with pytest.raises(IllegalDataAddressError):
         await retry.read_input_registers(address, count)
@@ -154,7 +154,7 @@ async def test_retry_at_125_word_limit_strips_prefix() -> None:
     unit = StartRejectingUnit()
     unit.rejected_starts = {220}
     unit.input[100] = list(range(125))
-    retry = InputStartRetry(unit)
+    retry = ReadStartRetry(unit)
     await retry.read_input_registers(100, 1)
     assert await retry.read_input_registers(220, 5) == [120, 121, 122, 123, 124]
     assert input_requests(unit) == [(100, 1), (220, 5), (100, 125)]
@@ -164,7 +164,7 @@ async def test_retry_at_125_word_limit_strips_prefix() -> None:
 async def test_new_poll_does_not_reuse_previous_poll_anchor() -> None:
     unit = StartRejectingUnit()
     unit.rejected_starts = {609}
-    retry = InputStartRetry(unit)
+    retry = ReadStartRetry(unit)
     await retry.read_input_registers(500, 108)
     retry.begin_poll()
     with pytest.raises(IllegalDataAddressError):
@@ -173,15 +173,15 @@ async def test_new_poll_does_not_reuse_previous_poll_anchor() -> None:
 
 
 @pytest.mark.asyncio
-async def test_holding_reads_and_writes_are_forwarded_without_retry() -> None:
+async def test_writes_are_forwarded_and_holding_retry_errors_propagate() -> None:
     unit = StartRejectingUnit()
-    retry = InputStartRetry(unit)
+    retry = ReadStartRetry(unit)
     await retry.write_register(1500, 3)
     assert await retry.read_holding_registers(1500, 1) == [3]
     unit.fail_read(1600, IllegalDataAddressError(), register_type="holding")
     with pytest.raises(IllegalDataAddressError):
         await retry.read_holding_registers(1600, 1)
-    assert [(event.address, event.count) for event in unit.read_events] == [(1500, 1), (1600, 1)]
+    assert [(event.address, event.count) for event in unit.read_events] == [(1500, 1), (1600, 1), (1500, 101)]
 
 
 @pytest.mark.asyncio

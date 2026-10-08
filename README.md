@@ -52,6 +52,10 @@ Pass the IP address of the ISG gateway to the selected example:
 
 The WPM example also demonstrates writing and restoring the DHW comfort temperature. The LWZ example reads room and outside temperatures and the current operating mode.
 
+For a read-only WPM library check outside Home Assistant, use `examples/wpm-readonly-check.py` in a separate virtual environment. Select `--family wpm`, `wpm3` or `wpm3i`, and pass `--confirm-read-only`. It performs one poll by default (`--polls` accepts at most three); `--raw` exercises raw reads without printing register values. The output contains package versions, a retry-module fingerprint and request outcomes, excluding host addresses and register values. The wrapper permits only input and holding reads and rejects all write operations. This checks the library, not Home Assistant compatibility.
+
+WPM API polls retry an illegal-address input or holding read at most once from a lower start answered directly in the same register space and poll, when the expanded read fits within 125 registers. Healthy reads and writes are unchanged; LWZ does not opt in. A rejected block costs one failed original request and at most one additional read on every poll. A successful retry does not establish that the target registers exist; unavailable words still decode as `None`.
+
 ## License
 
 ``python-stiebel-eltron`` is licensed under MIT, for more details check LICENSE.

@@ -45,6 +45,6 @@ class ReadStartRetry:
                 raise
             start = max(candidates)
             values = await read(start, address + count - start)
-            return values[address - start:]
+            return values[address - start :]
         starts.add(address)
         return values

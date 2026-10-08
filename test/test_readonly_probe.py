@@ -40,7 +40,7 @@ async def test_probe_completes_bounded_mock_polls_without_writes_or_values(capsy
     assert not writes
     output = capsys.readouterr().out
     assert '"poll": 2' in output
-    assert '12345' not in output
+    assert "12345" not in output
     assert '"space": "holding"' in output
 
 

@@ -86,8 +86,7 @@ class ControllerComponents:
         self._group = ComponentGroup(read_unit, self._required)
         self._optional = list(optional)
         self._optional_readers: dict[Component, Component | ComponentGroup] = {
-            component: ComponentGroup(read_unit, [component]) if self._read_retry is not None else component
-            for component in self._optional
+            component: ComponentGroup(read_unit, [component]) if self._read_retry is not None else component for component in self._optional
         }
         # Optional components the controller has answered at least once, and
         # those of them whose refusal has been logged since their last answer.

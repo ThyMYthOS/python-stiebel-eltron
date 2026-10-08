@@ -295,3 +295,79 @@ async def test_holding_chooses_nearest_of_two_eligible_anchors() -> None:
     await retry.read_holding_registers(110, 1)
     await retry.read_holding_registers(220, 5)
     assert reads(unit, "holding") == [(100, 1), (110, 1), (220, 5), (110, 115)]
+
+
+class ReportedHoldingTraceUnit(HoldingStartUnit):
+    """Reproduce only public reads from tnomas' hardware report6053518891."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.reject_input.update({609, 5219})
+        self.reject_holding.update({1548, 1558, 1600, 1602, 1700, 1703, 1740, 1749})
+        for address in (*range(500, 611), *range(2500, 2573)):
+            self.input[address] = UNAVAILABLE
+        self.input[506] = 215
+        for address in (*range(1550, 1559), *range(1603, 1608), *range(1703, 1752)):
+            self.holding[address] = UNAVAILABLE
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("start", "end", "accepted"),
+    [
+        (1500, 1520, True),
+        (1500, 1558, True),
+        (1520, 1558, True),
+        (1548, 1558, False),
+        (1500, 1607, True),
+        (1520, 1607, True),
+        (1558, 1607, False),
+        (1600, 1607, False),
+        (1602, 1607, False),
+        (1700, 1708, False),
+        (1703, 1708, False),
+        (1740, 1751, False),
+        (1749, 1751, False),
+    ],
+)
+async def test_public_holding_trace_read_outcomes(start: int, end: int, accepted: bool) -> None:
+    unit = ReportedHoldingTraceUnit()
+    if accepted:
+        words = await unit.read_holding_registers(start, end - start + 1)
+        for address in range(start, end + 1):
+            if 1550 <= address <= 1558 or 1603 <= address <= 1607:
+                assert words[address - start] == UNAVAILABLE
+    else:
+        with pytest.raises(IllegalDataAddressError):
+            await unit.read_holding_registers(start, end - start + 1)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("raw", [False, True])
+async def test_public_trace_three_polls_recover_required_and_drop_optional(raw: bool) -> None:
+    unit = ReportedHoldingTraceUnit()
+    api = WpmStiebelEltronAPI(unit)
+    writes = []
+    unit.on_write(writes.append)
+    for poll in range(3):
+        unit.read_events.clear()
+        if raw:
+            data = await api._group.async_read_raw()
+            assert all(data["holding"][address] == UNAVAILABLE for address in (*range(1550, 1559), *range(1603, 1608)))
+        else:
+            await api.async_update()
+        assert api.system_values.outside_temperature == 21.5
+        assert api.system_parameters.comfort_temperature_hk_3 is None
+        assert api.system_parameters.set_temperature_cc_1_hk_1 is None
+        requests = reads(unit, "holding")
+        assert requests.index((1500, 21)) < requests.index((1550, 9)) < requests.index((1500, 59))
+        assert requests.index((1603, 5)) < requests.index((1500, 108))
+        assert requests.count((1703, 6)) == (1 if poll == 0 else 0)
+        assert (1500, 209) not in requests
+        # 1703 and1749 belong to the same optional component, dropped at1703.
+        assert all(address != 1749 for address, _ in requests)
+        assert api.extended_system_parameters not in api._group._optional
+        assert api.extended_energy_system_information not in api._group._optional
+        assert ("input", 5219, 3) in {(e.register_type, e.address, e.count) for e in unit.read_events} if poll == 0 else all(e.address != 5219 for e in unit.read_events)
+        assert all(count <= 125 for _, count in requests)
+    assert not writes

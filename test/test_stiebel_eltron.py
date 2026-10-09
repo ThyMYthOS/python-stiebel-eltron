@@ -453,6 +453,27 @@ async def test_a_served_optional_block_refused_later_fails_the_poll(mock_modbus_
 
 
 @pytest.mark.asyncio()
+async def test_a_refused_served_block_is_logged_once_per_outage(mock_modbus_unit: MockModbusUnit, caplog: pytest.LogCaptureFixture) -> None:
+    """The failing polls explain themselves once, not on every poll."""
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    mock_modbus_unit.input[609] = [217, 225]
+    await api.async_update()
+
+    mock_modbus_unit.fail_read(609, IllegalDataAddressError(), register_type="input")
+    for _ in range(2):
+        with pytest.raises(IllegalDataAddressError):
+            await api.async_update()
+    mock_modbus_unit.fail_read(609, None, register_type="input")
+    await api.async_update()
+    mock_modbus_unit.fail_read(609, IllegalDataAddressError(), register_type="input")
+    with pytest.raises(IllegalDataAddressError):
+        await api.async_update()
+
+    warnings = [record for record in caplog.records if "answered them before" in record.getMessage()]
+    assert len(warnings) == 2
+
+
+@pytest.mark.asyncio()
 async def test_a_block_served_to_a_raw_read_counts_as_served(mock_modbus_unit: MockModbusUnit) -> None:
     """A raw read that got the block marks it as served just like an update."""
     api = WpmStiebelEltronAPI(mock_modbus_unit)

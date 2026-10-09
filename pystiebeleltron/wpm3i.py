@@ -188,6 +188,7 @@ class Wpm3iStiebelEltronAPI:
         self.energy_system_information = Wpm3iEnergySystemInformation(unit)
         self._group = ControllerComponents(
             unit,
+            retry_register_start=True,
             required=[
                 self.system_values,
                 self.system_parameters,

@@ -487,6 +487,7 @@ def build(controller: Controller, root: Path) -> dict[str, object]:
         "components": components,
         "api_class": f"{controller.type}StiebelEltronAPI",
         "members": [(component.member, component.class_name) for component in components],
+        "retry_register_start": controller.type in {"Wpm", "Wpm3", "Wpm3i"},
         "required_members": [component.member for component in components if not component.optional],
         "optional_members": [component.member for component in components if component.optional],
         "holding_ranges_const": _ranges_const(controller, "holding"),

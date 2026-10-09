@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Iterable
 from typing import Mapping
 
 from modbus_connection import IllegalDataAddressError, ModbusUnit
 from modbus_connection.model import Component, ComponentGroup, Raw
+
+from ._read_retry import ReadStartRetry
 
 _LOGGER = logging.getLogger(__package__)
 
@@ -52,6 +55,15 @@ class ControllerComponents:
     not expose. The refusal fails the poll instead, and the block is read again
     on the next one.
 
+    With retry_register_start, polls retry an illegal-address register read once from a start already
+    answered in the same poll, if the expanded read fits within 125 registers.
+    Input and holding starts are tracked separately; writes never retry. Each
+    refused block costs one failed request and at most one extra read per poll.
+    Other errors are unchanged. An anchor does not guarantee the retry succeeds.
+    Optional blocks recovered this way remain in the poll: their returned words
+    are decoded normally, including the unavailable sentinel. A successful
+    expanded read does not establish that every included register exists.
+
     An optional component costs one extra read per poll while the controller
     does serve it. That is the price of being able to tell "this machine does
     not have it" from "this read failed", which the protocol itself does not
@@ -63,11 +75,19 @@ class ControllerComponents:
         unit: ModbusUnit,
         required: Iterable[Component],
         optional: Iterable[Component] = (),
+        *,
+        retry_register_start: bool = False,
     ) -> None:
         """Pool ``required`` into one read; read each of ``optional`` on its own."""
+        self._read_retry = ReadStartRetry(unit) if retry_register_start else None
+        self._poll_lock = asyncio.Lock()
+        read_unit: ModbusUnit = self._read_retry if self._read_retry is not None else unit
         self._required = list(required)
-        self._group = ComponentGroup(unit, self._required)
+        self._group = ComponentGroup(read_unit, self._required)
         self._optional = list(optional)
+        self._optional_readers: dict[Component, Component | ComponentGroup] = {
+            component: ComponentGroup(read_unit, [component]) if self._read_retry is not None else component for component in self._optional
+        }
         # Optional components the controller has answered at least once, and
         # those of them whose refusal has been logged since their last answer.
         self._served: list[Component] = []
@@ -99,6 +119,7 @@ class ControllerComponents:
                 )
             raise err
         self._optional.remove(component)
+        del self._optional_readers[component]
         _LOGGER.info(
             "The controller does not serve the registers of %s, so they stay unavailable and are not read again: %s",
             type(component).__name__,
@@ -122,42 +143,47 @@ class ControllerComponents:
         block, leaving them acting on half a poll - which one pooled read never
         did.
         """
-        await self._group.async_update(notify=False)
-        updated = []
-        for component in list(self._optional):
-            try:
-                await component.async_update(notify=False)
-            # The only answer that means "not built in": device failure and
-            # device busy both say the registers are there and the read went
-            # wrong, so they stay uncaught and fail the poll.
-            except IllegalDataAddressError as err:
-                self._drop_unserved(component, err)
-            else:
-                self._mark_served(component)
-                updated.append(component)
+        async with self._poll_lock:
+            if self._read_retry is not None:
+                self._read_retry.begin_poll()
+            await self._group.async_update(notify=False)
+            updated = []
+            for component in list(self._optional):
+                try:
+                    await self._optional_readers[component].async_update(notify=False)
+                # The only answer that means "not built in": device failure and
+                # device busy both say the registers are there and the read went
+                # wrong, so they stay uncaught and fail the poll.
+                except IllegalDataAddressError as err:
+                    self._drop_unserved(component, err)
+                else:
+                    self._mark_served(component)
+                    updated.append(component)
 
-        for component in (*self._required, *updated):
-            component.notify()
+            for component in (*self._required, *updated):
+                component.notify()
 
     async def async_read_raw(self) -> Raw:
         """Read every component the controller serves, in one poll."""
-        #        return await self._group.async_read_raw()
-        raw: Raw = await self._group.async_read_raw(notify=False)
+        async with self._poll_lock:
+            if self._read_retry is not None:
+                self._read_retry.begin_poll()
+            raw: Raw = await self._group.async_read_raw(notify=False)
 
-        updated = []
-        for component in list(self._optional):
-            try:
-                _merge_raw(raw, await component.async_read_raw(notify=False))
-            # The only answer that means "not built in": device failure and
-            # device busy both say the registers are there and the read went
-            # wrong, so they stay uncaught and fail the poll.
-            except IllegalDataAddressError as err:
-                self._drop_unserved(component, err)
-            else:
-                self._mark_served(component)
-                updated.append(component)
+            updated = []
+            for component in list(self._optional):
+                try:
+                    _merge_raw(raw, await self._optional_readers[component].async_read_raw(notify=False))
+                # The only answer that means "not built in": device failure and
+                # device busy both say the registers are there and the read went
+                # wrong, so they stay uncaught and fail the poll.
+                except IllegalDataAddressError as err:
+                    self._drop_unserved(component, err)
+                else:
+                    self._mark_served(component)
+                    updated.append(component)
 
-        for component in (*self._required, *updated):
-            component.notify()
+            for component in (*self._required, *updated):
+                component.notify()
 
-        return _sorted_raw(raw)
+            return _sorted_raw(raw)

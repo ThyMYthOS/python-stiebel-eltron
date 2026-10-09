@@ -112,6 +112,9 @@ class {{ api_class }}:
 {% endfor %}
         self._group = ControllerComponents(
             unit,
+{% if retry_register_start %}
+            retry_register_start=True,
+{% endif %}
             required=[
 {% for member in required_members %}
                 self.{{ member }},

@@ -68,13 +68,17 @@ class ControllerComponents:
         self._required = list(required)
         self._group = ComponentGroup(unit, self._required)
         self._optional = list(optional)
-        # Optional components the controller has answered at least once.
+        # Optional components the controller has answered at least once, and
+        # those of them whose refusal has been logged since their last answer.
         self._served: list[Component] = []
+        self._refusal_logged: list[Component] = []
 
     def _mark_served(self, component: Component) -> None:
         """Remember that the controller has answered this optional component."""
         if component not in self._served:
             self._served.append(component)
+        if component in self._refusal_logged:
+            self._refusal_logged.remove(component)
 
     def _drop_unserved(self, component: Component, err: IllegalDataAddressError) -> None:
         """Stop reading a refused optional component, unless it was answered before.
@@ -84,6 +88,15 @@ class ControllerComponents:
         of showing the last values as current.
         """
         if component in self._served:
+            # The read error alone looks like a controller without the block,
+            # so say once why the poll fails until the block is answered again.
+            if component not in self._refusal_logged:
+                self._refusal_logged.append(component)
+                _LOGGER.warning(
+                    "The controller refused the registers of %s although it answered them before, so polls fail until it answers them again; reload the integration if this persists: %s",
+                    type(component).__name__,
+                    err,
+                )
             raise err
         self._optional.remove(component)
         _LOGGER.info(

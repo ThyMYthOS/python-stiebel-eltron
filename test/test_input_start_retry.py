@@ -262,3 +262,23 @@ async def test_optional_retry_transient_failure_propagates_and_keeps_component(e
     unit.fail_retry = False
     await api.async_update()
     assert notifications == [True]
+
+
+@pytest.mark.asyncio
+async def test_block_served_by_retry_then_refused_fails_the_poll() -> None:
+    """A block the retry recovered counts as answered when it is refused later."""
+    unit = StartRejectingUnit()
+    unit.input[609] = [217, 225]
+    api = WpmStiebelEltronAPI(unit)
+    await api.async_update()
+    assert api.extended_system_values.actual_temperature_hk_3 == 21.7
+
+    # Refuse the direct read and the expanded retry that covers 609.
+    unit.fail_read(609, IllegalDataAddressError(), register_type="input")
+    with pytest.raises(IllegalDataAddressError):
+        await api.async_update()
+
+    unit.fail_read(609, None, register_type="input")
+    unit.input[609] = [218, 225]
+    await api.async_update()
+    assert api.extended_system_values.actual_temperature_hk_3 == 21.8

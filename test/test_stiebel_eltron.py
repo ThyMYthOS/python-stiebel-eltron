@@ -428,6 +428,31 @@ async def test_wpm_busy_extended_system_values_are_retried(mock_modbus_unit: Moc
 
 
 @pytest.mark.asyncio()
+async def test_a_served_optional_block_refused_later_fails_the_poll(mock_modbus_unit: MockModbusUnit) -> None:
+    """A block the controller has answered is not dropped over a later refusal.
+
+    Dropping it would keep its last values while every later poll succeeds, so
+    they would read as current. The refusal fails the poll instead, and the
+    block is read again until the controller answers it.
+    """
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    mock_modbus_unit.input[609] = [217, 225]
+    await api.async_update()
+    assert api.extended_system_values.actual_temperature_hk_3 == 21.7
+
+    mock_modbus_unit.fail_read(609, IllegalDataAddressError(), register_type="input")
+    with pytest.raises(IllegalDataAddressError):
+        await api.async_update()
+    with pytest.raises(IllegalDataAddressError):
+        await api.async_read_raw()
+
+    mock_modbus_unit.fail_read(609, None, register_type="input")
+    mock_modbus_unit.input[609] = [218, 225]
+    await api.async_update()
+    assert api.extended_system_values.actual_temperature_hk_3 == 21.8
+
+
+@pytest.mark.asyncio()
 async def test_wpm_without_version_registers(mock_modbus_unit: MockModbusUnit) -> None:
     """Refusing version registers must not break polls (pail23/stiebel_eltron_isg_component#693)."""
     api = WpmStiebelEltronAPI(mock_modbus_unit)

@@ -453,6 +453,39 @@ async def test_a_served_optional_block_refused_later_fails_the_poll(mock_modbus_
 
 
 @pytest.mark.asyncio()
+async def test_a_block_served_to_a_raw_read_counts_as_served(mock_modbus_unit: MockModbusUnit) -> None:
+    """A raw read that got the block marks it as served just like an update."""
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    mock_modbus_unit.input[609] = [217, 225]
+    await api.async_read_raw()
+
+    mock_modbus_unit.fail_read(609, IllegalDataAddressError(), register_type="input")
+    with pytest.raises(IllegalDataAddressError):
+        await api.async_update()
+
+
+@pytest.mark.asyncio()
+async def test_a_refused_served_block_notifies_nobody(mock_modbus_unit: MockModbusUnit) -> None:
+    """The failed poll does not tell listeners that any value is fresh."""
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    mock_modbus_unit.input[609] = [217, 225]
+    await api.async_update()
+    notified = 0
+
+    def count() -> None:
+        nonlocal notified
+        notified += 1
+
+    api.system_values.add_update_listener(count)
+    api.extended_system_values.add_update_listener(count)
+    mock_modbus_unit.fail_read(609, IllegalDataAddressError(), register_type="input")
+    with pytest.raises(IllegalDataAddressError):
+        await api.async_update()
+
+    assert notified == 0
+
+
+@pytest.mark.asyncio()
 async def test_wpm_without_version_registers(mock_modbus_unit: MockModbusUnit) -> None:
     """Refusing version registers must not break polls (pail23/stiebel_eltron_isg_component#693)."""
     api = WpmStiebelEltronAPI(mock_modbus_unit)

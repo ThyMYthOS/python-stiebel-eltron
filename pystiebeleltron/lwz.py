@@ -237,7 +237,8 @@ class LwzExtendedEnergyData(Component):
     A controller without them answers the block with illegal data address, which
     would fail a pooled read for everything else too, so
     :class:`~pystiebeleltron._components.ControllerComponents` reads this block
-    separately and drops it once the controller has refused it.
+    separately and drops it once the controller has refused it without ever
+    having answered it.
     """
 
     register_space = "input"
@@ -261,7 +262,8 @@ class LwzExtendedEnergyManagementSettings(Component):
     A controller without them answers the block with illegal data address, which
     would fail a pooled read for everything else too, so
     :class:`~pystiebeleltron._components.ControllerComponents` reads this block
-    separately and drops it once the controller has refused it.
+    separately and drops it once the controller has refused it without ever
+    having answered it.
     """
 
     register_space = "holding"
@@ -291,7 +293,8 @@ class LwzExtendedEnergySystemInformation(Component):
     A controller without them answers the block with illegal data address, which
     would fail a pooled read for everything else too, so
     :class:`~pystiebeleltron._components.ControllerComponents` reads this block
-    separately and drops it once the controller has refused it.
+    separately and drops it once the controller has refused it without ever
+    having answered it.
     """
 
     register_space = "input"

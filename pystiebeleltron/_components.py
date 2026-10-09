@@ -46,10 +46,11 @@ class ControllerComponents:
     before any value was stored, so its fields read ``None`` from then on, the
     same as a value the controller reports as unavailable. A block that answered
     once and is refused later - a module switched off, new firmware, a different
-    device on that address - keeps the values of its last successful read
-    instead, until the object is rebuilt. Clearing them would take a public way
-    to invalidate a ``Component``'s cache, which ``modbus_connection`` does not
-    expose.
+    device on that address - is not dropped: its values would otherwise read as
+    current until the object is rebuilt, and clearing them would take a public
+    way to invalidate a ``Component``'s cache, which ``modbus_connection`` does
+    not expose. The refusal fails the poll instead, and the block is read again
+    on the next one.
 
     An optional component costs one extra read per poll while the controller
     does serve it. That is the price of being able to tell "this machine does

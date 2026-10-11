@@ -185,17 +185,97 @@ async def test_writes_are_forwarded_and_holding_retry_errors_propagate() -> None
 
 
 @pytest.mark.asyncio
-async def test_required_recovery_reestablishes_anchor_on_each_poll() -> None:
+async def test_recovered_reads_skip_the_refused_request_on_later_polls() -> None:
     unit = StartRejectingUnit()
     api = WpmStiebelEltronAPI(unit)
+    await api.async_update()
+    first = input_requests(unit)
+    assert first.index((2500, 47)) < first.index((2560, 6)) < first.index((2500, 66))
+    assert (609, 2) in first and (500, 111) in first
+
     for _ in range(2):
         unit.read_events.clear()
         await api.async_update()
         requests = input_requests(unit)
-        assert requests.index((2500, 47)) < requests.index((2560, 6)) < requests.index((2500, 66))
+        # The remembered start is read directly; the refused starts are not sent again.
+        assert (2560, 6) not in requests and (609, 2) not in requests
+        assert (2500, 66) in requests and (500, 111) in requests
+        assert all(address not in unit.rejected_starts for address, _ in requests)
         # Successful optional retries remain active, preserving the returned NaNs.
-        assert (609, 2) in requests and (500, 111) in requests
         assert api.extended_system_values.actual_temperature_hk_3 is None
+        assert api.system_values.outside_temperature == 21.5
+
+
+@pytest.mark.asyncio
+async def test_recovered_read_is_remembered_across_polls() -> None:
+    unit = StartRejectingUnit()
+    unit.rejected_starts = {609}
+    unit.input[609] = [217, 225]
+    retry = ReadStartRetry(unit)
+    await retry.read_input_registers(500, 108)
+    assert await retry.read_input_registers(609, 2) == [217, 225]
+    retry.begin_poll()
+    unit.read_events.clear()
+    # No anchor in this poll yet: the remembered start serves the read anyway.
+    assert await retry.read_input_registers(609, 2) == [217, 225]
+    assert input_requests(unit) == [(500, 111)]
+
+
+@pytest.mark.asyncio
+async def test_refused_remembered_read_is_forgotten_and_takes_the_normal_path() -> None:
+    class AnchorRefusingUnit(StartRejectingUnit):
+        refuse_anchor = False
+
+        async def read_input_registers(self, address: int, count: int) -> list[int]:
+            values = await super().read_input_registers(address, count)
+            if self.refuse_anchor and (address, count) == (500, 111):
+                raise IllegalDataAddressError()
+            return values
+
+    unit = AnchorRefusingUnit()
+    unit.rejected_starts = {609}
+    unit.input[609] = [217, 225]
+    retry = ReadStartRetry(unit)
+    await retry.read_input_registers(500, 108)
+    await retry.read_input_registers(609, 2)
+
+    retry.begin_poll()
+    unit.read_events.clear()
+    unit.refuse_anchor = True
+    unit.rejected_starts = set()
+    # The controller now answers 609 itself.
+    assert await retry.read_input_registers(609, 2) == [217, 225]
+    assert input_requests(unit) == [(500, 111), (609, 2)]
+
+    unit.read_events.clear()
+    assert await retry.read_input_registers(609, 2) == [217, 225]
+    assert input_requests(unit) == [(609, 2)]
+
+
+@pytest.mark.asyncio
+async def test_remembered_read_keeps_other_errors_and_memory() -> None:
+    class BusyAnchorUnit(StartRejectingUnit):
+        busy = False
+
+        async def read_input_registers(self, address: int, count: int) -> list[int]:
+            values = await super().read_input_registers(address, count)
+            if self.busy and (address, count) == (500, 111):
+                raise ServerDeviceBusyError()
+            return values
+
+    unit = BusyAnchorUnit()
+    unit.rejected_starts = {609}
+    retry = ReadStartRetry(unit)
+    await retry.read_input_registers(500, 108)
+    await retry.read_input_registers(609, 2)
+    retry.begin_poll()
+    unit.busy = True
+    with pytest.raises(ServerDeviceBusyError):
+        await retry.read_input_registers(609, 2)
+    unit.busy = False
+    unit.read_events.clear()
+    await retry.read_input_registers(609, 2)
+    assert input_requests(unit) == [(500, 111)]
 
 
 @pytest.mark.asyncio

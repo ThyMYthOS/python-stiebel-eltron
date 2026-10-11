@@ -52,7 +52,7 @@ def reads(unit: MockModbusUnit, space: str) -> list[tuple[int, int]]:
 async def test_wpm_required_holding_recovers_without_moving_fields(raw: bool) -> None:
     unit = HoldingStartUnit()
     api = WpmStiebelEltronAPI(unit)
-    for _ in range(2):
+    for poll in range(2):
         unit.read_events.clear()
         if raw:
             data = await api.async_read_raw()
@@ -63,8 +63,14 @@ async def test_wpm_required_holding_recovers_without_moving_fields(raw: bool) ->
         assert api.system_parameters.comfort_temperature_hk_3 == 22.7
         assert api.system_parameters.set_temperature_cc_1_hk_1 == 18.5
         requests = reads(unit, "holding")
-        assert requests.index((1500, 21)) < requests.index((1550, 9)) < requests.index((1500, 59))
-        assert (1603, 5) in requests and (1500, 108) in requests
+        if poll == 0:
+            assert requests.index((1500, 21)) < requests.index((1550, 9)) < requests.index((1500, 59))
+            assert (1603, 5) in requests
+        else:
+            # Later polls read the remembered starts without the refused requests.
+            assert (1550, 9) not in requests and (1603, 5) not in requests
+            assert (1500, 59) in requests
+        assert (1500, 108) in requests
         # Recovered 1550 must not become an anchor for the second refusal.
         assert (1550, 58) not in requests
         assert all(count <= 125 for _, count in requests)
@@ -118,9 +124,9 @@ async def test_holding_limit_nearest_anchor_prefix_and_poll_reset() -> None:
     assert reads(unit, "holding")[-1] == (100, 125)
     retry.begin_poll()
     unit.read_events.clear()
-    with pytest.raises(IllegalDataAddressError):
-        await retry.read_holding_registers(220, 5)
-    assert reads(unit, "holding") == [(220, 5)]
+    # The recovered read is remembered with its start, though anchors reset.
+    assert await retry.read_holding_registers(220, 5) == [120, 121, 122, 123, 124]
+    assert reads(unit, "holding") == [(100, 125)]
 
 
 @pytest.mark.asyncio
@@ -360,8 +366,12 @@ async def test_public_trace_three_polls_recover_required_and_drop_optional(raw: 
         assert api.system_parameters.comfort_temperature_hk_3 is None
         assert api.system_parameters.set_temperature_cc_1_hk_1 is None
         requests = reads(unit, "holding")
-        assert requests.index((1500, 21)) < requests.index((1550, 9)) < requests.index((1500, 59))
-        assert requests.index((1603, 5)) < requests.index((1500, 108))
+        if poll == 0:
+            assert requests.index((1500, 21)) < requests.index((1550, 9)) < requests.index((1500, 59))
+            assert requests.index((1603, 5)) < requests.index((1500, 108))
+        else:
+            assert (1550, 9) not in requests and (1603, 5) not in requests
+            assert (1500, 59) in requests and (1500, 108) in requests
         assert requests.count((1703, 6)) == (1 if poll == 0 else 0)
         assert (1500, 209) not in requests
         # 1703 and1749 belong to the same optional component, dropped at1703.

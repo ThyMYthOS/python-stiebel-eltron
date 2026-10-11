@@ -216,8 +216,9 @@ async def test_recovered_read_is_remembered_across_polls() -> None:
     assert await retry.read_input_registers(609, 2) == [217, 225]
     retry.begin_poll()
     unit.read_events.clear()
-    # No anchor in this poll yet: the remembered start serves the read anyway.
-    assert await retry.read_input_registers(609, 2) == [217, 225]
+    unit.input[609] = [218, 226]
+    # No anchor in this poll yet: the remembered start serves fresh values anyway.
+    assert await retry.read_input_registers(609, 2) == [218, 226]
     assert input_requests(unit) == [(500, 111)]
 
 

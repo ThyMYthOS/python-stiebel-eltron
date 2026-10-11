@@ -57,8 +57,11 @@ class ControllerComponents:
 
     With retry_register_start, polls retry an illegal-address register read once from a start already
     answered in the same poll, if the expanded read fits within 125 registers.
-    Input and holding starts are tracked separately; writes never retry. Each
-    refused block costs one failed request and at most one extra read per poll.
+    Input and holding starts are tracked separately; writes never retry. A
+    refused block costs one failed request and one extra read on the first
+    poll; a recovered read is then remembered with its start, and later polls
+    read from that start directly in a single request. If the controller
+    refuses the remembered read, it is forgotten and the normal path runs.
     Other errors are unchanged. An anchor does not guarantee the retry succeeds.
     Optional blocks recovered this way remain in the poll: their returned words
     are decoded normally, including the unavailable sentinel. A successful

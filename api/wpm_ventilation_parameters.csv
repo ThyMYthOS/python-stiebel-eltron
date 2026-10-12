@@ -1,0 +1,5 @@
+Modbus address,Object designation ,WPMsystem,WPM 3,WPM 3i,Comments,Min. value,Max. value,Data type,Unit,Write/ read (w/r),Suffix
+1770,VENTILATION STAGE COMFORT,x,,,Range assumed 0..3 (stages of the unit),0,3,8,,r/w,
+1771,VENTILATION STAGE ECO,x,,,,0,3,8,,r/w,
+1772,VENTILATION STAGE STANDBY,x,,,,0,3,8,,r/w,
+1773,INTENSIVE VENTILATION DURATION,x,,,Unit not documented; 20 on a THZ 7.1 (minutes assumed),,,8,,r/w,

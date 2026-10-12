@@ -107,6 +107,9 @@ WPM = Controller(
         Block("Extended Energy Data", "wpm_extended_energy_data.csv", "input", energy=True, optional=True),
         Block("Extended Energy Management Settings", "wpm_extended_energy_management_settings.csv", "holding", optional=True),
         Block("Extended Energy System Information", "wpm_extended_energy_system_information.csv", "input", optional=True),
+        # THZ 5.1/7.1 (ISG Connect) ventilation. Other WPM machines refuse it.
+        Block("Ventilation Values", "wpm_ventilation_values.csv", "input", optional=True),
+        Block("Ventilation Parameters", "wpm_ventilation_parameters.csv", "holding", optional=True),
     ],
 )
 

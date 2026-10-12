@@ -53,12 +53,12 @@ Modbus address,Object designation ,WPMsystem,WPM 3,WPM 3i,Comments,Min. value,Ma
 3723,DHW 12M,x,,,Power consumption - DHW 12m whole,0,65535,6,kWh,r,HI
 3724,DHW 13-24,x,,,Power consumption - DHW 13-24 fraction,,,6,kWh,r,LOW
 3725,DHW 13-24,x,,,Power consumption - DHW 13-24 whole,,,6,MWh,r,HI
-3726,EFFICIENCY HEATING 1–24 h,x,,,,,,6,,r,
-3727,EFFICIENCY HEATING 1–12 M,x,,,,,,6,,r,
-3728,EFFICIENCY HEATING 13–24 M,x,,,,,,6,,r,
-3729,EFFICIENCY COOLING 1–24 h,x,,,,,,6,,r,
-3730,EFFICIENCY COOLING 1–12 M,x,,,,,,6,,r,
-3731,EFFICIENCY COOLING 13–24 M,x,,,,,,6,,r,
-3732,EFFICIENCY DHW 1–24 h,x,,,,,,6,,r,
-3733,EFFICIENCY DHW 1–12 M,x,,,,,,6,,r,
-3734,EFFICIENCY DHW 13–24 M,x,,,,,,6,,r,
+3726,EFFICIENCY HEATING 1–24 h,x,,,Manual revision A 321798-47824-0146 leaves the data type blank; two WPMsystem installations show hundredths against the ISG display (405 = 4.05),,,7,,r,
+3727,EFFICIENCY HEATING 1–12 M,x,,,Manual revision A 321798-47824-0146 leaves the data type blank; two WPMsystem installations show hundredths against the ISG display (405 = 4.05),,,7,,r,
+3728,EFFICIENCY HEATING 13–24 M,x,,,Manual revision A 321798-47824-0146 leaves the data type blank; two WPMsystem installations show hundredths against the ISG display (405 = 4.05),,,7,,r,
+3729,EFFICIENCY COOLING 1–24 h,x,,,Manual revision A 321798-47824-0146 leaves the data type blank; two WPMsystem installations show hundredths against the ISG display (405 = 4.05),,,7,,r,
+3730,EFFICIENCY COOLING 1–12 M,x,,,Manual revision A 321798-47824-0146 leaves the data type blank; two WPMsystem installations show hundredths against the ISG display (405 = 4.05),,,7,,r,
+3731,EFFICIENCY COOLING 13–24 M,x,,,Manual revision A 321798-47824-0146 leaves the data type blank; two WPMsystem installations show hundredths against the ISG display (405 = 4.05),,,7,,r,
+3732,EFFICIENCY DHW 1–24 h,x,,,Manual revision A 321798-47824-0146 leaves the data type blank; two WPMsystem installations show hundredths against the ISG display (405 = 4.05),,,7,,r,
+3733,EFFICIENCY DHW 1–12 M,x,,,Manual revision A 321798-47824-0146 leaves the data type blank; two WPMsystem installations show hundredths against the ISG display (405 = 4.05),,,7,,r,
+3734,EFFICIENCY DHW 13–24 M,x,,,Manual revision A 321798-47824-0146 leaves the data type blank; two WPMsystem installations show hundredths against the ISG display (405 = 4.05),,,7,,r,

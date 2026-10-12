@@ -221,6 +221,24 @@ async def test_wpm_power_consumption_registers(mock_modbus_unit: MockModbusUnit)
 
 
 @pytest.mark.asyncio()
+async def test_wpm_efficiency_registers_carry_hundredths(mock_modbus_unit: MockModbusUnit) -> None:
+    """The ISG shows the efficiency registers in hundredths: 599 reads as 5.99."""
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    _seed(mock_modbus_unit, api.extended_energy_data)
+    # Raw values and display from a WPMsystem, read in the same minute.
+    mock_modbus_unit.input[3725] = [599, 473, 443]
+    mock_modbus_unit.input[3731] = 0x8000
+
+    await api.async_update()
+
+    extended = api.extended_energy_data
+    assert extended.efficiency_heating_1_24_h == pytest.approx(5.99)
+    assert extended.efficiency_heating_1_12_m == pytest.approx(4.73)
+    assert extended.efficiency_heating_13_24_m == pytest.approx(4.43)
+    assert extended.efficiency_dhw_1_24_h is None
+
+
+@pytest.mark.asyncio()
 async def test_lwz(mock_modbus_unit: MockModbusUnit) -> None:
     api = LwzStiebelEltronAPI(mock_modbus_unit)
     _seed(mock_modbus_unit, api.system_values, api.system_parameters, api.system_state, api.energy_data)

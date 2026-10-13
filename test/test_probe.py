@@ -184,3 +184,17 @@ async def test_hanging_read_ends_the_run_at_the_time_limit() -> None:
     report = await probe(HangingUnit(mock_unit(), 501), ["wpm3i"], limits=ProbeLimits(max_duration=0.2), sleep=no_sleep)
     assert report.status == "stopped_at_time_limit"
     assert [row["status"] for row in report.registers] == ["ok", "stopped_at_time_limit"]
+
+
+@pytest.mark.asyncio
+async def test_pause_never_outlasts_the_time_limit() -> None:
+    now = [0.0]
+    pauses = []
+
+    async def fake_sleep(seconds: float) -> None:
+        pauses.append(seconds)
+        now[0] += seconds
+
+    report = await probe(mock_unit(), ["wpm3i"], limits=ProbeLimits(max_duration=1.0, pause=0.4), sleep=fake_sleep, clock=lambda: now[0])
+    assert report.status == "stopped_at_time_limit"
+    assert pauses == [0.4, 0.4, pytest.approx(0.2)]

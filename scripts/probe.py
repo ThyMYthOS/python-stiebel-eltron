@@ -52,8 +52,13 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 async def _run(args: argparse.Namespace, output: object) -> int:
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + args.max_duration
     try:
-        connection = await connect_from_args(args)
+        connection = await asyncio.wait_for(connect_from_args(args), timeout=args.max_duration)
+    except TimeoutError:
+        print("Could not connect within --max-duration.", file=sys.stderr)
+        return 1
     except ModbusError as err:
         print(f"Could not connect: {type(err).__name__}", file=sys.stderr)
         return 1
@@ -63,7 +68,10 @@ async def _run(args: argparse.Namespace, output: object) -> int:
         model = None
         if poll is None:
             try:
-                model = await get_controller_model(unit)
+                model = await asyncio.wait_for(get_controller_model(unit), timeout=max(deadline - loop.time(), 0))
+            except TimeoutError:
+                print("No answer to the controller model read within --max-duration.", file=sys.stderr)
+                return 1
             except UnknownControllerModelError as err:
                 print(f"Unknown controller model {err.model_id}; pass --poll and --maps.", file=sys.stderr)
                 return 1
@@ -74,7 +82,7 @@ async def _run(args: argparse.Namespace, output: object) -> int:
             print(f"Detected controller: {model.name}, polling as {poll}")
         poll = None if poll == "none" else poll
         maps = args.maps or ([poll] if poll else [])
-        report = await probe(unit, maps, poll=poll, limits=ProbeLimits(max_duration=args.max_duration))
+        report = await probe(unit, maps, poll=poll, limits=ProbeLimits(max_duration=max(deadline - loop.time(), 0)))
     finally:
         await connection.close()
 

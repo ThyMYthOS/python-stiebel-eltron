@@ -146,6 +146,10 @@ class _ProbeUnit:
         self._transport_errors = 0
         self.log: list[dict[str, Any]] = []
 
+    def remaining(self) -> float:
+        """Seconds left before the run's deadline."""
+        return max(self._deadline - self._clock(), 0.0)
+
     def __getattr__(self, name: str) -> Any:
         raise AttributeError(f"The probe only reads input and holding registers, not {name}")
 
@@ -167,7 +171,7 @@ class _ProbeUnit:
         self.log.append(entry)
         try:
             # A read the backend would let run past the deadline ends the run.
-            words = await asyncio.wait_for(read(address, count), timeout=max(self._deadline - self._clock(), 0))
+            words = await asyncio.wait_for(read(address, count), timeout=self.remaining())
         except ModbusError as err:
             entry.update(_failure(err))
             self._transport_errors = self._transport_errors + 1 if entry["status"] == "transport_error" else 0
@@ -221,7 +225,7 @@ async def probe(
 
         for index, (space, address, owners) in enumerate(build_plan(names)):
             if index:
-                await sleep(limits.pause)
+                await sleep(min(limits.pause, guard.remaining()))
             read = guard.read_input_registers if space == "input" else guard.read_holding_registers
             try:
                 await read(address, 1)

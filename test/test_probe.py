@@ -1,5 +1,6 @@
 """Offline checks of the register probe against the mock unit."""
 
+import asyncio
 import json
 
 import pytest
@@ -149,3 +150,37 @@ async def test_unknown_map_is_rejected() -> None:
 
 def test_maps_cover_every_family() -> None:
     assert set(REGISTER_MAPS) == {"lwz", "wpm", "wpm3", "wpm3i"}
+
+
+class ShortAnswerUnit(StartRefusingUnit):
+    """Answer input reads that start at ``start`` with one word too few."""
+
+    async def read_input_registers(self, address: int, count: int) -> list[int]:
+        words = await self._unit.read_input_registers(address, count)
+        return words[:-1] if address == self._start else words
+
+
+@pytest.mark.asyncio
+async def test_short_poll_answer_is_reported_not_decoded() -> None:
+    report = await probe(ShortAnswerUnit(mock_unit(), 500), ["wpm3i"], poll="wpm3i", sleep=no_sleep)
+    assert report.poll_result == {"status": "invalid_response"}
+    assert report.poll_requests[0]["status"] == "invalid_response"
+    assert report.status == "completed"
+    assert report.registers[0]["status"] == "invalid_response"
+    assert report.registers[1]["status"] == "ok"
+
+
+class HangingUnit(StartRefusingUnit):
+    """Never answer an input read that starts at ``start``."""
+
+    async def read_input_registers(self, address: int, count: int) -> list[int]:
+        if address == self._start:
+            await asyncio.sleep(60)
+        return await self._unit.read_input_registers(address, count)
+
+
+@pytest.mark.asyncio
+async def test_hanging_read_ends_the_run_at_the_time_limit() -> None:
+    report = await probe(HangingUnit(mock_unit(), 501), ["wpm3i"], limits=ProbeLimits(max_duration=0.2), sleep=no_sleep)
+    assert report.status == "stopped_at_time_limit"
+    assert [row["status"] for row in report.registers] == ["ok", "stopped_at_time_limit"]

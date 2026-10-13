@@ -21,7 +21,7 @@ from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from modbus_connection import ModbusError, ModbusExceptionError, ModbusUnit
+from modbus_connection import ModbusError, ModbusExceptionError, ModbusProtocolError, ModbusUnit
 
 from . import UNAVAILABLE, __version__
 from .lwz import LWZ_HOLDING_RANGES, LWZ_INPUT_RANGES, LwzStiebelEltronAPI
@@ -85,6 +85,10 @@ class ProbeReport:
         }
 
 
+class _ShortResponseError(ModbusProtocolError):
+    """The unit returned fewer or more words than requested."""
+
+
 class ProbeStopped(Exception):
     """A limit of the run was reached; ``status`` names which one."""
 
@@ -107,9 +111,7 @@ def build_plan(maps: Iterable[str]) -> list[tuple[Space, int, list[str]]]:
     return [(space, address, owners[(space, address)]) for space, address in sorted(owners, key=lambda key: (order[key[0]], key[1]))]
 
 
-def _outcome(words: list[int], count: int) -> dict[str, Any]:
-    if len(words) != count:
-        return {"status": "invalid_response", "words": list(words)}
+def _outcome(words: list[int]) -> dict[str, Any]:
     outcome: dict[str, Any] = {"status": "ok", "words": list(words)}
     unavailable = [offset for offset, word in enumerate(words) if word == UNAVAILABLE]
     if unavailable:
@@ -119,6 +121,8 @@ def _outcome(words: list[int], count: int) -> dict[str, Any]:
 
 def _failure(err: ModbusError) -> dict[str, Any]:
     """Keep the exception code or error type; never the message, which may name the host."""
+    if isinstance(err, _ShortResponseError):
+        return {"status": "invalid_response"}
     if isinstance(err, ModbusExceptionError):
         code = err.exception_code
         return {"status": "exception", "exception_code": None if code is None else int(code)}
@@ -162,13 +166,21 @@ class _ProbeUnit:
         entry: dict[str, Any] = {"space": space, "address": address, "count": count}
         self.log.append(entry)
         try:
-            words = await read(address, count)
+            # A read the backend would let run past the deadline ends the run.
+            words = await asyncio.wait_for(read(address, count), timeout=max(self._deadline - self._clock(), 0))
         except ModbusError as err:
             entry.update(_failure(err))
             self._transport_errors = self._transport_errors + 1 if entry["status"] == "transport_error" else 0
             raise
+        except TimeoutError:
+            entry["status"] = "stopped_at_time_limit"
+            raise ProbeStopped("stopped_at_time_limit") from None
         self._transport_errors = 0
-        entry.update(_outcome(words, count))
+        if len(words) != count:
+            # Passing a short answer on would fail the poll's decoding outside the report.
+            entry.update(status="invalid_response", words=list(words))
+            raise _ShortResponseError(f"{len(words)} words for {count} requested")
+        entry.update(_outcome(words))
         return words
 
 
@@ -215,8 +227,10 @@ async def probe(
                 await read(address, 1)
             except ModbusError:
                 pass
-            entry = guard.log.pop()
-            report.registers.append({"maps": owners, **entry})
+            finally:
+                # Empty when a limit stopped the run before this request was sent.
+                if guard.log:
+                    report.registers.append({"maps": owners, **guard.log.pop()})
     except ProbeStopped as stop:
         report.status = stop.status
         if poll and report.poll_result is None:

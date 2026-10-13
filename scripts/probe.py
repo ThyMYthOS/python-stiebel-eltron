@@ -18,6 +18,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from modbus_connection import ModbusError
 from modbus_connection.cli_helper import add_connection_args, connect_from_args
@@ -26,6 +27,10 @@ from pystiebeleltron import ControllerModel, StiebelEltronModbusError, UnknownCo
 from pystiebeleltron.probe import REGISTER_MAPS, ProbeLimits, probe
 
 _CONNECTIONS = (("tcp", "socket"), ("tcp", "rtu"), ("serial", "rtu"))
+
+# Time close() gets beyond --max-duration. It waits for a reconnect the
+# backend shields from cancellation, which could otherwise outlast the limit.
+CLOSE_GRACE = 1.0
 
 # The family each controller is polled with, matching how its API is chosen.
 _FAMILY = {
@@ -49,6 +54,14 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output", type=Path, default=Path("isg-probe-report.json"), help="report file; an existing file is never overwritten")
     parser.add_argument("--max-duration", type=float, default=ProbeLimits.max_duration, help="stop after this many seconds")
     return parser.parse_args(argv)
+
+
+async def _close(connection: Any, timeout: float) -> None:
+    """Close the connection, but give up waiting after ``timeout`` seconds."""
+    try:
+        await asyncio.wait_for(connection.close(), timeout=timeout)
+    except TimeoutError:
+        print("Closing the connection took too long; leaving it to exit.", file=sys.stderr)
 
 
 async def _run(args: argparse.Namespace, output: object) -> int:
@@ -84,7 +97,7 @@ async def _run(args: argparse.Namespace, output: object) -> int:
         maps = args.maps or ([poll] if poll else [])
         report = await probe(unit, maps, poll=poll, limits=ProbeLimits(max_duration=max(deadline - loop.time(), 0)))
     finally:
-        await connection.close()
+        await _close(connection, max(deadline - loop.time(), 0) + CLOSE_GRACE)
 
     data = {"controller_model": None if model is None else model.value, **report.as_dict()}
     json.dump(data, output, indent=2)  # type: ignore[arg-type]

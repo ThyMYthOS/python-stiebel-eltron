@@ -11,6 +11,12 @@ Only FC03 and FC04 reads leave the probe; any other operation raises before it
 reaches the unit. A run is bounded in requests and duration and stops after
 repeated transport errors. Callers that also poll the same unit must not run a
 probe at the same time.
+
+The probe sees the unit, not the wire. A backend that repeats a request on its
+own is invisible to it: the tmodbus backend of modbus_connection retries a
+device busy answer (exception 6) for up to 60 seconds, so such a request
+counts once against ``max_requests`` and is recorded with its final outcome
+only. ``max_duration`` still bounds it.
 """
 
 from __future__ import annotations
@@ -53,6 +59,7 @@ _POLL_APIS: dict[str, Callable[[ModbusUnit], Any]] = {
 class ProbeLimits:
     """Bounds of one probe run."""
 
+    # Calls to the unit; repeats a backend makes on its own are not counted.
     max_requests: int = 1000
     max_duration: float = 600.0
     max_consecutive_transport_errors: int = 3

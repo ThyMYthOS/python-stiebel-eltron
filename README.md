@@ -21,6 +21,7 @@ You need to have [Python](https://www.python.org) installed.
 * STIEBEL ELTRON heatpumpt (compatible). Successfully used devices:
   * LWZ504e
   * LWZ304
+  * Tecalor THZ 7.1 IBC Topline with ISG Connect (reported as `LWZ_R290`, WPM register map). Ventilation registers (`WpmVentilationValues`, `WpmVentilationParameters`) read only so far; writing the ventilation stages is untested
 * Network connection to the ISG WEB
 
 ## Installation

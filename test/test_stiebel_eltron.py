@@ -765,3 +765,60 @@ async def test_fixed_temperature_write_validation_unchanged(mock_modbus_unit: Mo
         with pytest.raises(ValueError, match="outside the allowed range"):
             await api.system_parameters.write("fixed_value_operation", value)
         assert mock_modbus_unit.holding[1507] == 250
+
+
+@pytest.mark.asyncio()
+async def test_wpm_thz_ventilation_registers(mock_modbus_unit: MockModbusUnit) -> None:
+    """Raw values read from a THZ 7.1 Topline (LWZ_R290, ISG Connect).
+
+    Tecalor's ISG Modbus document (section 8) lists these registers without a
+    data type; the scaling follows the display: 24.7 degC extract air, 38.1 %
+    humidity, 120 m3/h supply air flow, stage 1 for comfort and eco.
+    """
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    # Document addresses 820-835, wire addresses 819-834.
+    mock_modbus_unit.input[819] = [0, 247, 381, 98, 105, 0x8000, 0x8000, 0x8000, 231, 0x8000, 413, 120, 546, 119, 0x8000, 249]
+    # Document addresses 1770-1773.
+    mock_modbus_unit.holding[1769] = [1, 1, 0, 20]
+
+    await api.async_update()
+
+    values = api.ventilation_values
+    assert values.ventilation_bypass_status is False
+    assert values.extract_air_temperature == pytest.approx(24.7)
+    assert values.extract_air_humidity == pytest.approx(38.1)
+    assert values.extract_air_dew_point == pytest.approx(9.8)
+    assert values.outside_air_temperature == pytest.approx(10.5)
+    assert values.outside_air_temperature_preheated is None
+    assert values.supply_air_temperature == pytest.approx(23.1)
+    assert values.exhaust_air_temperature is None
+    assert values.supply_fan_control == pytest.approx(41.3)
+    assert values.supply_air_flow == 120
+    assert values.exhaust_fan_control == pytest.approx(54.6)
+    assert values.exhaust_air_flow == 119
+    assert values.filter_runtime is None
+    assert values.filter_volume == 249
+
+    parameters = api.ventilation_parameters
+    assert parameters.ventilation_stage_comfort == 1
+    assert parameters.ventilation_stage_eco == 1
+    assert parameters.ventilation_stage_standby == 0
+    assert parameters.intensive_ventilation_duration == 20
+
+    await parameters.write("ventilation_stage_comfort", 2)
+    assert mock_modbus_unit.holding[1769] == 2
+    with pytest.raises(ValueError, match="outside the allowed range"):
+        await parameters.write("ventilation_stage_eco", 4)
+
+
+@pytest.mark.asyncio()
+async def test_wpm_without_the_ventilation_registers(mock_modbus_unit: MockModbusUnit) -> None:
+    """A WPM without the THZ ventilation block still updates."""
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    mock_modbus_unit.fail_read(819, IllegalDataAddressError(), register_type="input")
+    mock_modbus_unit.fail_read(1769, IllegalDataAddressError(), register_type="holding")
+
+    await api.async_update()
+
+    assert api.ventilation_values.supply_air_flow is None
+    assert api.ventilation_parameters.ventilation_stage_comfort is None

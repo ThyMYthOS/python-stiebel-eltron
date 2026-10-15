@@ -461,6 +461,8 @@ def _imports(controller: Controller, components: list[Component]) -> list[str]:
     lines.append("")
     lines.append(f"from . import {', '.join(sorted(local))}")
     lines.append("from ._components import ControllerComponents")
+    if any(component.day_and_total for component in components):
+        lines.append("from ._day_and_total import DayAndTotalCounter")
     return lines
 
 

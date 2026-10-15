@@ -79,7 +79,7 @@ class {{ component.class_name }}(Component):
 
     def __init__(self, unit: ModbusUnit, index: int = 1) -> None:
         super().__init__(unit, index)
-        self._running_totals: dict[str, int] = {}
+        self._day_and_total = {key: DayAndTotalCounter() for _, _, key in self._DAY_AND_TOTAL}
 
     def notify(self) -> None:
         """Refresh the monotonic day-and-total counters, then notify listeners."""
@@ -87,9 +87,7 @@ class {{ component.class_name }}(Component):
             day = getattr(self, day_attr)
             total = getattr(self, total_attr)
             if day is not None and total is not None:
-                combined = day + total
-                previous = self._running_totals.get(key)
-                self._running_totals[key] = combined if previous is None else max(combined, previous)
+                self._day_and_total[key].update(day, total)
         super().notify()
 {% for day, total, running in component.day_and_total %}
 
@@ -97,7 +95,7 @@ class {{ component.class_name }}(Component):
     def {{ running }}(self) -> int | None:
         if self.{{ day }} is None or self.{{ total }} is None:
             return None
-        return self._running_totals.get("{{ running }}")
+        return self._day_and_total["{{ running }}"].value
 {% endfor %}
 {% endif %}
 

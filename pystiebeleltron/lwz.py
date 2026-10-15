@@ -9,6 +9,7 @@ from modbus_connection.model import Component, Raw, boolean, gauge, integer
 
 from . import UNAVAILABLE, in_range, scaled_sum
 from ._components import ControllerComponents
+from ._day_and_total import DayAndTotalCounter
 
 LWZ_HOLDING_RANGES = ((1000, 1026), (4000, 4002), (4249, 4251), (4253, 4258), (4271, 4277))
 LWZ_INPUT_RANGES = ((0, 33), (2000, 2004), (3000, 3031), (3679, 3679), (3689, 3697), (5000, 5001), (5219, 5221), (5229, 5230))
@@ -158,7 +159,7 @@ class LwzEnergyData(Component):
 
     def __init__(self, unit: ModbusUnit, index: int = 1) -> None:
         super().__init__(unit, index)
-        self._running_totals: dict[str, int] = {}
+        self._day_and_total = {key: DayAndTotalCounter() for _, _, key in self._DAY_AND_TOTAL}
 
     def notify(self) -> None:
         """Refresh the monotonic day-and-total counters, then notify listeners."""
@@ -166,52 +167,50 @@ class LwzEnergyData(Component):
             day = getattr(self, day_attr)
             total = getattr(self, total_attr)
             if day is not None and total is not None:
-                combined = day + total
-                previous = self._running_totals.get(key)
-                self._running_totals[key] = combined if previous is None else max(combined, previous)
+                self._day_and_total[key].update(day, total)
         super().notify()
 
     @property
     def heat_meter_htg_day_and_total(self) -> int | None:
         if self.heat_meter_htg_day is None or self.heat_meter_htg_ttl is None:
             return None
-        return self._running_totals.get("heat_meter_htg_day_and_total")
+        return self._day_and_total["heat_meter_htg_day_and_total"].value
 
     @property
     def heat_meter_dhw_day_and_total(self) -> int | None:
         if self.heat_meter_dhw_day is None or self.heat_meter_dhw_ttl is None:
             return None
-        return self._running_totals.get("heat_meter_dhw_day_and_total")
+        return self._day_and_total["heat_meter_dhw_day_and_total"].value
 
     @property
     def heat_m_recovery_day_and_total(self) -> int | None:
         if self.heat_m_recovery_day is None or self.heat_m_recovery_ttl is None:
             return None
-        return self._running_totals.get("heat_m_recovery_day_and_total")
+        return self._day_and_total["heat_m_recovery_day_and_total"].value
 
     @property
     def hm_solar_htg_day_and_total(self) -> int | None:
         if self.hm_solar_htg_day is None or self.hm_solar_htg_total is None:
             return None
-        return self._running_totals.get("hm_solar_htg_day_and_total")
+        return self._day_and_total["hm_solar_htg_day_and_total"].value
 
     @property
     def hm_solar_dhw_day_and_total(self) -> int | None:
         if self.hm_solar_dhw_day is None or self.hm_solar_dwh_total is None:
             return None
-        return self._running_totals.get("hm_solar_dhw_day_and_total")
+        return self._day_and_total["hm_solar_dhw_day_and_total"].value
 
     @property
     def pwr_con_htg_day_and_total(self) -> int | None:
         if self.pwr_con_htg_day is None or self.pwr_con_htg_ttl is None:
             return None
-        return self._running_totals.get("pwr_con_htg_day_and_total")
+        return self._day_and_total["pwr_con_htg_day_and_total"].value
 
     @property
     def pwr_con_dhw_day_and_total(self) -> int | None:
         if self.pwr_con_dhw_day is None or self.pwr_con_dhw_ttl is None:
             return None
-        return self._running_totals.get("pwr_con_dhw_day_and_total")
+        return self._day_and_total["pwr_con_dhw_day_and_total"].value
 
 
 class LwzEnergyManagementSettings(Component):

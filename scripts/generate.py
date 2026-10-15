@@ -332,15 +332,28 @@ def _plain_component(block: Block, rows: list[list[str]], controller: Controller
         # Issue #64: these WPM3i optional settings use 0x9000 when off.
         # Four views were measured off; min_source_temperature was measured
         # at -9 C and identified as switchable by the reported ISG metadata.
+        # A WPMsystem (controller 449) was measured off on the same four views,
+        # and its ISG web page shows "Off" for them (FIXED VALUE OPERATION,
+        # LOWER APP LIMIT HZG/WW). Its min_source_temperature reads 0x8000, so
+        # that one stays WPM3i only.
         # Do not extend this to other models merely sharing the CSV rows.
         # https://github.com/ThyMYthOS/python-stiebel-eltron/issues/64
-        switched_off = controller.type == "Wpm3i" and (block.space, int(row[0]) - 1) in {
-            ("input", 516),  # set_fixed_temperature
-            ("input", 532),  # application_limit_hzg
-            ("input", 533),  # application_limit_ww
-            ("input", 536),  # min_source_temperature
-            ("holding", 1507),  # fixed_value_operation
+        measured_off = {
+            "Wpm3i": {
+                ("input", 516),  # set_fixed_temperature
+                ("input", 532),  # application_limit_hzg
+                ("input", 533),  # application_limit_ww
+                ("input", 536),  # min_source_temperature
+                ("holding", 1507),  # fixed_value_operation
+            },
+            "Wpm": {
+                ("input", 516),  # set_fixed_temperature
+                ("input", 532),  # application_limit_hzg
+                ("input", 533),  # application_limit_ww
+                ("holding", 1507),  # fixed_value_operation
+            },
         }
+        switched_off = (block.space, int(row[0]) - 1) in measured_off.get(controller.type, set())
         nan = "(UNAVAILABLE, 0x9000)" if switched_off else "UNAVAILABLE"
         component.fields.append(f"{attribute} = {_field_factory(row, cols, writable=writable, nan=nan)}")
 

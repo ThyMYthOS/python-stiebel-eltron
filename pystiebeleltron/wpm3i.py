@@ -7,6 +7,7 @@ from modbus_connection.model import Component, Raw, boolean, gauge, integer
 
 from . import UNAVAILABLE, in_range, scaled_sum
 from ._components import ControllerComponents
+from ._day_and_total import DayAndTotalCounter
 
 WPM3I_HOLDING_RANGES = ((1500, 1520), (4000, 4002))
 WPM3I_INPUT_RANGES = ((500, 526), (532, 533), (535, 540), (2500, 2501), (2503, 2504), (2506, 2506), (3500, 3521), (5000, 5001))
@@ -121,7 +122,7 @@ class Wpm3iEnergyData(Component):
 
     def __init__(self, unit: ModbusUnit, index: int = 1) -> None:
         super().__init__(unit, index)
-        self._running_totals: dict[str, int] = {}
+        self._day_and_total = {key: DayAndTotalCounter() for _, _, key in self._DAY_AND_TOTAL}
 
     def notify(self) -> None:
         """Refresh the monotonic day-and-total counters, then notify listeners."""
@@ -129,34 +130,32 @@ class Wpm3iEnergyData(Component):
             day = getattr(self, day_attr)
             total = getattr(self, total_attr)
             if day is not None and total is not None:
-                combined = day + total
-                previous = self._running_totals.get(key)
-                self._running_totals[key] = combined if previous is None else max(combined, previous)
+                self._day_and_total[key].update(day, total)
         super().notify()
 
     @property
     def vd_heating_day_and_total(self) -> int | None:
         if self.vd_heating_day is None or self.vd_heating_total is None:
             return None
-        return self._running_totals.get("vd_heating_day_and_total")
+        return self._day_and_total["vd_heating_day_and_total"].value
 
     @property
     def vd_dhw_day_and_total(self) -> int | None:
         if self.vd_dhw_day is None or self.vd_dhw_total is None:
             return None
-        return self._running_totals.get("vd_dhw_day_and_total")
+        return self._day_and_total["vd_dhw_day_and_total"].value
 
     @property
     def vd_heating_day_and_total_consumed(self) -> int | None:
         if self.vd_heating_day_consumed is None or self.vd_heating_total_consumed is None:
             return None
-        return self._running_totals.get("vd_heating_day_and_total_consumed")
+        return self._day_and_total["vd_heating_day_and_total_consumed"].value
 
     @property
     def vd_dhw_day_and_total_consumed(self) -> int | None:
         if self.vd_dhw_day_consumed is None or self.vd_dhw_total_consumed is None:
             return None
-        return self._running_totals.get("vd_dhw_day_and_total_consumed")
+        return self._day_and_total["vd_dhw_day_and_total_consumed"].value
 
 
 class Wpm3iEnergyManagementSettings(Component):

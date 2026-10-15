@@ -448,6 +448,41 @@ async def test_wpm_busy_extended_system_values_are_retried(mock_modbus_unit: Moc
 
 
 @pytest.mark.asyncio()
+async def test_wpm_with_heating_circuit_4_5_values(mock_modbus_unit: MockModbusUnit) -> None:
+    """The flow temperatures of heating circuits 4 and 5 follow the HK 3 pair."""
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    mock_modbus_unit.input[609] = [201, 171, 316, 316, 281, 283]
+
+    await api.async_update()
+
+    assert api.extended_system_values.actual_temperature_hk_3 == 20.1
+    assert api.extended_system_values.set_temperature_hk_3 == 17.1
+    assert api.heating_circuit_4_5_values.actual_temperature_hk_4 == 31.6
+    assert api.heating_circuit_4_5_values.set_temperature_hk_4 == 31.6
+    assert api.heating_circuit_4_5_values.actual_temperature_hk_5 == 28.1
+    assert api.heating_circuit_4_5_values.set_temperature_hk_5 == 28.3
+
+
+@pytest.mark.asyncio()
+async def test_wpm_without_heating_circuit_4_5_values(mock_modbus_unit: MockModbusUnit) -> None:
+    """A controller refusing heating circuits 4 and 5 keeps the HK 3 values."""
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    _seed(mock_modbus_unit, api.system_values)
+    mock_modbus_unit.input[609] = [217, 225]
+    mock_modbus_unit.fail_read(611, IllegalDataAddressError(), register_type="input")
+
+    for raw_temperature in (12, 34):
+        mock_modbus_unit.input[502] = [raw_temperature]
+        await api.async_update()
+
+        assert api.system_values.actual_temperature_fek == raw_temperature / 10
+        assert api.extended_system_values.actual_temperature_hk_3 == 21.7
+        assert api.extended_system_values.set_temperature_hk_3 == 22.5
+        assert api.heating_circuit_4_5_values.actual_temperature_hk_4 is None
+        assert api.heating_circuit_4_5_values.set_temperature_hk_5 is None
+
+
+@pytest.mark.asyncio()
 async def test_a_served_optional_block_refused_later_fails_the_poll(mock_modbus_unit: MockModbusUnit) -> None:
     """A block the controller has answered is not dropped over a later refusal.
 

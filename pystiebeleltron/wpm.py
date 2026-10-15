@@ -9,7 +9,7 @@ from . import UNAVAILABLE, in_range, scaled_sum
 from ._components import ControllerComponents
 
 WPM_HOLDING_RANGES = ((1500, 1520), (1550, 1558), (1603, 1607), (1703, 1708), (1749, 1751), (1769, 1772), (4000, 4002), (4249, 4251), (4253, 4255), (4257, 4258), (4271, 4277))
-WPM_INPUT_RANGES = ((500, 607), (609, 610), (819, 834), (2500, 2546), (2560, 2565), (2569, 2572), (3500, 3654), (3679, 3684), (3689, 3733), (5000, 5001), (5219, 5221), (5229, 5230))
+WPM_INPUT_RANGES = ((500, 607), (609, 614), (819, 834), (2500, 2546), (2560, 2565), (2569, 2572), (3500, 3654), (3679, 3684), (3689, 3733), (5000, 5001), (5219, 5221), (5229, 5230))
 
 
 class WpmHeatPumpModule(Component):
@@ -713,6 +713,25 @@ class WpmExtendedEnergySystemInformation(Component):
     electrical_power_limit_requested = integer(5230, signed=False, nan=UNAVAILABLE, unit="W")
 
 
+class WpmHeatingCircuit45Values(Component):
+    """Registers not every machine serves, read on their own.
+
+    A controller without them answers the block with illegal data address, which
+    would fail a pooled read for everything else too, so
+    :class:`~pystiebeleltron._components.ControllerComponents` reads this block
+    separately and drops it once the controller has refused it without ever
+    having answered it.
+    """
+
+    register_space = "input"
+    register_ranges = WPM_INPUT_RANGES
+
+    actual_temperature_hk_4 = gauge(611, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_hk_4 = gauge(612, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_temperature_hk_5 = gauge(613, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_hk_5 = gauge(614, 0.1, nan=UNAVAILABLE, unit="°C")
+
+
 class WpmVentilationValues(Component):
     """Registers not every machine serves, read on their own.
 
@@ -779,6 +798,7 @@ class WpmStiebelEltronAPI:
         self.extended_energy_data = WpmExtendedEnergyData(unit)
         self.extended_energy_management_settings = WpmExtendedEnergyManagementSettings(unit)
         self.extended_energy_system_information = WpmExtendedEnergySystemInformation(unit)
+        self.heating_circuit_4_5_values = WpmHeatingCircuit45Values(unit)
         self.ventilation_values = WpmVentilationValues(unit)
         self.ventilation_parameters = WpmVentilationParameters(unit)
         self._group = ControllerComponents(
@@ -799,6 +819,7 @@ class WpmStiebelEltronAPI:
                 self.extended_energy_data,
                 self.extended_energy_management_settings,
                 self.extended_energy_system_information,
+                self.heating_circuit_4_5_values,
                 self.ventilation_values,
                 self.ventilation_parameters,
             ],

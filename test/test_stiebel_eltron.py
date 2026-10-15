@@ -780,11 +780,13 @@ async def test_optional_temperature_off_is_model_specific(
 
     Issue #64 measured 0x9000 on four views. The fifth, min_source_temperature,
     is a presentation-7 setting in the reported metadata, measured enabled at -9 C.
+    A WPMsystem was measured off on the same four views; its min_source_temperature
+    reads 0x8000, so 0x9000 there is still read as a temperature.
     """
     api = api_class(mock_modbus_unit)
     store = mock_modbus_unit.input if space == "input" else mock_modbus_unit.holding
     component = getattr(api, component_name)
-    off = None if api_class is Wpm3iStiebelEltronAPI else -2867.2
+    off = -2867.2 if api_class is WpmStiebelEltronAPI and address == 536 else None
     enabled = (250, 25.0) if address in (516, 1507) else (0xFFA6, -9.0)
     for raw, expected in ((0x9000, off), (0x8000, None), enabled):
         store[address] = raw

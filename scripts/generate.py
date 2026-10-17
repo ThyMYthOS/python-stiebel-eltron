@@ -354,6 +354,22 @@ def _plain_component(block: Block, rows: list[list[str]], controller: Controller
     return component, sub_components
 
 
+def _following_word(rows: list[list[str]], index: int, block: Block, cols: Columns, prefix: str) -> list[str]:
+    """The row after ``index``, which must carry the ``prefix`` word of the same counter.
+
+    The energy CSVs spell a counter as adjacent rows: a DAY row is followed by
+    its total's LOW word, and a LOW word by its HI word, each one address up.
+    The generator pairs them by position, so a CSV that breaks the order fails
+    here instead of silently pairing the wrong registers.
+    """
+    row = rows[index]
+    expected = int(row[0]) + 1
+    following = rows[index + 1] if index + 1 < len(rows) else None
+    if following is None or not following[cols.suffix_col].startswith(prefix) or int(following[0]) != expected:
+        raise ValueError(f"{block.name}: row {row[0]} {row[cols.name_col]!r} must be followed by its {prefix} word at {expected}")
+    return following
+
+
 def _energy_component(block: Block, rows: list[list[str]], controller: Controller) -> Component:
     """Energy block: LOW/HI pairs combine in a scaled_sum; DAY rows gain a running total."""
     cols = controller.columns
@@ -381,11 +397,12 @@ def _energy_component(block: Block, rows: list[list[str]], controller: Controlle
             continue  # consumed by the preceding LOW row's scaled_sum
         if suffix[:3] == "LOW":
             # kWh (LOW) + MWh (HI) summed into a single counter, in kWh.
+            _following_word(rows, index, block, cols, "HI")
             add(attr(name, suffix[3:].strip()), f'scaled_sum({wire}, (1, 1000), unit="{unit}")')
             continue
         add(attr(name, suffix), _field_factory(row, cols, writable=False))
         if name[-3:] == "DAY":
-            following = rows[index + 1]
+            following = _following_word(rows, index, block, cols, "LOW")
             total = attr(following[cols.name_col], following[cols.suffix_col][3:].strip())
             running = attr(name + "_AND_TOTAL", suffix)
             component.day_and_total.append((attr(name, suffix), total, running))

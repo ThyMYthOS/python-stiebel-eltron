@@ -56,14 +56,9 @@ lint.select = ["E", "F", "B", "I"]
 lint.ignore = []
 target-version = "py312"
 
-[tool.ruff.lint.pydocstyle]
-convention = "google"
-
 [tool.pytest.ini_options]
 
-pythonpath = [
-  ".", "src"
-]
+pythonpath = ["."]
 testpaths = [
     "test"
 ]

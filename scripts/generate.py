@@ -164,11 +164,6 @@ LWZ = Controller(
     compressor_starts=True,
 )
 
-# The two shared components from pystiebeleltron/__init__.py, as (low, high) wire
-# address ranges, so they join their space's device-wide ranges.
-SHARED_INPUT_RANGE = (5000, 5230)  # EnergySystemInformation
-SHARED_HOLDING_RANGE = (4000, 4277)  # EnergyManagementSettings
-
 
 def python_name(name: str, suffix: str = "") -> str:
     """A register's enum/attribute stem, suffix-disambiguated (pre-lowercasing)."""
@@ -243,8 +238,6 @@ class Component:
     member: str  # the API attribute holding this component
     register_space: str
     ranges_const: str = ""
-    low: int = 0  # first wire address the block covers
-    high: int = 0  # last wire address the block covers
     addresses: set[int] = field(default_factory=set)  # wire addresses defined by the CSV rows
     fields: list[str] = field(default_factory=list)  # "attr = factory(...)"
     repeats: list[str] = field(default_factory=list)  # "attr = repeating_group(...)"
@@ -256,12 +249,6 @@ class Component:
 def _read_rows(api_path: Path, block: Block) -> list[list[str]]:
     with (api_path / block.path).open() as handle:
         return list(csv.reader(handle))[1:]
-
-
-def _span(rows: list[list[str]]) -> tuple[int, int]:
-    """The block's (low, high) wire address range, covering every row read."""
-    addresses = [int(row[0]) - 1 for row in rows]
-    return min(addresses), max(addresses)
 
 
 def _addresses(rows: list[list[str]]) -> set[int]:
@@ -307,13 +294,10 @@ def _repeating_sub_component(repeat: Repeat, by_index: dict[int, list[list[str]]
 
 def _plain_component(block: Block, rows: list[list[str]], controller: Controller) -> tuple[Component, list[SubComponent]]:
     cols = controller.columns
-    low, high = _span(rows)
     component = Component(
         f"{controller.type}{class_name(block.name)}",
         field_attr(block.name),
         block.space,
-        low=low,
-        high=high,
         addresses=_addresses(rows),
     )
     groups: dict[str, dict[int, list[list[str]]]] = {repeat.attr: {} for repeat in block.repeats}
@@ -357,13 +341,10 @@ def _plain_component(block: Block, rows: list[list[str]], controller: Controller
 def _energy_component(block: Block, rows: list[list[str]], controller: Controller) -> Component:
     """Energy block: LOW/HI pairs combine in a scaled_sum; DAY rows gain a running total."""
     cols = controller.columns
-    low, high = _span(rows)
     component = Component(
         f"{controller.type}{class_name(block.name)}",
         field_attr(block.name),
         block.space,
-        low=low,
-        high=high,
         addresses=_addresses(rows),
     )
     seen: set[str] = set()

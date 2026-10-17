@@ -27,6 +27,13 @@ jobs:
       run: uv sync --locked --all-extras --dev
     - name: Run Ruff
       run: uv run ruff check . --output-format=github
+    - name: Check formatting
+      run: uv run ruff format --check .
+    - name: Check that the generated modules match the CSV maps
+      if: matrix.python-version == '3.12'
+      run: |
+        uv run scripts/generate.py
+        git diff --exit-code -- pystiebeleltron
     - name: Run type checks
       run: uv run mypy pystiebeleltron --show-error-codes --pretty
     - name: Run tests

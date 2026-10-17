@@ -177,6 +177,43 @@ async def test_a_writable_flag_takes_a_bool_or_the_raw_code(mock_modbus_unit: Mo
         assert mock_modbus_unit.holding[4001] == 0
 
 
+@pytest.mark.parametrize(
+    ("api_class", "component_name", "field_name", "address"),
+    [
+        (WpmStiebelEltronAPI, "energy_management_settings", "sg_ready_input_1", 4001),
+        (Wpm3StiebelEltronAPI, "energy_management_settings", "sg_ready_input_1", 4001),
+        (Wpm3iStiebelEltronAPI, "energy_management_settings", "sg_ready_input_1", 4001),
+        (LwzStiebelEltronAPI, "energy_management_settings", "sg_ready_input_1", 4001),
+        (LwzStiebelEltronAPI, "system_parameters", "reset", 1025),
+    ],
+)
+@pytest.mark.asyncio()
+async def test_a_writable_flag_rejects_codes_outside_its_documented_range(
+    mock_modbus_unit: MockModbusUnit,
+    api_class: type[WpmStiebelEltronAPI | Wpm3StiebelEltronAPI | Wpm3iStiebelEltronAPI | LwzStiebelEltronAPI],
+    component_name: str,
+    field_name: str,
+    address: int,
+) -> None:
+    """The manual's 0..1 range guards the write, not only the decoding.
+
+    boolean() encodes whatever int() makes of the value, so a 2 or a -1 would
+    reach the register as 2 or 65535 unless the documented range rejects it
+    before the write.
+    """
+    api = api_class(mock_modbus_unit)
+    component = getattr(api, component_name)
+
+    for value in (True, 1, False, 0):
+        await component.write(field_name, value)
+        assert mock_modbus_unit.holding[address] == int(value)
+
+    for value in (2, -1):
+        with pytest.raises(ValueError, match="outside the allowed range"):
+            await component.write(field_name, value)
+        assert mock_modbus_unit.holding[address] == 0
+
+
 @pytest.mark.asyncio()
 async def test_lwz_dhw_setpoint_accepts_the_documented_model_maximum(
     mock_modbus_unit: MockModbusUnit,

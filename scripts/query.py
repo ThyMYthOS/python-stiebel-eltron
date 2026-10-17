@@ -25,13 +25,25 @@ from modbus_connection import ModbusError, ModbusUnit
 from modbus_connection.cli_helper import CountingUnit, add_connection_args, connect_from_args, print_component
 from modbus_connection.model import Component
 
-from pystiebeleltron import StiebelEltronModbusError, UnknownControllerModelError, get_controller_model
+from pystiebeleltron import ControllerModel, StiebelEltronModbusError, UnknownControllerModelError, get_controller_model
 from pystiebeleltron.lwz import LwzStiebelEltronAPI
 from pystiebeleltron.wpm import WpmStiebelEltronAPI
 from pystiebeleltron.wpm3 import Wpm3StiebelEltronAPI
 from pystiebeleltron.wpm3i import Wpm3iStiebelEltronAPI
 
 Api = WpmStiebelEltronAPI | Wpm3StiebelEltronAPI | Wpm3iStiebelEltronAPI | LwzStiebelEltronAPI
+
+# The API each reported controller model is read with. The model id says which
+# register map the ISG serves, which is not what the name suggests for every
+# model: an LWZ_R290 (THZ with ISG Connect) answers the WPM map, not the LWZ one.
+API_BY_MODEL: dict[ControllerModel, type[Api]] = {
+    ControllerModel.LWZ: LwzStiebelEltronAPI,
+    ControllerModel.LWZ_x04_SOL: LwzStiebelEltronAPI,
+    ControllerModel.WPM_3: Wpm3StiebelEltronAPI,
+    ControllerModel.WPM_3i: Wpm3iStiebelEltronAPI,
+    ControllerModel.WPMsystem: WpmStiebelEltronAPI,
+    ControllerModel.LWZ_R290: WpmStiebelEltronAPI,
+}
 
 # The connections an ISG speaks: native Modbus TCP (socket framing), RTU over a
 # TCP gateway, or a direct serial line — no UDP/TLS.
@@ -59,13 +71,7 @@ async def _build_api(args: argparse.Namespace, unit: ModbusUnit) -> Api:
         return LwzStiebelEltronAPI(unit)
     model = await get_controller_model(unit)
     print(f"Detected controller: {model.name}")
-    if model.name.startswith("LWZ"):
-        return LwzStiebelEltronAPI(unit)
-    if model.name.startswith("WPM_3i"):
-        return Wpm3iStiebelEltronAPI(unit)
-    if model.name.startswith("WPM_3"):
-        return Wpm3StiebelEltronAPI(unit)
-    return WpmStiebelEltronAPI(unit)
+    return API_BY_MODEL[model](unit)
 
 
 def _print(api: Api) -> None:

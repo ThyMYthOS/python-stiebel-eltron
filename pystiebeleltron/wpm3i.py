@@ -163,9 +163,9 @@ class Wpm3iEnergyManagementSettings(Component):
     register_space = "holding"
     register_ranges = WPM3I_HOLDING_RANGES
 
-    switch_sg_ready_on_and_off = boolean(4000, nan=UNAVAILABLE, writable=True)
-    sg_ready_input_1 = boolean(4001, nan=UNAVAILABLE, writable=True)
-    sg_ready_input_2 = boolean(4002, nan=UNAVAILABLE, writable=True)
+    switch_sg_ready_on_and_off = boolean(4000, nan=UNAVAILABLE, writable=in_range(0, 1))
+    sg_ready_input_1 = boolean(4001, nan=UNAVAILABLE, writable=in_range(0, 1))
+    sg_ready_input_2 = boolean(4002, nan=UNAVAILABLE, writable=in_range(0, 1))
 
 
 class Wpm3iEnergySystemInformation(Component):

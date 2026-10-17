@@ -778,7 +778,7 @@ async def test_optional_temperature_off_is_model_specific(
 ) -> None:
     """Off is not a temperature; the next enabled reading must recover normally.
 
-    Issue #64 measured 0x9000 on four views. The fifth, min_source_temperature,
+    Issue #64 measured 0x9000 on four WPM3i views. The fifth, min_source_temperature,
     is a presentation-7 setting in the reported metadata, measured enabled at -9 C.
     A WPMsystem was measured off on the same four views; its min_source_temperature
     reads 0x8000, so 0x9000 there is still read as a temperature.
@@ -902,6 +902,29 @@ async def test_wpm_cooling_and_availability_registers(mock_modbus_unit: MockModb
     assert cooling.set_flow_temperature_fan == pytest.approx(15.0)
     assert api.circuit_availability.heating_circuit_1_available is True
     assert api.circuit_availability.heating_circuit_2_available is False
+
+
+@pytest.mark.asyncio()
+async def test_wpm_cooling_values_switched_off(mock_modbus_unit: MockModbusUnit) -> None:
+    """A THZ 7.1 answers 0x9000 for the calculated flow and the cooling set value in Eco and standby mode."""
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    mock_modbus_unit.input[653] = [0x9000, 0x8000]
+    mock_modbus_unit.input[753] = [234, 0x8000]
+    mock_modbus_unit.input[758] = [234, 0x9000, 150]
+
+    await api.async_update()
+
+    cooling = api.cooling_values
+    assert cooling.calculated_set_flow_temperature_cc_1 is None
+    assert cooling.set_temperature_cooling is None
+    assert cooling.actual_temperature_cc_1 == pytest.approx(23.4)
+    assert cooling.set_flow_temperature_fan == pytest.approx(15.0)
+
+    mock_modbus_unit.input[653] = [222, 0x8000]
+    mock_modbus_unit.input[758] = [234, 222, 150]
+    await api.async_update()
+    assert api.cooling_values.calculated_set_flow_temperature_cc_1 == pytest.approx(22.2)
+    assert api.cooling_values.set_temperature_cooling == pytest.approx(22.2)
 
 
 @pytest.mark.asyncio()

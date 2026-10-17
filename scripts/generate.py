@@ -341,6 +341,10 @@ def _plain_component(block: Block, rows: list[list[str]], controller: Controller
                 ("input", 532),  # application_limit_hzg
                 ("input", 533),  # application_limit_ww
                 ("holding", 1507),  # fixed_value_operation
+                # Measured on a Tecalor THZ 7.1: the cooling setpoints read 0x9000
+                # in Eco and standby mode.
+                ("input", 653),  # calculated_set_flow_temperature_cc_1
+                ("input", 759),  # set_temperature_cooling
             },
         }
         switched_off = (block.space, int(row[0]) - 1) in measured_off.get(controller.type, set())

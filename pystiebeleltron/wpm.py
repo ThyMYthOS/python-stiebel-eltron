@@ -792,12 +792,12 @@ class WpmCoolingValues(Component):
     register_space = "input"
     register_ranges = WPM_INPUT_RANGES
 
-    calculated_set_flow_temperature_cc_1 = gauge(653, 0.1, nan=UNAVAILABLE, unit="°C")
+    calculated_set_flow_temperature_cc_1 = gauge(653, 0.1, nan=(UNAVAILABLE, 0x9000), unit="°C")
     calculated_set_flow_temperature_cc_2 = gauge(654, 0.1, nan=UNAVAILABLE, unit="°C")
     actual_temperature_cc_1 = gauge(753, 0.1, nan=UNAVAILABLE, unit="°C")
     actual_temperature_cc_2 = gauge(754, 0.1, nan=UNAVAILABLE, unit="°C")
     actual_temperature_cooling = gauge(758, 0.1, nan=UNAVAILABLE, unit="°C")
-    set_temperature_cooling = gauge(759, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_cooling = gauge(759, 0.1, nan=(UNAVAILABLE, 0x9000), unit="°C")
     set_flow_temperature_fan = gauge(760, 0.1, nan=UNAVAILABLE, unit="°C")
 
 

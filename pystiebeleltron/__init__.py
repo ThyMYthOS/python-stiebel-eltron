@@ -91,6 +91,12 @@ async def get_controller_model(unit: ModbusUnit) -> ControllerModel:
 
     LWA and LWZ controllers have model ids 103 and 104.
     WPM controllers have 390, 391 or 449.
+    A THZ behind an ISG Connect reports 551 (``LWZ_R290``) and, despite the
+    name, serves the WPM register map.
+
+    Raises :class:`StiebelEltronModbusError` when the read fails or comes
+    back empty, and :class:`UnknownControllerModelError` for an id this
+    library does not know.
     """
     try:
         registers = await unit.read_input_registers(5001, 1)

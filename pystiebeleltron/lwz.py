@@ -362,7 +362,12 @@ class LwzStiebelEltronAPI:
         return self.system_values.relative_humidity_hc1
 
     def get_operation(self) -> OperatingMode:
-        """Return the current mode of operation."""
+        """Return the current mode of operation.
+
+        Reads as ``EMERGENCY_OPERATION`` before the first poll and while the
+        register is unavailable. Raises ``ValueError`` for a code the
+        :class:`OperatingMode` enum does not list.
+        """
         op_mode = self.system_parameters.operating_mode
         if op_mode is None:
             return OperatingMode.EMERGENCY_OPERATION

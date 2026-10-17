@@ -329,6 +329,20 @@ async def test_get_controller_model_error_response(mock_modbus_connection: MockM
 
 
 @pytest.mark.asyncio()
+async def test_get_controller_model_empty_answer() -> None:
+    """A read that returns no words is a communication error, not a crash."""
+
+    class MuteUnit(MockModbusUnit):
+        async def read_input_registers(self, address: int, count: int) -> list[int]:
+            return []
+
+    unit = MuteUnit(MockModbusConnection(), 1)
+    with pytest.raises(StiebelEltronModbusError) as exc_info:
+        await get_controller_model(unit)
+    assert isinstance(exc_info.value.__cause__, IndexError)
+
+
+@pytest.mark.asyncio()
 async def test_get_controller_model_unknown_id(mock_modbus_unit: MockModbusUnit) -> None:
     """An unrecognized model id surfaces as UnknownControllerModelError, not a comms error."""
     mock_modbus_unit.input[5001] = 999

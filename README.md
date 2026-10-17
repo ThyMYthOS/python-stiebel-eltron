@@ -57,6 +57,12 @@ For a read-only WPM library check outside Home Assistant, use `examples/wpm-read
 
 WPM API polls retry an illegal-address input or holding read at most once from a lower start answered directly in the same register space and poll, when the expanded read fits within 125 registers. Healthy reads and writes are unchanged; LWZ does not opt in. A rejected block costs one failed original request and at most one additional read on every poll. A successful retry does not establish that the target registers exist; unavailable words still decode as `None`.
 
+## Errors a caller sees
+
+- `get_controller_model` raises `StiebelEltronModbusError` when the identification register cannot be read or comes back empty, and `UnknownControllerModelError` (with `.model_id`) for an id this library does not know.
+- `async_update` and `async_read_raw` raise the `modbus_connection` errors unchanged: `ModbusError` and its subclasses such as `ModbusConnectionError`, `ModbusTimeoutError` or an `IllegalDataAddressError` naming the refused block. The one exception is an optional block a controller refuses with illegal data address before it ever answered it; that block is dropped and the poll goes on, as described above.
+- `write` raises `ValueError` from the field's validator for a value outside its documented range, `AttributeError` for an unknown or read-only field, and the `modbus_connection` errors for a failed transfer.
+
 ## License
 
 ``python-stiebel-eltron`` is licensed under MIT, for more details check LICENSE.

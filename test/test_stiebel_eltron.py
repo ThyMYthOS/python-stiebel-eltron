@@ -875,3 +875,45 @@ async def test_wpm_without_the_ventilation_registers(mock_modbus_unit: MockModbu
 
     assert api.ventilation_values.supply_air_flow is None
     assert api.ventilation_parameters.ventilation_stage_comfort is None
+
+
+@pytest.mark.asyncio()
+async def test_wpm_cooling_and_availability_registers(mock_modbus_unit: MockModbusUnit) -> None:
+    """Cooling and heating-circuit availability registers of the THZ 5.1/7.1 table.
+
+    Tecalor's document (sections 6 and 8) lists them as degC in tenths and a
+    boolean. The values here are synthetic: they have not been read on a unit yet.
+    """
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    mock_modbus_unit.input[653] = [180, 190]  # doc 654-655
+    mock_modbus_unit.input[753] = [215, 0x8000]  # doc 754-755
+    mock_modbus_unit.input[758] = [230, 240, 150]  # doc 759-761
+    mock_modbus_unit.input[779] = [1, 0]  # doc 780-781
+
+    await api.async_update()
+
+    cooling = api.cooling_values
+    assert cooling.calculated_set_flow_temperature_cc_1 == pytest.approx(18.0)
+    assert cooling.calculated_set_flow_temperature_cc_2 == pytest.approx(19.0)
+    assert cooling.actual_temperature_cc_1 == pytest.approx(21.5)
+    assert cooling.actual_temperature_cc_2 is None
+    assert cooling.actual_temperature_cooling == pytest.approx(23.0)
+    assert cooling.set_temperature_cooling == pytest.approx(24.0)
+    assert cooling.set_flow_temperature_fan == pytest.approx(15.0)
+    assert api.circuit_availability.heating_circuit_1_available is True
+    assert api.circuit_availability.heating_circuit_2_available is False
+
+
+@pytest.mark.asyncio()
+async def test_wpm_refusing_one_of_the_new_blocks_keeps_the_other(mock_modbus_unit: MockModbusUnit) -> None:
+    """A controller serving the cooling values but not the availability block keeps polling."""
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    mock_modbus_unit.input[653] = [180, 190]
+    mock_modbus_unit.input[753] = [215, 216]
+    mock_modbus_unit.input[758] = [230, 240, 150]
+    mock_modbus_unit.fail_read(779, IllegalDataAddressError(), register_type="input")
+
+    await api.async_update()
+
+    assert api.cooling_values.set_temperature_cooling == pytest.approx(24.0)
+    assert api.circuit_availability.heating_circuit_1_available is None

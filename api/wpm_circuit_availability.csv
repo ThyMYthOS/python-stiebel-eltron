@@ -1,0 +1,3 @@
+Modbus address,Object designation ,WPMsystem,WPM 3,WPM 3i,Comments,Min. value,Max. value,Data type,Unit,Write/ read (w/r),Suffix
+780,HEATING CIRCUIT 1 AVAILABLE,x,,,"Tecalor ISG Modbus document, section 6 (WPMsystem) and 8 (THZ 5.1/7.1). Not yet read on a unit. Documented as boolean",0,1,6,,r,
+781,HEATING CIRCUIT 2 AVAILABLE,x,,,Documented as boolean,0,1,6,,r,

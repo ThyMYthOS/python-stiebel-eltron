@@ -104,7 +104,7 @@ class LwzSystemParameters(Component):
     room_temperature_night_hk1_cooling = gauge(1022, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 30))
     room_temperature_day_hk2_cooling = gauge(1023, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 30))
     room_temperature_night_hk2_cooling = gauge(1024, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 30))
-    reset = boolean(1025, nan=UNAVAILABLE, writable=True)
+    reset = boolean(1025, nan=UNAVAILABLE, writable=in_range(0, 1))
     restart_isg = integer(1026, signed=False, nan=UNAVAILABLE, writable=in_range(0, 2))
 
 
@@ -218,9 +218,9 @@ class LwzEnergyManagementSettings(Component):
     register_space = "holding"
     register_ranges = LWZ_HOLDING_RANGES
 
-    switch_sg_ready_on_and_off = boolean(4000, nan=UNAVAILABLE, writable=True)
-    sg_ready_input_1 = boolean(4001, nan=UNAVAILABLE, writable=True)
-    sg_ready_input_2 = boolean(4002, nan=UNAVAILABLE, writable=True)
+    switch_sg_ready_on_and_off = boolean(4000, nan=UNAVAILABLE, writable=in_range(0, 1))
+    sg_ready_input_1 = boolean(4001, nan=UNAVAILABLE, writable=in_range(0, 1))
+    sg_ready_input_2 = boolean(4002, nan=UNAVAILABLE, writable=in_range(0, 1))
 
 
 class LwzEnergySystemInformation(Component):

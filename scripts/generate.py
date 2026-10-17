@@ -220,8 +220,10 @@ def _field_factory(row: list[str], cols: Columns, *, writable: bool, nan: str = 
         # A documented 0..1 range is a flag, not a number worth comparing, and
         # boolean() also turns an out-of-spec code into None rather than a
         # value that reads as on. It takes no unit, and none of these carry one.
+        # The range still guards writes: boolean() encodes whatever int() makes
+        # of the value, so without the validator a 2 would reach the register.
         if (low, high) == (0, 1):
-            return f"boolean({wire}, nan={nan}{', writable=True' if writable else ''})"
+            return f"boolean({wire}, nan={nan}{writable_arg})"
         return f"integer({wire}, signed=False, nan={nan}{unit_arg}{writable_arg})"
     raise ValueError(f"unhandled data type {data_type!r} for {name!r}")
 

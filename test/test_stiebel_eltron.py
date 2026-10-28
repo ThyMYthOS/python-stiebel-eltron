@@ -882,7 +882,9 @@ async def test_wpm_cooling_and_availability_registers(mock_modbus_unit: MockModb
     """Cooling and heating-circuit availability registers of the THZ 5.1/7.1 table.
 
     Tecalor's document (sections 6 and 8) lists them as degC in tenths and a
-    boolean. The values here are synthetic: they have not been read on a unit yet.
+    boolean. The values here are synthetic. Docs 654, 760 and 754 have been read
+    on a THZ 7.1 and docs 654, 754, 759-761 and 780 are logged on a WPMsystem 449
+    (issue #94); docs 655, 755 and 781 have not been read on a unit yet.
     """
     api = WpmStiebelEltronAPI(mock_modbus_unit)
     mock_modbus_unit.input[653] = [180, 190]  # doc 654-655
@@ -899,7 +901,7 @@ async def test_wpm_cooling_and_availability_registers(mock_modbus_unit: MockModb
     assert cooling.actual_temperature_cc_2 is None
     assert cooling.actual_temperature_cooling == pytest.approx(23.0)
     assert cooling.set_temperature_cooling == pytest.approx(24.0)
-    assert cooling.set_flow_temperature_fan == pytest.approx(15.0)
+    assert api.cooling_fan_values.set_flow_temperature_fan == pytest.approx(15.0)
     assert api.circuit_availability.heating_circuit_1_available is True
     assert api.circuit_availability.heating_circuit_2_available is False
 
@@ -918,7 +920,7 @@ async def test_wpm_cooling_values_switched_off(mock_modbus_unit: MockModbusUnit)
     assert cooling.calculated_set_flow_temperature_cc_1 is None
     assert cooling.set_temperature_cooling is None
     assert cooling.actual_temperature_cc_1 == pytest.approx(23.4)
-    assert cooling.set_flow_temperature_fan == pytest.approx(15.0)
+    assert api.cooling_fan_values.set_flow_temperature_fan == pytest.approx(15.0)
 
     mock_modbus_unit.input[653] = [222, 0x8000]
     mock_modbus_unit.input[758] = [234, 222, 150]
@@ -940,3 +942,25 @@ async def test_wpm_refusing_one_of_the_new_blocks_keeps_the_other(mock_modbus_un
 
     assert api.cooling_values.set_temperature_cooling == pytest.approx(24.0)
     assert api.circuit_availability.heating_circuit_1_available is None
+
+
+@pytest.mark.asyncio()
+async def test_wpm_refusing_the_cooling_fan_register_keeps_the_other_cooling_values(mock_modbus_unit: MockModbusUnit) -> None:
+    """Doc 761 exists from WPM-SW 8: older software refusing it must not take the other six values along."""
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    mock_modbus_unit.input[653] = [180, 190]
+    mock_modbus_unit.input[753] = [215, 216]
+    mock_modbus_unit.input[758] = [230, 240, 150]
+    mock_modbus_unit.fail_read(760, IllegalDataAddressError(), register_type="input")
+
+    await api.async_update()
+    await api.async_update()
+
+    cooling = api.cooling_values
+    assert cooling.calculated_set_flow_temperature_cc_1 == pytest.approx(18.0)
+    assert cooling.calculated_set_flow_temperature_cc_2 == pytest.approx(19.0)
+    assert cooling.actual_temperature_cc_1 == pytest.approx(21.5)
+    assert cooling.actual_temperature_cc_2 == pytest.approx(21.6)
+    assert cooling.actual_temperature_cooling == pytest.approx(23.0)
+    assert cooling.set_temperature_cooling == pytest.approx(24.0)
+    assert api.cooling_fan_values.set_flow_temperature_fan is None

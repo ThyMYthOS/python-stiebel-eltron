@@ -1,8 +1,7 @@
 Modbus address,Object designation ,WPMsystem,WPM 3,WPM 3i,Comments,Min. value,Max. value,Data type,Unit,Write/ read (w/r),Suffix
-654,CALCULATED SET FLOW TEMPERATURE CC 1,x,,,"Tecalor ISG Modbus document, section 6 (WPMsystem) and 8 (THZ 5.1/7.1). Read on a THZ 7.1 as a temperature in programme and comfort mode and as 0x9000 in Eco and standby mode. Flow cooling circuit 1 (calculated)",,,2,°C,r,
+654,CALCULATED SET FLOW TEMPERATURE CC 1,x,,,"Tecalor ISG Modbus document, section 6 (WPMsystem) and 8 (THZ 5.1/7.1). Read on a THZ 7.1 as a temperature in programme and comfort mode and as 0x9000 in Eco and standby mode; logged on a WPMsystem 449 by mark-vis (issue #94). Flow cooling circuit 1 (calculated)",,,2,°C,r,
 655,CALCULATED SET FLOW TEMPERATURE CC 2,x,,,Flow cooling circuit 2 (calculated),,,2,°C,r,
-754,ACTUAL TEMPERATURE CC 1,x,,,Actual temperature cooling circuit 1,,,2,°C,r,
+754,ACTUAL TEMPERATURE CC 1,x,,,"Read on a THZ 7.1: follows a flow temperature, not the room temperature (that is doc 584); logged on a WPMsystem 449 by mark-vis (issue #94). Actual temperature cooling circuit 1",,,2,°C,r,
 755,ACTUAL TEMPERATURE CC 2,x,,,Actual temperature cooling circuit 2,,,2,°C,r,
-759,ACTUAL TEMPERATURE COOLING,x,,,Actual temperature cooling,,,2,°C,r,
-760,SET TEMPERATURE COOLING,x,,,Set temperature cooling. Read on a THZ 7.1 as a temperature in programme and comfort mode and as 0x9000 in Eco and standby mode,,,2,°C,r,
-761,SET FLOW TEMPERATURE FAN,x,,,Set flow temperature from WPM-SW 8,,,2,°C,r,
+759,ACTUAL TEMPERATURE COOLING,x,,,Logged on a WPMsystem 449 by mark-vis (issue #94). Actual temperature cooling,,,2,°C,r,
+760,SET TEMPERATURE COOLING,x,,,Read on a THZ 7.1 as a temperature in programme and comfort mode and as 0x9000 in Eco and standby mode; logged on a WPMsystem 449 by mark-vis (issue #94). Set temperature cooling,,,2,°C,r,

@@ -1,0 +1,2 @@
+Modbus address,Object designation ,WPMsystem,WPM 3,WPM 3i,Comments,Min. value,Max. value,Data type,Unit,Write/ read (w/r),Suffix
+761,SET FLOW TEMPERATURE FAN,x,,,"Set flow temperature from WPM-SW 8, so older software may refuse it: read as a block of its own. Logged on a WPMsystem 449 by mark-vis (issue #94)",,,2,°C,r,

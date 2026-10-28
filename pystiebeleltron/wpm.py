@@ -798,6 +798,21 @@ class WpmCoolingValues(Component):
     actual_temperature_cc_2 = gauge(754, 0.1, nan=UNAVAILABLE, unit="°C")
     actual_temperature_cooling = gauge(758, 0.1, nan=UNAVAILABLE, unit="°C")
     set_temperature_cooling = gauge(759, 0.1, nan=(UNAVAILABLE, 0x9000), unit="°C")
+
+
+class WpmCoolingFanValues(Component):
+    """Registers not every machine serves, read on their own.
+
+    A controller without them answers the block with illegal data address, which
+    would fail a pooled read for everything else too, so
+    :class:`~pystiebeleltron._components.ControllerComponents` reads this block
+    separately and drops it once the controller has refused it without ever
+    having answered it.
+    """
+
+    register_space = "input"
+    register_ranges = WPM_INPUT_RANGES
+
     set_flow_temperature_fan = gauge(760, 0.1, nan=UNAVAILABLE, unit="°C")
 
 
@@ -837,6 +852,7 @@ class WpmStiebelEltronAPI:
         self.ventilation_values = WpmVentilationValues(unit)
         self.ventilation_parameters = WpmVentilationParameters(unit)
         self.cooling_values = WpmCoolingValues(unit)
+        self.cooling_fan_values = WpmCoolingFanValues(unit)
         self.circuit_availability = WpmCircuitAvailability(unit)
         self._group = ControllerComponents(
             unit,
@@ -859,6 +875,7 @@ class WpmStiebelEltronAPI:
                 self.ventilation_values,
                 self.ventilation_parameters,
                 self.cooling_values,
+                self.cooling_fan_values,
                 self.circuit_availability,
             ],
         )

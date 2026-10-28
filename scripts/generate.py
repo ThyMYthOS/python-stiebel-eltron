@@ -113,6 +113,8 @@ WPM = Controller(
         # Cooling and availability registers of the WPMsystem and THZ 5.1/7.1 tables.
         # Separate blocks, so a controller refusing one does not lose the other.
         Block("Cooling Values", "wpm_cooling_values.csv", "input", optional=True),
+        # Doc 761 exists from WPM-SW 8 only, so older software may refuse it alone.
+        Block("Cooling Fan Values", "wpm_cooling_fan_values.csv", "input", optional=True),
         Block("Circuit Availability", "wpm_circuit_availability.csv", "input", optional=True),
     ],
 )

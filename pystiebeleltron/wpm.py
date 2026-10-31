@@ -10,7 +10,24 @@ from ._components import ControllerComponents
 from ._day_and_total import DayAndTotalCounter
 
 WPM_HOLDING_RANGES = ((1500, 1520), (1550, 1558), (1603, 1607), (1703, 1708), (1749, 1751), (1769, 1772), (4000, 4002), (4249, 4251), (4253, 4255), (4257, 4258), (4271, 4277))
-WPM_INPUT_RANGES = ((500, 607), (609, 610), (819, 834), (2500, 2546), (2560, 2565), (2569, 2572), (3500, 3654), (3679, 3684), (3689, 3733), (5000, 5001), (5219, 5221), (5229, 5230))
+WPM_INPUT_RANGES = (
+    (500, 607),
+    (609, 610),
+    (653, 654),
+    (753, 754),
+    (758, 760),
+    (779, 780),
+    (819, 834),
+    (2500, 2546),
+    (2560, 2565),
+    (2569, 2572),
+    (3500, 3654),
+    (3679, 3684),
+    (3689, 3733),
+    (5000, 5001),
+    (5219, 5221),
+    (5229, 5230),
+)
 
 
 class WpmHeatPumpModule(Component):
@@ -762,6 +779,60 @@ class WpmVentilationParameters(Component):
     intensive_ventilation_duration = integer(1772, signed=False, nan=UNAVAILABLE, writable=True)
 
 
+class WpmCoolingValues(Component):
+    """Registers not every machine serves, read on their own.
+
+    A controller without them answers the block with illegal data address, which
+    would fail a pooled read for everything else too, so
+    :class:`~pystiebeleltron._components.ControllerComponents` reads this block
+    separately and drops it once the controller has refused it without ever
+    having answered it.
+    """
+
+    register_space = "input"
+    register_ranges = WPM_INPUT_RANGES
+
+    calculated_set_flow_temperature_cc_1 = gauge(653, 0.1, nan=(UNAVAILABLE, 0x9000), unit="°C")
+    calculated_set_flow_temperature_cc_2 = gauge(654, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_temperature_cc_1 = gauge(753, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_temperature_cc_2 = gauge(754, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_temperature_cooling = gauge(758, 0.1, nan=UNAVAILABLE, unit="°C")
+    set_temperature_cooling = gauge(759, 0.1, nan=(UNAVAILABLE, 0x9000), unit="°C")
+
+
+class WpmCoolingFanValues(Component):
+    """Registers not every machine serves, read on their own.
+
+    A controller without them answers the block with illegal data address, which
+    would fail a pooled read for everything else too, so
+    :class:`~pystiebeleltron._components.ControllerComponents` reads this block
+    separately and drops it once the controller has refused it without ever
+    having answered it.
+    """
+
+    register_space = "input"
+    register_ranges = WPM_INPUT_RANGES
+
+    set_flow_temperature_fan = gauge(760, 0.1, nan=UNAVAILABLE, unit="°C")
+
+
+class WpmCircuitAvailability(Component):
+    """Registers not every machine serves, read on their own.
+
+    A controller without them answers the block with illegal data address, which
+    would fail a pooled read for everything else too, so
+    :class:`~pystiebeleltron._components.ControllerComponents` reads this block
+    separately and drops it once the controller has refused it without ever
+    having answered it.
+    """
+
+    register_space = "input"
+    register_ranges = WPM_INPUT_RANGES
+
+    heating_circuit_1_available = boolean(779, nan=UNAVAILABLE)
+    heating_circuit_2_available = boolean(780, nan=UNAVAILABLE)
+
+
 class WpmStiebelEltronAPI:
     """Stiebel Eltron heat pump API over a modbus_connection ModbusUnit."""
 
@@ -780,6 +851,9 @@ class WpmStiebelEltronAPI:
         self.extended_energy_system_information = WpmExtendedEnergySystemInformation(unit)
         self.ventilation_values = WpmVentilationValues(unit)
         self.ventilation_parameters = WpmVentilationParameters(unit)
+        self.cooling_values = WpmCoolingValues(unit)
+        self.cooling_fan_values = WpmCoolingFanValues(unit)
+        self.circuit_availability = WpmCircuitAvailability(unit)
         self._group = ControllerComponents(
             unit,
             retry_register_start=True,
@@ -800,6 +874,9 @@ class WpmStiebelEltronAPI:
                 self.extended_energy_system_information,
                 self.ventilation_values,
                 self.ventilation_parameters,
+                self.cooling_values,
+                self.cooling_fan_values,
+                self.circuit_availability,
             ],
         )
 

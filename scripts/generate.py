@@ -110,6 +110,12 @@ WPM = Controller(
         # THZ 5.1/7.1 (ISG Connect) ventilation. Other WPM machines refuse it.
         Block("Ventilation Values", "wpm_ventilation_values.csv", "input", optional=True),
         Block("Ventilation Parameters", "wpm_ventilation_parameters.csv", "holding", optional=True),
+        # Cooling and availability registers of the WPMsystem and THZ 5.1/7.1 tables.
+        # Separate blocks, so a controller refusing one does not lose the other.
+        Block("Cooling Values", "wpm_cooling_values.csv", "input", optional=True),
+        # Doc 761 exists from WPM-SW 8 only, so older software may refuse it alone.
+        Block("Cooling Fan Values", "wpm_cooling_fan_values.csv", "input", optional=True),
+        Block("Circuit Availability", "wpm_circuit_availability.csv", "input", optional=True),
     ],
 )
 
@@ -337,6 +343,10 @@ def _plain_component(block: Block, rows: list[list[str]], controller: Controller
                 ("input", 532),  # application_limit_hzg
                 ("input", 533),  # application_limit_ww
                 ("holding", 1507),  # fixed_value_operation
+                # Measured on a Tecalor THZ 7.1: the cooling setpoints read 0x9000
+                # in Eco and standby mode.
+                ("input", 653),  # calculated_set_flow_temperature_cc_1
+                ("input", 759),  # set_temperature_cooling
             },
         }
         switched_off = (block.space, int(row[0]) - 1) in measured_off.get(controller.type, set())

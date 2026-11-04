@@ -131,6 +131,39 @@ async def test_wpm_repeating_groups(mock_modbus_unit: MockModbusUnit) -> None:
 
 
 @pytest.mark.asyncio()
+async def test_wpm_room_startup_placeholder_is_unavailable(mock_modbus_unit: MockModbusUnit) -> None:
+    """-40 (0xFE70) after a WPM restart is no room reading; the next poll recovers.
+
+    Measured on a WPMsystem after a power cut: the first poll returned -40.0 for room
+    temperature and relative humidity of heating circuits 4 and 5, the next one normal
+    values. Set temperature and dew point keep reading the raw value.
+    """
+    api = WpmStiebelEltronAPI(mock_modbus_unit)
+    _seed(mock_modbus_unit, api.system_values)
+    for circuit in (3, 4):  # HC4, HC5
+        base = 583 + 4 * circuit
+        for offset in range(4):
+            mock_modbus_unit.input[base + offset] = 0xFE70
+
+    await api.async_update()
+
+    rooms = api.system_values.room_temperatures
+    for circuit in (3, 4):
+        assert rooms[circuit].actual_temperature is None
+        assert rooms[circuit].relative_humidity is None
+        assert rooms[circuit].set_temperature == -40.0
+        assert rooms[circuit].dew_point_temperature == -40.0
+    assert rooms[0].actual_temperature == 8.3
+
+    mock_modbus_unit.input[583 + 4 * 3] = 228
+    mock_modbus_unit.input[585 + 4 * 3] = 431
+    await api.async_update()
+
+    assert rooms[3].actual_temperature == 22.8
+    assert rooms[3].relative_humidity == 43.1
+
+
+@pytest.mark.asyncio()
 async def test_write_out_of_range_rejected(mock_modbus_unit: MockModbusUnit) -> None:
     """A write validator rejects values outside the register's documented range."""
     api = WpmStiebelEltronAPI(mock_modbus_unit)

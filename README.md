@@ -22,6 +22,7 @@ You need to have [Python](https://www.python.org) installed.
   * LWZ504e
   * LWZ304
   * Tecalor THZ 7.1 IBC Topline with ISG Connect (reported as `LWZ_R290`, WPM register map). Ventilation registers (`WpmVentilationValues`, `WpmVentilationParameters`) read only so far; writing the ventilation stages is untested
+  * STIEBEL ELTRON WPL-A 13.2 Plus HK 400 with WPMsystem (controller identification 449, software 19.0.5; reported as `WPMsystem`) and WPE extension module (software 503) for heating circuits 4 and 5, ISG WEB 1.6.6
 * Network connection to the ISG WEB
 
 ## Installation

@@ -293,7 +293,19 @@ def _repeating_sub_component(repeat: Repeat, by_index: dict[int, list[list[str]]
         if attribute in seen:
             raise ValueError(f"duplicate attribute {attribute!r} in {sub_class}")
         seen.add(attribute)
-        sub.fields.append(f"{attribute} = {_field_factory(row, controller.columns, writable=False)}")
+        # A WPMsystem (controller 449) coming back from a power cut answered its
+        # first poll with -40.0 (raw 0xFE70) as room temperature and relative
+        # humidity of heating circuits 4 and 5 (served by its WPE extension),
+        # before their room units had reported; the next poll a few minutes
+        # later was normal. -40 % humidity is impossible and -40 C is no room
+        # reading, so both read as unavailable. The instances share this class,
+        # so the marker covers all five circuits. Measured on the WPM only.
+        startup_placeholder = controller.type == "Wpm" and (space, int(row[0]) - 1) in {
+            ("input", 583),  # actual_temperature
+            ("input", 585),  # relative_humidity
+        }
+        nan = "(UNAVAILABLE, 0xFE70)" if startup_placeholder else "UNAVAILABLE"
+        sub.fields.append(f"{attribute} = {_field_factory(row, controller.columns, writable=False, nan=nan)}")
     line = f"{repeat.attr} = repeating_group({len(indices)}, {sub_class}, stride={repeat.stride})"
     return sub, line
 

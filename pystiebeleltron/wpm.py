@@ -32,9 +32,9 @@ class WpmRoomTemperature(Component):
 
     register_space = "input"
 
-    actual_temperature = gauge(583, 0.1, nan=UNAVAILABLE, unit="°C")
+    actual_temperature = gauge(583, 0.1, nan=(UNAVAILABLE, 0xFE70), unit="°C")
     set_temperature = gauge(584, 0.1, nan=UNAVAILABLE, unit="°C")
-    relative_humidity = gauge(585, 0.1, nan=UNAVAILABLE, unit="%")
+    relative_humidity = gauge(585, 0.1, nan=(UNAVAILABLE, 0xFE70), unit="%")
     dew_point_temperature = gauge(586, 0.1, nan=UNAVAILABLE, unit="°C")
 
 

@@ -294,6 +294,8 @@ async def test_lwz(mock_modbus_unit: MockModbusUnit) -> None:
 
     # compressor_starts_hi (30) * 1000 + compressor_starts_low (33) = 30033
     assert api.system_values.compressor_starts == 30033
+    # The compressor speed register holds whole Hz, unlike the documented data type 2.
+    assert api.system_values.compressor_speed == 31
 
 
 @pytest.mark.asyncio()

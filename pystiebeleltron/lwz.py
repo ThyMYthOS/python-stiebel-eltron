@@ -62,7 +62,7 @@ class LwzSystemValues(Component):
     high_pressure = gauge(28, 0.01, nan=UNAVAILABLE, unit="bar")
     low_pressure = gauge(29, 0.01, nan=UNAVAILABLE, unit="bar")
     compressor_starts_hi = integer(30, signed=False, nan=UNAVAILABLE)
-    compressor_speed = gauge(31, 0.1, nan=UNAVAILABLE, unit="Hz")
+    compressor_speed = integer(31, signed=False, nan=UNAVAILABLE, unit="Hz")
     mixed_water_amount = integer(32, signed=False, nan=UNAVAILABLE, unit="l")
     compressor_starts_low = integer(33, signed=False, nan=UNAVAILABLE)
 

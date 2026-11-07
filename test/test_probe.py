@@ -22,11 +22,12 @@ async def no_sleep(_: float) -> None:
 def test_plan_tags_shared_addresses_once() -> None:
     plan = build_plan(["lwz", "wpm"])
     keys = [(space, address) for space, address, _ in plan]
-    assert len(keys) == len(set(keys)) == 541
+    assert len(keys) == len(set(keys)) == 565
     assert plan[0][:2] == ("input", 0)
     tags = {(space, address): owners for space, address, owners in plan}
     assert tags[("holding", 1020)] == ["lwz"]
     assert tags[("input", 5001)] == ["lwz", "wpm"]
+    assert tags[("input", 819)] == tags[("holding", 1772)] == ["wpm"]
     assert ("input", 608) not in tags
 
 

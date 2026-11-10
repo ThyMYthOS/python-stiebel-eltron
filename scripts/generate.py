@@ -197,15 +197,40 @@ def _number(text: str) -> float | int | None:
     return int(value) if value.is_integer() else value
 
 
+# What a register of each data type can hold: a gauge is a signed word at its
+# scale, without the word the unavailable marker takes, and the others are an
+# unsigned word. This bounds a write the manual gives no range for.
+_REGISTER_RANGES: dict[str, tuple[float, float]] = {
+    "2": (-3276.7, 3276.7),
+    "7": (-327.67, 327.67),
+    "6": (0, 65535),
+    "8": (0, 65535),
+}
+
+
+def _write_validator(data_type: str, low: float | None, high: float | None) -> str:
+    """Render the validator of a writable row.
+
+    The documented range guards the write. Where the manual gives none, the
+    range the register can hold does: a setpoint of 4000 would otherwise be
+    written as 40000 and read back as -2553.6. A data type that holds a whole
+    number also refuses a fraction, which its field would cut off.
+    """
+    register_low, register_high = _REGISTER_RANGES[data_type]
+    low = register_low if low is None else low
+    high = register_high if high is None else high
+    validator = "whole_in_range" if data_type in ("6", "8") else "in_range"
+    return f"{validator}({low}, {high})"
+
+
 def _field_factory(row: list[str], cols: Columns, *, writable: bool, nan: str = "UNAVAILABLE") -> str:
     """Render the field factory call for one register row."""
     name, data_type, unit = row[cols.name_col], row[cols.data_type_col], row[cols.unit_col]
     unit_arg = f', unit="{unit}"' if unit else ""
     low, high = _number(row[cols.min_col]), _number(row[cols.max_col])
-    if writable:
-        writable_arg = f", writable=in_range({low}, {high})" if low is not None and high is not None else ", writable=True"
-    else:
-        writable_arg = ""
+    if data_type not in _REGISTER_RANGES:
+        raise ValueError(f"unhandled data type {data_type!r} for {name!r}")
+    writable_arg = f", writable={_write_validator(data_type, low, high)}" if writable else ""
     wire = int(row[0]) - 1
     if data_type == "2":
         return f"gauge({wire}, 0.1, nan={nan}{unit_arg}{writable_arg})"
@@ -219,8 +244,7 @@ def _field_factory(row: list[str], cols: Columns, *, writable: bool, nan: str = 
         # of the value, so without the validator a 2 would reach the register.
         if (low, high) == (0, 1):
             return f"boolean({wire}, nan={nan}{writable_arg})"
-        return f"integer({wire}, signed=False, nan={nan}{unit_arg}{writable_arg})"
-    raise ValueError(f"unhandled data type {data_type!r} for {name!r}")
+    return f"integer({wire}, signed=False, nan={nan}{unit_arg}{writable_arg})"
 
 
 @dataclass
@@ -446,8 +470,9 @@ def _imports(controller: Controller, components: list[Component]) -> list[str]:
     local = ["UNAVAILABLE"]
     if any(block.energy for block in controller.blocks):
         local.append("scaled_sum")
-    if any("in_range(" in line for component in components for line in component.fields):
-        local.append("in_range")
+    for validator in ("in_range", "whole_in_range"):
+        if any(f"={validator}(" in line for component in components for line in component.fields):
+            local.append(validator)
 
     lines = []
     if controller.operating_mode:

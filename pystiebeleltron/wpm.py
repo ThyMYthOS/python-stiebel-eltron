@@ -5,7 +5,7 @@ from __future__ import annotations
 from modbus_connection import ModbusUnit
 from modbus_connection.model import Component, Raw, boolean, gauge, integer, repeating_group
 
-from . import UNAVAILABLE, in_range, scaled_sum
+from . import UNAVAILABLE, in_range, scaled_sum, whole_in_range
 from ._components import ControllerComponents
 from ._day_and_total import DayAndTotalCounter
 
@@ -100,7 +100,7 @@ class WpmSystemParameters(Component):
     register_space = "holding"
     register_ranges = WPM_HOLDING_RANGES
 
-    operating_mode = integer(1500, signed=False, nan=UNAVAILABLE, writable=in_range(0, 5))
+    operating_mode = integer(1500, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 5))
     comfort_temperature_hk_1 = gauge(1501, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(5, 30))
     eco_temperature_hk_1 = gauge(1502, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(5, 30))
     heating_curve_rise_hk_1 = gauge(1503, 0.01, nan=UNAVAILABLE, writable=in_range(0, 3))
@@ -111,7 +111,7 @@ class WpmSystemParameters(Component):
     dual_mode_temp_hzg = gauge(1508, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-40, 40))
     comfort_temperature_dhw = gauge(1509, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 60))
     eco_temperature_dhw = gauge(1510, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 60))
-    dhw_stages = integer(1511, signed=False, nan=UNAVAILABLE, writable=in_range(0, 6))
+    dhw_stages = integer(1511, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 6))
     dual_mode_temp_ww = gauge(1512, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-40, 40))
     set_flow_temperature_area = gauge(1513, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(7, 25))
     flow_temp_hysteresis_area = gauge(1514, 0.1, nan=UNAVAILABLE, unit="K", writable=in_range(1, 5))
@@ -119,22 +119,22 @@ class WpmSystemParameters(Component):
     set_flow_temperature_fan = gauge(1516, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(7, 25))
     flow_temp_hysteresis_fan = gauge(1517, 0.1, nan=UNAVAILABLE, unit="K", writable=in_range(1, 5))
     set_room_temperature_fan = gauge(1518, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(20, 30))
-    reset = integer(1519, signed=False, nan=UNAVAILABLE, writable=in_range(1, 3))
-    restart_isg = integer(1520, signed=False, nan=UNAVAILABLE, writable=in_range(0, 2))
+    reset = integer(1519, signed=False, nan=UNAVAILABLE, writable=whole_in_range(1, 3))
+    restart_isg = integer(1520, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 2))
     comfort_temperature_hk_3 = gauge(1550, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(5, 30))
     eco_temperature_hk_3 = gauge(1551, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(5, 30))
-    heating_curve_rise_hk_3 = gauge(1552, 0.01, nan=UNAVAILABLE, writable=True)
-    comfort_temperature_hk_4 = gauge(1553, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    eco_temperature_hk_4 = gauge(1554, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    heating_curve_rise_hk_4 = gauge(1555, 0.01, nan=UNAVAILABLE, writable=True)
-    comfort_temperature_hk_5 = gauge(1556, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    eco_temperature_hk_5 = gauge(1557, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    heating_curve_rise_hk_5 = gauge(1558, 0.01, nan=UNAVAILABLE, writable=True)
-    set_temperature_cc_1_hk_1 = gauge(1603, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    set_temperature_cc_2_hk_2 = gauge(1604, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    set_temperature_cc_3_hk_3 = gauge(1605, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    set_temperature_cc_4_hk_4 = gauge(1606, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    set_temperature_cc_5_hk_5 = gauge(1607, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    heating_curve_rise_hk_3 = gauge(1552, 0.01, nan=UNAVAILABLE, writable=in_range(-327.67, 327.67))
+    comfort_temperature_hk_4 = gauge(1553, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    eco_temperature_hk_4 = gauge(1554, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    heating_curve_rise_hk_4 = gauge(1555, 0.01, nan=UNAVAILABLE, writable=in_range(-327.67, 327.67))
+    comfort_temperature_hk_5 = gauge(1556, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    eco_temperature_hk_5 = gauge(1557, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    heating_curve_rise_hk_5 = gauge(1558, 0.01, nan=UNAVAILABLE, writable=in_range(-327.67, 327.67))
+    set_temperature_cc_1_hk_1 = gauge(1603, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    set_temperature_cc_2_hk_2 = gauge(1604, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    set_temperature_cc_3_hk_3 = gauge(1605, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    set_temperature_cc_4_hk_4 = gauge(1606, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    set_temperature_cc_5_hk_5 = gauge(1607, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
 
 
 class WpmSystemState(Component):
@@ -529,9 +529,9 @@ class WpmEnergyManagementSettings(Component):
     register_space = "holding"
     register_ranges = WPM_HOLDING_RANGES
 
-    switch_sg_ready_on_and_off = boolean(4000, nan=UNAVAILABLE, writable=in_range(0, 1))
-    sg_ready_input_1 = boolean(4001, nan=UNAVAILABLE, writable=in_range(0, 1))
-    sg_ready_input_2 = boolean(4002, nan=UNAVAILABLE, writable=in_range(0, 1))
+    switch_sg_ready_on_and_off = boolean(4000, nan=UNAVAILABLE, writable=whole_in_range(0, 1))
+    sg_ready_input_1 = boolean(4001, nan=UNAVAILABLE, writable=whole_in_range(0, 1))
+    sg_ready_input_2 = boolean(4002, nan=UNAVAILABLE, writable=whole_in_range(0, 1))
 
 
 class WpmEnergySystemInformation(Component):
@@ -591,12 +591,12 @@ class WpmExtendedSystemParameters(Component):
     register_space = "holding"
     register_ranges = WPM_HOLDING_RANGES
 
-    set_flow_temperature_cc_1_hk_1 = gauge(1703, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    set_flow_temperature_cc_2_hk_2 = gauge(1704, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    set_flow_temperature_cc_3_hk_3 = gauge(1705, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    set_flow_temperature_cc_4_hk_4 = gauge(1706, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    set_flow_temperature_cc_5_hk_5 = gauge(1707, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    set_flow_temperature_fan_cooling = gauge(1708, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    set_flow_temperature_cc_1_hk_1 = gauge(1703, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    set_flow_temperature_cc_2_hk_2 = gauge(1704, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    set_flow_temperature_cc_3_hk_3 = gauge(1705, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    set_flow_temperature_cc_4_hk_4 = gauge(1706, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    set_flow_temperature_cc_5_hk_5 = gauge(1707, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    set_flow_temperature_fan_cooling = gauge(1708, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
     summer_mode_auto_ = integer(1749, signed=False, nan=UNAVAILABLE)
     outside_temperature_summer_mode = gauge(1750, 0.1, nan=UNAVAILABLE, unit="°C")
     summer_mode_building_heat_buffer = gauge(1751, 0.1, nan=UNAVAILABLE, unit="°C")
@@ -675,21 +675,21 @@ class WpmExtendedEnergyManagementSettings(Component):
     register_space = "holding"
     register_ranges = WPM_HOLDING_RANGES
 
-    sg_ready_enabled = integer(4249, signed=False, nan=UNAVAILABLE, writable=True)
-    sg_ready_input = integer(4250, signed=False, nan=UNAVAILABLE, writable=True)
-    heating_buffer = integer(4251, signed=False, nan=UNAVAILABLE, writable=True)
-    load_temperature_hc1 = gauge(4253, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    load_temperature_hc2 = gauge(4254, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    load_temperature_dhw = gauge(4255, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    input_mode = integer(4257, signed=False, nan=UNAVAILABLE, writable=True)
-    power_limit = integer(4258, signed=False, nan=UNAVAILABLE, writable=True)
-    load_temperature_hc1_2 = gauge(4271, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    load_temperature_hc2_2 = gauge(4272, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    load_temperature_hc3 = gauge(4273, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    load_temperature_hc4 = gauge(4274, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    load_temperature_hc5 = gauge(4275, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    load_temperature_buffer = gauge(4276, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    load_temperature_dhw_2 = gauge(4277, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    sg_ready_enabled = integer(4249, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 65535))
+    sg_ready_input = integer(4250, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 65535))
+    heating_buffer = integer(4251, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 65535))
+    load_temperature_hc1 = gauge(4253, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    load_temperature_hc2 = gauge(4254, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    load_temperature_dhw = gauge(4255, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    input_mode = integer(4257, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 65535))
+    power_limit = integer(4258, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 65535))
+    load_temperature_hc1_2 = gauge(4271, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    load_temperature_hc2_2 = gauge(4272, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    load_temperature_hc3 = gauge(4273, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    load_temperature_hc4 = gauge(4274, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    load_temperature_hc5 = gauge(4275, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    load_temperature_buffer = gauge(4276, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    load_temperature_dhw_2 = gauge(4277, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
 
 
 class WpmExtendedEnergySystemInformation(Component):
@@ -756,10 +756,10 @@ class WpmVentilationParameters(Component):
     register_space = "holding"
     register_ranges = WPM_HOLDING_RANGES
 
-    ventilation_stage_comfort = integer(1769, signed=False, nan=UNAVAILABLE, writable=in_range(0, 3))
-    ventilation_stage_eco = integer(1770, signed=False, nan=UNAVAILABLE, writable=in_range(0, 3))
-    ventilation_stage_standby = integer(1771, signed=False, nan=UNAVAILABLE, writable=in_range(0, 3))
-    intensive_ventilation_duration = integer(1772, signed=False, nan=UNAVAILABLE, writable=True)
+    ventilation_stage_comfort = integer(1769, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 3))
+    ventilation_stage_eco = integer(1770, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 3))
+    ventilation_stage_standby = integer(1771, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 3))
+    intensive_ventilation_duration = integer(1772, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 65535))
 
 
 class WpmStiebelEltronAPI:

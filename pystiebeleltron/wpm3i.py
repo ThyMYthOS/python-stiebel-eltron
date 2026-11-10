@@ -5,7 +5,7 @@ from __future__ import annotations
 from modbus_connection import ModbusUnit
 from modbus_connection.model import Component, Raw, boolean, gauge, integer
 
-from . import UNAVAILABLE, in_range, scaled_sum
+from . import UNAVAILABLE, in_range, scaled_sum, whole_in_range
 from ._components import ControllerComponents
 from ._day_and_total import DayAndTotalCounter
 
@@ -58,7 +58,7 @@ class Wpm3iSystemParameters(Component):
     register_space = "holding"
     register_ranges = WPM3I_HOLDING_RANGES
 
-    operating_mode = integer(1500, signed=False, nan=UNAVAILABLE, writable=in_range(0, 5))
+    operating_mode = integer(1500, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 5))
     comfort_temperature_hk_1 = gauge(1501, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(5, 30))
     eco_temperature_hk_1 = gauge(1502, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(5, 30))
     heating_curve_rise_hk_1 = gauge(1503, 0.01, nan=UNAVAILABLE, writable=in_range(0, 3))
@@ -69,7 +69,7 @@ class Wpm3iSystemParameters(Component):
     dual_mode_temp_hzg = gauge(1508, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-40, 40))
     comfort_temperature_dhw = gauge(1509, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 60))
     eco_temperature_dhw = gauge(1510, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 60))
-    dhw_stages = integer(1511, signed=False, nan=UNAVAILABLE, writable=in_range(0, 6))
+    dhw_stages = integer(1511, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 6))
     dual_mode_temp_ww = gauge(1512, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-40, 40))
     set_flow_temperature_area = gauge(1513, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(7, 25))
     flow_temp_hysteresis_area = gauge(1514, 0.1, nan=UNAVAILABLE, unit="K", writable=in_range(1, 5))
@@ -77,8 +77,8 @@ class Wpm3iSystemParameters(Component):
     set_flow_temperature_fan = gauge(1516, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(7, 25))
     flow_temp_hysteresis_fan = gauge(1517, 0.1, nan=UNAVAILABLE, unit="K", writable=in_range(1, 5))
     set_room_temperature_fan = gauge(1518, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(20, 30))
-    reset = integer(1519, signed=False, nan=UNAVAILABLE, writable=in_range(1, 3))
-    restart_isg = integer(1520, signed=False, nan=UNAVAILABLE, writable=in_range(0, 2))
+    reset = integer(1519, signed=False, nan=UNAVAILABLE, writable=whole_in_range(1, 3))
+    restart_isg = integer(1520, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 2))
 
 
 class Wpm3iSystemState(Component):
@@ -162,9 +162,9 @@ class Wpm3iEnergyManagementSettings(Component):
     register_space = "holding"
     register_ranges = WPM3I_HOLDING_RANGES
 
-    switch_sg_ready_on_and_off = boolean(4000, nan=UNAVAILABLE, writable=in_range(0, 1))
-    sg_ready_input_1 = boolean(4001, nan=UNAVAILABLE, writable=in_range(0, 1))
-    sg_ready_input_2 = boolean(4002, nan=UNAVAILABLE, writable=in_range(0, 1))
+    switch_sg_ready_on_and_off = boolean(4000, nan=UNAVAILABLE, writable=whole_in_range(0, 1))
+    sg_ready_input_1 = boolean(4001, nan=UNAVAILABLE, writable=whole_in_range(0, 1))
+    sg_ready_input_2 = boolean(4002, nan=UNAVAILABLE, writable=whole_in_range(0, 1))
 
 
 class Wpm3iEnergySystemInformation(Component):

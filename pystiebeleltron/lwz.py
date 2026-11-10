@@ -7,7 +7,7 @@ from enum import Enum
 from modbus_connection import ModbusUnit
 from modbus_connection.model import Component, Raw, boolean, gauge, integer
 
-from . import UNAVAILABLE, in_range, scaled_sum
+from . import UNAVAILABLE, in_range, scaled_sum, whole_in_range
 from ._components import ControllerComponents
 from ._day_and_total import DayAndTotalCounter
 
@@ -80,7 +80,7 @@ class LwzSystemParameters(Component):
     register_space = "holding"
     register_ranges = LWZ_HOLDING_RANGES
 
-    operating_mode = integer(1000, signed=False, nan=UNAVAILABLE, writable=in_range(0, 14))
+    operating_mode = integer(1000, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 14))
     room_temperature_day_hk1 = gauge(1001, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 30))
     room_temperature_night_hk1 = gauge(1002, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 30))
     manual_hc_set_hk1 = gauge(1003, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 65))
@@ -94,19 +94,19 @@ class LwzSystemParameters(Component):
     dhw_set_day = gauge(1011, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 65))
     dhw_set_night = gauge(1012, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 65))
     dhw_set_manual = gauge(1013, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 65))
-    mwm_set_day = integer(1014, signed=False, nan=UNAVAILABLE, unit="l", writable=in_range(50, 288))
-    mwm_set_night = integer(1015, signed=False, nan=UNAVAILABLE, unit="l", writable=in_range(50, 288))
-    mwm_set_manual = integer(1016, signed=False, nan=UNAVAILABLE, unit="l", writable=in_range(50, 288))
-    day_stage = integer(1017, signed=False, nan=UNAVAILABLE, writable=in_range(0, 3))
-    night_stage = integer(1018, signed=False, nan=UNAVAILABLE, writable=in_range(0, 3))
-    party_stage = integer(1019, signed=False, nan=UNAVAILABLE, writable=in_range(0, 3))
-    manual_stage = integer(1020, signed=False, nan=UNAVAILABLE, writable=in_range(0, 3))
+    mwm_set_day = integer(1014, signed=False, nan=UNAVAILABLE, unit="l", writable=whole_in_range(50, 288))
+    mwm_set_night = integer(1015, signed=False, nan=UNAVAILABLE, unit="l", writable=whole_in_range(50, 288))
+    mwm_set_manual = integer(1016, signed=False, nan=UNAVAILABLE, unit="l", writable=whole_in_range(50, 288))
+    day_stage = integer(1017, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 3))
+    night_stage = integer(1018, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 3))
+    party_stage = integer(1019, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 3))
+    manual_stage = integer(1020, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 3))
     room_temperature_day_hk1_cooling = gauge(1021, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 30))
     room_temperature_night_hk1_cooling = gauge(1022, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 30))
     room_temperature_day_hk2_cooling = gauge(1023, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 30))
     room_temperature_night_hk2_cooling = gauge(1024, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(10, 30))
-    reset = boolean(1025, nan=UNAVAILABLE, writable=in_range(0, 1))
-    restart_isg = integer(1026, signed=False, nan=UNAVAILABLE, writable=in_range(0, 2))
+    reset = boolean(1025, nan=UNAVAILABLE, writable=whole_in_range(0, 1))
+    restart_isg = integer(1026, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 2))
 
 
 class LwzSystemState(Component):
@@ -217,9 +217,9 @@ class LwzEnergyManagementSettings(Component):
     register_space = "holding"
     register_ranges = LWZ_HOLDING_RANGES
 
-    switch_sg_ready_on_and_off = boolean(4000, nan=UNAVAILABLE, writable=in_range(0, 1))
-    sg_ready_input_1 = boolean(4001, nan=UNAVAILABLE, writable=in_range(0, 1))
-    sg_ready_input_2 = boolean(4002, nan=UNAVAILABLE, writable=in_range(0, 1))
+    switch_sg_ready_on_and_off = boolean(4000, nan=UNAVAILABLE, writable=whole_in_range(0, 1))
+    sg_ready_input_1 = boolean(4001, nan=UNAVAILABLE, writable=whole_in_range(0, 1))
+    sg_ready_input_2 = boolean(4002, nan=UNAVAILABLE, writable=whole_in_range(0, 1))
 
 
 class LwzEnergySystemInformation(Component):
@@ -268,22 +268,22 @@ class LwzExtendedEnergyManagementSettings(Component):
     register_space = "holding"
     register_ranges = LWZ_HOLDING_RANGES
 
-    sg_ready_enabled = integer(4249, signed=False, nan=UNAVAILABLE, writable=True)
-    sg_ready_input = integer(4250, signed=False, nan=UNAVAILABLE, writable=True)
-    heating_buffer = integer(4251, signed=False, nan=UNAVAILABLE, writable=True)
-    load_temperature_hc1 = gauge(4253, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    load_temperature_hc2 = gauge(4254, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    load_temperature_dhw = gauge(4255, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    sg_ready_enabled = integer(4249, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 65535))
+    sg_ready_input = integer(4250, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 65535))
+    heating_buffer = integer(4251, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 65535))
+    load_temperature_hc1 = gauge(4253, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    load_temperature_hc2 = gauge(4254, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    load_temperature_dhw = gauge(4255, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
     power_consumption_control = boolean(4256, nan=UNAVAILABLE)
-    input_mode = integer(4257, signed=False, nan=UNAVAILABLE, writable=True)
-    power_limit = integer(4258, signed=False, nan=UNAVAILABLE, writable=True)
-    load_temperature_hc1_2 = gauge(4271, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    load_temperature_hc2_2 = gauge(4272, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    load_temperature_hc3 = gauge(4273, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    load_temperature_hc4 = gauge(4274, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    load_temperature_hc5 = gauge(4275, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    load_temperature_buffer = gauge(4276, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
-    load_temperature_dhw_2 = gauge(4277, 0.1, nan=UNAVAILABLE, unit="°C", writable=True)
+    input_mode = integer(4257, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 65535))
+    power_limit = integer(4258, signed=False, nan=UNAVAILABLE, writable=whole_in_range(0, 65535))
+    load_temperature_hc1_2 = gauge(4271, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    load_temperature_hc2_2 = gauge(4272, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    load_temperature_hc3 = gauge(4273, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    load_temperature_hc4 = gauge(4274, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    load_temperature_hc5 = gauge(4275, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    load_temperature_buffer = gauge(4276, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
+    load_temperature_dhw_2 = gauge(4277, 0.1, nan=UNAVAILABLE, unit="°C", writable=in_range(-3276.7, 3276.7))
 
 
 class LwzExtendedEnergySystemInformation(Component):

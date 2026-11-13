@@ -29,7 +29,7 @@ Modbus address,Object designation ,WPMsystem,WPM 3,WPM 3i,Comments,Min. value,Ma
 1557,COMFORT TEMPERATURE,x,,,Heating circuit 5,,,2,°C,r/w,HK 5
 1558,ECO TEMPERATURE,x,,,Heating circuit 5,,,2,°C,r/w,HK 5
 1559,HEATING CURVE RISE,x,,,Heating circuit 5,,,7,,r/w,HK 5
-1604,SET TEMPERATURE CC 1,x,,,Set room temperature cooling circuit 1,,,2,°C,r/w,HK 1
+1604,SET TEMPERATURE CC 1,x,,,Set room temperature cooling circuit 1. Write verified on a THZ 7.1 (25 to 26 degC and back; register 604 followed at once),,,2,°C,r/w,HK 1
 1605,SET TEMPERATURE CC 2,x,,,Set room temperature cooling circuit 2,,,2,°C,r/w,HK 2
 1606,SET TEMPERATURE CC 3,x,,,Set room temperature cooling circuit 3,,,2,°C,r/w,HK 3
 1607,SET TEMPERATURE CC 4,x,,,Set room temperature cooling circuit 4,,,2,°C,r/w,HK 4

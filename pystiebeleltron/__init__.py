@@ -57,6 +57,24 @@ def in_range(minimum: float, maximum: float) -> WriteValidator:
     return validate
 
 
+def whole_in_range(minimum: int, maximum: int) -> WriteValidator:
+    """:func:`in_range` for a register that holds a whole number.
+
+    Such a field encodes with ``int()``, which drops a fraction without a word:
+    1.9 would reach the controller as 1. A value like 2.0 is a whole number and
+    passes through unchanged.
+    """
+    in_bounds = in_range(minimum, maximum)
+
+    def validate(value: Any) -> Any:
+        value = in_bounds(value)
+        if value != int(value):
+            raise ValueError(f"{value} is not a whole number")
+        return value
+
+    return validate
+
+
 class StiebelEltronModbusError(Exception):
     """Exception during modbus communication."""
 

@@ -31,6 +31,6 @@ Address",Object designation,LWZ,LWA,Comments,Min. value,Max. value,Data type,Uni
 29,HIGH PRESSURE,x,x,,0,50,7,bar,r,
 30,LOW PRESSURE,x,x,,0,25,7,bar,r,
 31,COMPRESSOR STARTS,x,x,,0,65535,6,,r,HI
-32,COMPRESSOR SPEED,x,,only for LWZ 504,0,240,2,Hz,r,
+32,COMPRESSOR SPEED,x,,only for LWZ 504; documented as data type 2 but a THZ 5.5 eco and a THZ 5.5 cool both read integer Hz (raw 20 while the ISG shows 20 Hz),0,240,6,Hz,r,
 33,MIXED WATER AMOUNT,x,,only for LWZ 504,0,65535,6,l,r,
 34,COMPRESSOR STARTS,x,x,,0,65535,6,,r,LOW

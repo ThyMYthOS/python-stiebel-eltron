@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 
 import pytest
+from modbus_connection import ModbusConnectionError
 from modbus_connection.mock import MockModbusConnection, MockModbusUnit
 
 spec = importlib.util.spec_from_file_location("probe_script", Path(__file__).parents[1] / "scripts/probe.py")
@@ -45,5 +46,28 @@ async def test_slow_close_does_not_outlast_the_limit(monkeypatch: pytest.MonkeyP
     start = time.monotonic()
     assert await script._run(args, output) == 0
     assert time.monotonic() - start < 2
+    assert connection.close_started
+    assert '"poll": "wpm3i"' in output.getvalue()
+
+
+class FailingCloseConnection(SlowClosingConnection):
+    """A connection whose close fails with a connection error."""
+
+    async def close(self) -> None:
+        self.close_started = True
+        raise ModbusConnectionError("connection lost")
+
+
+@pytest.mark.asyncio
+async def test_failed_close_keeps_the_report(monkeypatch: pytest.MonkeyPatch) -> None:
+    connection = FailingCloseConnection(delay=0)
+
+    async def connect(args: argparse.Namespace) -> FailingCloseConnection:
+        return connection
+
+    monkeypatch.setattr(script, "connect_from_args", connect)
+    args = argparse.Namespace(unit=1, poll="wpm3i", maps=None, max_duration=0.2)
+    output = io.StringIO()
+    assert await script._run(args, output) == 0
     assert connection.close_started
     assert '"poll": "wpm3i"' in output.getvalue()

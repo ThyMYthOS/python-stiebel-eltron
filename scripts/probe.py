@@ -62,6 +62,9 @@ async def _close(connection: Any, timeout: float) -> None:
         await asyncio.wait_for(connection.close(), timeout=timeout)
     except TimeoutError:
         print("Closing the connection took too long; leaving it to exit.", file=sys.stderr)
+    except ModbusError as err:
+        # The report is complete at this point; a failed close must not discard it.
+        print(f"Closing the connection failed: {type(err).__name__}", file=sys.stderr)
 
 
 async def _run(args: argparse.Namespace, output: object) -> int:

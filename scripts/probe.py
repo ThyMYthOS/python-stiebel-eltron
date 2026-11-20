@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import math
 import sys
 from pathlib import Path
 from typing import Any
@@ -43,6 +44,17 @@ _FAMILY = {
 }
 
 
+def _duration(text: str) -> float:
+    """Parse ``--max-duration``; inf or nan would remove the time bound."""
+    try:
+        value = float(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a number: {text!r}") from None
+    if not math.isfinite(value) or value <= 0:
+        raise argparse.ArgumentTypeError(f"must be a finite number of seconds above 0, not {text!r}")
+    return value
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     summary = __doc__.splitlines()[0] if __doc__ else "Probe a Stiebel Eltron ISG."
     parser = argparse.ArgumentParser(description=summary)
@@ -52,8 +64,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--maps", nargs="+", choices=sorted(REGISTER_MAPS), help="register maps to read singly (default: the polled family)")
     parser.add_argument("--poll", choices=(*sorted(REGISTER_MAPS), "none"), help="family to poll once (default: detected)")
     parser.add_argument("--output", type=Path, default=Path("isg-probe-report.json"), help="report file; an existing file is never overwritten")
-    parser.add_argument("--max-duration", type=float, default=ProbeLimits.max_duration, help="stop after this many seconds")
-    return parser.parse_args(argv)
+    parser.add_argument("--max-duration", type=_duration, default=ProbeLimits.max_duration, help="stop after this many seconds")
+    args = parser.parse_args(argv)
+    if args.poll == "none" and not args.maps:
+        # Nothing would be read, and an empty report would look like a finished run.
+        parser.error("--poll none needs --maps")
+    return args
 
 
 async def _close(connection: Any, timeout: float) -> None:
@@ -109,19 +125,23 @@ async def _run(args: argparse.Namespace, output: object) -> int:
     return 0
 
 
-def main() -> int:
-    args = _parse_args()
+def main(argv: list[str] | None = None) -> int:
+    args = _parse_args(argv)
     # Refuse an existing file before contacting the device.
     try:
         output = args.output.open("x", encoding="utf-8")
     except OSError:
         print(f"Cannot create {args.output}; choose a new --output path.", file=sys.stderr)
         return 1
-    with output:
-        code = asyncio.run(_run(args, output))
-    if code:
-        args.output.unlink()
-    else:
+    code = 1
+    try:
+        with output:
+            code = asyncio.run(_run(args, output))
+    finally:
+        # A failed or interrupted run leaves no partial report behind.
+        if code:
+            args.output.unlink(missing_ok=True)
+    if not code:
         print(f"Report saved to {args.output}")
     return code
 

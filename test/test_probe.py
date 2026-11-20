@@ -199,3 +199,10 @@ async def test_pause_never_outlasts_the_time_limit() -> None:
     report = await probe(mock_unit(), ["wpm3i"], limits=ProbeLimits(max_duration=1.0, pause=0.4), sleep=fake_sleep, clock=lambda: now[0])
     assert report.status == "stopped_at_time_limit"
     assert pauses == [0.4, 0.4, pytest.approx(0.2)]
+
+
+@pytest.mark.parametrize("field", ["max_duration", "pause"])
+@pytest.mark.parametrize("value", [float("inf"), float("nan"), -1.0])
+def test_limits_reject_unbounded_or_negative_times(field: str, value: float) -> None:
+    with pytest.raises(ValueError, match=field):
+        ProbeLimits(**{field: value})

@@ -71,3 +71,34 @@ async def test_failed_close_keeps_the_report(monkeypatch: pytest.MonkeyPatch) ->
     assert await script._run(args, output) == 0
     assert connection.close_started
     assert '"poll": "wpm3i"' in output.getvalue()
+
+
+@pytest.mark.parametrize("value", ["inf", "nan", "0", "-5", "soon"])
+def test_max_duration_must_be_finite_and_positive(value: str) -> None:
+    with pytest.raises(SystemExit):
+        script._parse_args(["192.0.2.1", "--max-duration", value])
+
+
+def test_poll_none_needs_maps() -> None:
+    with pytest.raises(SystemExit):
+        script._parse_args(["192.0.2.1", "--poll", "none"])
+    assert script._parse_args(["192.0.2.1", "--poll", "none", "--maps", "wpm3i"]).maps == ["wpm3i"]
+
+
+def test_run_that_raises_leaves_no_report(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    async def crash(args: argparse.Namespace, output: object) -> int:
+        output.write("{")  # type: ignore[attr-defined]
+        raise KeyError("new controller model")
+
+    monkeypatch.setattr(script, "_run", crash)
+    report = tmp_path / "report.json"
+    with pytest.raises(KeyError):
+        script.main(["192.0.2.1", "--output", str(report)])
+    assert not report.exists()
+
+
+def test_existing_report_is_kept_when_creating_fails(tmp_path: Path) -> None:
+    report = tmp_path / "report.json"
+    report.write_text("earlier run", encoding="utf-8")
+    assert script.main(["192.0.2.1", "--output", str(report)]) == 1
+    assert report.read_text(encoding="utf-8") == "earlier run"

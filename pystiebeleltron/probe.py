@@ -22,6 +22,7 @@ only. ``max_duration`` still bounds it.
 from __future__ import annotations
 
 import asyncio
+import math
 import time
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
@@ -65,6 +66,13 @@ class ProbeLimits:
     max_consecutive_transport_errors: int = 3
     # Pause between single reads, so the probe never floods the ISG.
     pause: float = 0.2
+
+    def __post_init__(self) -> None:
+        # inf would remove the time bound; nan makes every deadline check false.
+        if not math.isfinite(self.max_duration) or self.max_duration < 0:
+            raise ValueError(f"max_duration must be a finite number of seconds, not {self.max_duration}")
+        if not math.isfinite(self.pause) or self.pause < 0:
+            raise ValueError(f"pause must be a finite number of seconds, not {self.pause}")
 
 
 @dataclass
